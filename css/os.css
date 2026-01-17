@@ -50,13 +50,6 @@ body {
     box-shadow: none;
 }
 
-#os-root.fullscreen-mode .status-bar {
-    /* visible by default */
-}
-
-#os-root.fullscreen-mode .dynamic-island {
-    /* visible by default */
-}
 
 #os-root.fullscreen-mode .desktop-container {
     padding-top: 0;
@@ -849,6 +842,106 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
+
+/* --- Global UI Components --- */
+
+/* App Window Base */
+.app-window {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    overflow: hidden;
+}
+
+.app-window.active {
+    transform: translateY(0);
+}
+
+/* iOS Toggle Switch */
+.ios-switch {
+    width: 51px;
+    height: 31px;
+    background: #39393d;
+    border-radius: 15.5px;
+    position: relative;
+    transition: background 0.3s;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.ios-switch.on {
+    background: #34c759;
+}
+
+.ios-switch .switch-knob {
+    width: 27px;
+    height: 27px;
+    background: #fff;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: left 0.3s;
+}
+
+.ios-switch.on .switch-knob {
+    left: 22px;
+}
+
+/* iOS Slider */
+.ios-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 36px;
+    background: #1c1c1e;
+    border-radius: 10px;
+    outline: none;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.ios-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+/* Light Mode Overrides for Global UI */
+#os-root.light-mode .app-window {
+    background-color: #f2f2f7 !important;
+}
+
+#os-root.light-mode .ios-switch {
+    background: #e9e9ea;
+}
+
+#os-root.light-mode .ios-switch.on {
+    background: #34c759;
+}
+
+#os-root.light-mode .ios-slider {
+    background: #e5e5ea;
+}
+
+#os-root.light-mode .ios-slider::-webkit-slider-thumb {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
 .hidden {
     display: none;
 }
@@ -1186,10 +1279,6 @@ body {
 }
 
 /* --- Fullscreen Overrides --- */
-#os-root.fullscreen-mode .status-bar,
-#os-root.fullscreen-mode .dynamic-island {
-    /* removed forced display: flex !important to allow toggles to work */
-}
 
 #os-root.fullscreen-mode .settings-header {
     padding-top: 54px !important;
@@ -1204,27 +1293,5 @@ body {
 #os-root.fullscreen-mode .polaroid-row {
     margin-top: 100px !important;
 }
-/* --- Appearance Settings Select --- */
-.appearance-select {
-    padding: 4px; 
-    border-radius: 6px; 
-    font-size: 13px; 
-    height: 26px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    outline: none;
-}
 
-.appearance-select option {
-    background: #1c1c1e;
-    color: white;
-}
-
-#os-root.light-mode .appearance-select,
-#os-root.light-theme .appearance-select {
-    background: #fff;
-    border: 1px solid #e5e5ea;
-    color: #000;
-}
-
+/* --- End of OS Core --- */

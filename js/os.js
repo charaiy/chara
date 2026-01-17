@@ -453,10 +453,10 @@ class CharaOS {
         // Check if exists
         let app = document.getElementById('app-settings');
         if (!app) {
-            // 使用 SettingsApp 模块渲染
-            app = window.SettingsApp.render();
-            document.getElementById('os-root').appendChild(app);
-            window.SettingsApp.bindEvents(app, () => this.closeActiveApp());
+            // 使用 SettingsApp 模块初始化
+            const container = document.getElementById('os-root');
+            window.SettingsApp.init(container, () => this.closeActiveApp());
+            app = document.getElementById('app-settings');
         }
 
         // Animate In with slight delay to ensure DOM paint

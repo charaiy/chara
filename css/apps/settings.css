@@ -1,6 +1,5 @@
 /* ===========================
-   Settings App Styles
-   (Extracted from apps.css)
+   Settings App Styles (V2 Refactored)
    =========================== */
 
 /* --- Settings Main Structure --- */
@@ -9,7 +8,6 @@
     background: #000;
     position: relative;
     z-index: 100;
-    /* Sticky Effect support */
 }
 
 .settings-nav {
@@ -20,7 +18,6 @@
     margin-bottom: 15px;
     padding: 0 16px;
     height: 44px;
-    /* Standard iOS nav height */
 }
 
 .settings-back {
@@ -89,16 +86,14 @@
     display: flex;
     align-items: center;
     padding: 12px 16px;
-    /* border-bottom: none; Handled by pseudo */
     color: #fff;
     font-size: 17px;
     cursor: pointer;
     position: relative;
     min-height: 44px;
-    /* Standard Height */
 }
 
-/* Inner separator for dark mode */
+/* Inner separator */
 .settings-item::after {
     content: '';
     position: absolute;
@@ -166,7 +161,6 @@
     font-size: 16px;
 }
 
-/* Section Title */
 .settings-section-title {
     padding: 0 16px 8px 16px;
     font-size: 13px;
@@ -176,38 +170,7 @@
     margin-top: 25px;
 }
 
-/* --- Common Inputs & Switch --- */
-.ios-switch {
-    width: 51px;
-    height: 31px;
-    background: #39393d;
-    border-radius: 15.5px;
-    position: relative;
-    transition: background 0.3s;
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-.ios-switch.on {
-    background: #34c759;
-}
-
-.ios-switch .switch-knob {
-    width: 27px;
-    height: 27px;
-    background: #fff;
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: left 0.3s;
-}
-
-.ios-switch.on .switch-knob {
-    left: 22px;
-}
-
+/* --- Settings Inputs --- */
 .settings-input {
     border: none;
     background: transparent;
@@ -219,7 +182,6 @@
     outline: none;
     color-scheme: dark;
     width: 100%;
-    /* Ensure it takes available space */
 }
 
 .settings-input:focus {
@@ -242,6 +204,23 @@
     outline: none;
 }
 
+/* --- Appearance Specific --- */
+.appearance-select {
+    padding: 4px;
+    border-radius: 6px;
+    font-size: 13px;
+    height: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    outline: none;
+}
+
+.appearance-select option {
+    background: #1c1c1e;
+    color: white;
+}
+
 /* --- Sub-Pages (Slide in) --- */
 .profile-page,
 .settings-page,
@@ -249,7 +228,10 @@
 .bluetooth-page,
 .cellular-page,
 .hotspot-page,
-.chat-page {
+.chat-page,
+.appearance-page,
+.notification-page,
+.font-page {
     position: absolute;
     top: 0;
     left: 0;
@@ -269,12 +251,15 @@
 .bluetooth-page.active,
 .cellular-page.active,
 .hotspot-page.active,
-.chat-page.active {
+.chat-page.active,
+.appearance-page.active,
+.notification-page.active,
+.font-page.active {
     transform: translateX(0);
 }
 
+/* --- Profile Styling --- */
 .profile-header {
-    /* Same as settings-header basically */
     padding: 50px 20px 25px 20px;
     background: #000;
     text-align: center;
@@ -325,11 +310,6 @@
     scrollbar-width: none;
 }
 
-.profile-content::-webkit-scrollbar {
-    display: none;
-}
-
-/* Profile Row in Main Settings */
 .profile-row {
     display: flex;
     align-items: center;
@@ -393,16 +373,12 @@
     background: #2c2c2e;
 }
 
-/* --- Font Settings Specific --- */
+/* --- Font Settings --- */
 .font-settings-wrapper {
     background: #000;
     display: flex;
     flex-direction: column;
     height: 100%;
-}
-
-.font-page-content {
-    padding: 20px 16px;
 }
 
 .font-form-group {
@@ -476,12 +452,6 @@
     outline: none;
 }
 
-.font-file-icon {
-    color: #007aff;
-    cursor: pointer;
-    padding: 4px;
-}
-
 .font-preview-box {
     min-height: 80px;
     display: flex;
@@ -496,40 +466,40 @@
     padding: 15px;
 }
 
-.font-main-btn {
-    width: 100%;
-    padding: 14px;
-    border-radius: 12px;
-    border: none;
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    cursor: pointer;
+/* --- Unified Action Buttons (Save/Apply) --- */
+.settings-header [id$="-save"],
+.settings-header [id$="-save-btn"],
+.settings-header .settings-action,
+[id^="btn-apply-font"] {
+    background: none !important;
+    border: none !important;
+    color: #007aff !important;
+    font-weight: 600 !important;
+    font-size: 17px !important;
+    cursor: pointer !important;
+    padding: 10px 0 !important;
+    min-width: 60px !important;
+    text-align: right !important;
 }
 
-.btn-primary {
-    background: #007aff;
-    color: white;
-}
+/* =========================================
+   Light Mode Overrides (Settings App Only)
+   ========================================= */
 
-.btn-secondary {
-    background: #2c2c2e;
-    color: #007aff;
-}
-
-
-/* --- Light Mode Overrides (iOS Style) --- */
-#os-root.light-mode .settings-page,
+#os-root.light-mode .settings-header,
+#os-root.light-mode .profile-header,
+#os-root.light-mode .settings-content,
+#os-root.light-mode .profile-content,
 #os-root.light-mode .profile-page,
+#os-root.light-mode .settings-page,
 #os-root.light-mode .wifi-page,
 #os-root.light-mode .bluetooth-page,
 #os-root.light-mode .cellular-page,
 #os-root.light-mode .hotspot-page,
 #os-root.light-mode .chat-page,
-#os-root.light-mode .settings-header,
-#os-root.light-mode .profile-header,
-#os-root.light-mode .settings-content,
-#os-root.light-mode .profile-content {
+#os-root.light-mode .appearance-page,
+#os-root.light-mode .notification-page,
+#os-root.light-mode .font-page {
     background-color: #f2f2f7 !important;
 }
 
@@ -544,7 +514,7 @@
 }
 
 #os-root.light-mode .settings-item::after {
-    background-color: #c6c6c8;
+    background-color: #e5e5ea;
 }
 
 #os-root.light-mode .settings-item:active {
@@ -553,7 +523,8 @@
 
 #os-root.light-mode .settings-title,
 #os-root.light-mode .settings-label,
-#os-root.light-mode .profile-name {
+#os-root.light-mode .profile-name,
+#os-root.light-mode .profile-header-name {
     color: #000 !important;
 }
 
@@ -566,8 +537,15 @@
     color: #aeaeb2;
 }
 
-#os-root.light-mode .settings-value {
-    color: #8e8e93;
+#os-root.light-mode .settings-value,
+#os-root.light-mode .settings-section-title,
+#os-root.light-mode .profile-desc,
+#os-root.light-mode .profile-header-email {
+    color: #8e8e93 !important;
+}
+
+#os-root.light-mode .settings-chevron {
+    color: #c7c7cc;
 }
 
 #os-root.light-mode .profile-signout {
@@ -575,31 +553,16 @@
     color: #ff3b30;
 }
 
-#os-root.light-mode .profile-signout:active {
-    background-color: #e5e5ea;
-}
-
 #os-root.light-mode .settings-search {
     background-color: #e3e3e8;
 }
 
-#os-root.light-mode .settings-search input {
+#os-root.light-mode .appearance-select {
+    background: #fff;
+    border: 1px solid #e5e5ea;
     color: #000;
 }
 
-#os-root.light-mode .settings-section-title {
-    color: #6d6d72 !important;
-}
-
-#os-root.light-mode .ios-switch {
-    background: #e9e9ea;
-}
-
-#os-root.light-mode .ios-switch.on {
-    background: #34c759;
-}
-
-/* Font Page Light Mode */
 #os-root.light-mode .font-input-container,
 #os-root.light-mode .font-preview-box,
 #os-root.light-mode .font-select {
@@ -612,13 +575,12 @@
     color: #000;
 }
 
-#os-root.light-mode .btn-secondary {
-    background: #fff;
-    color: #007aff;
+/* Final touches: Remove top borders for cleaner iOS look */
+.settings-group:first-child {
+    margin-top: 0;
 }
 
-/* Force Dark Mode Override (e.g. for specific pages like Font if desired, though we supported light mode above) */
-.force-dark {
-    background-color: #000 !important;
-    color: #fff !important;
+#os-root.light-mode .settings-header[style*="background: rgba"] {
+    background: rgba(242, 242, 247, 0.9) !important;
+    backdrop-filter: saturate(180%) blur(20px);
 }

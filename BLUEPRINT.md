@@ -1,84 +1,189 @@
-# CharaOS 项目蓝图 (BLUEPRINT)
+# CharaOS (Ultimate Edition) - 系统架构蓝图
 
-## 1. 项目概述
-**项目名称**: CharaOS (Chara小手机)
-**核心目标**: 构建一个运行在浏览器中的高保真 iOS 仿真操作系统。核心应用为深度定制的“仿真微信”，集成 AI 角色扮演功能，同时包含微博、世界书等应用。
-**技术栈**: 原生 JavaScript (ES6+), Vanilla CSS (无框架), HTML5。
+## 1. 系统架构 (System Architecture)
 
-## 2. 目录结构 (Directory Structure)
-采用扁平化架构，核心系统文件位于 js/ 根目录，复杂应用独立文件夹。
+### 1.1 核心设计理念
+- **模块化 (Modularity)**: 强制分离关注点，UI 与 逻辑解耦。
+- **数据驱动 (Data-Driven)**: 所有状态变更通过统一的数据流处理。
+- **全知智能 (Omniscience)**: Siri 作为系统级守护进程，拥有最高权限读取核心数据。
 
-```text
+### 1.2 目录结构 (Directory Structure)
+
+```
 project_root/
-├── index.html               # 基础容器 (#os-root)
-├── css/                     # 样式层
-│   ├── os.css               # iOS 系统样式 (桌面, 灵动岛, 通知, 动画)
-│   ├── wechat.css           # 微信专用样式 (气泡, 朋友圈, 支付弹窗)
-│   └── apps.css             # 其他 App 通用样式
+├── index.html                   # 系统入口 (Bootloader)
+├── css/
+│   ├── os.css                   # 系统级样式 (Dock, StatusBar, Island, Notifications)
+│   ├── apps/
+│   │   ├── settings.css         # 设置应用独立样式
+│   │   ├── wechat.css           # 微信完整样式表
+│   │   ├── weibo.css
+│   │   ├── netease.css
+│   │   └── ...
+│   └── components/              # 通用组件样式
+│       ├── buttons.css
+│       ├── cards.css
+│       └── typography.css
 ├── js/
-│   ├── os.js                # OS 核心逻辑 (时间, 图标渲染, App 切换)
-│   ├── api.js               # LLM API 封装 (流式响应, Key 管理)
-│   ├── store.js             # 数据持久化 (LocalStorage 包装)
-│   ├── utils.js             # 工具函数 (时间格式化, 编码处理)
-│   ├── apps/                # 应用逻辑模块
-│   │   ├── wechat/          # 微信独立模块
-│   │   │   ├── main.js      # 入口与路由
-│   │   │   ├── chat.js      # 聊天渲染与发送
-│   │   │   ├── ai.js        # AI 核心 (Prompt, 记忆)
-│   │   │   └── data.js      # 数据管理 (好友, 朋友圈)
-│   │   ├── weibo.js         # 微博逻辑
-│   │   ├── worldbook.js     # 世界书逻辑
-│   │   └── settings.js      # 设置逻辑
-└── assets/                  # 静态资源 (禁止硬编码 Base64)
+│   ├── core/
+│   │   ├── os.js                # OS Kernel (任务调度, 窗口管理, 时间流)
+│   │   ├── siri.js              # [System Service] Siri 智能体核心
+│   │   ├── store.js             # 统一数据存储层 (IndexedDB/LocalStorage Wrapper)
+│   │   ├── api.js               # LLM Network Layer (OpenAI/Claude 适配器)
+│   │   └── event_bus.js         # 系统级事件总线 (Pub/Sub)
+│   ├── apps/
+│   │   ├── settings/            # [Refactor Target] 设置应用
+│   │   │   ├── index.js         # App Entry
+│   │   │   ├── router.js        # 设置内路由
+│   │   │   ├── api.js           # 设置相关数据接口
+│   │   │   ├── pages/           # 具体设置页逻辑
+│   │   │   │   ├── display.js
+│   │   │   │   ├── general.js
+│   │   │   │   ├── siri_cfg.js  # [NEW] Siri 设置
+│   │   │   │   └── about.js
+│   │   │   └── utils.js
+│   │   ├── wechat/              # [Core App] 模拟微信
+│   │   │   ├── services/        # 业务逻辑
+│   │   │   │   ├── chat.js      # 消息发送/接收
+│   │   │   │   ├── contacts.js  # 通讯录/关系网
+│   │   │   │   └── moments.js   # 朋友圈逻辑
+│   │   │   ├── ui/              # 视图层
+│   │   │   │   ├── bubbles.js   # 聊天气泡渲染
+│   │   │   │   ├── components.js
+│   │   │   │   └── views.js
+│   │   │   └── extensions/      # 插件系统
+│   │   │       ├── redpacket.js # 红包/转账
+│   │   │       └── voice_call.js# 语音通话模拟
+│   │   ├── character_phone/     # [Core App] 角色手机查看器
+│   │   │   ├── index.js
+│   │   │   └── viewer.js
+│   │   ├── music/               # 网易云音乐
+│   │   ├── offline/             # 线下活动模拟器
+│   │   └── worldbook/           # 世界书/图鉴
+│   └── utils/
+│       ├── dom.js               # 下层 DOM 操作封装
+│       └── helpers.js           # 通用工具函数
+└── assets/
+    ├── icons/
+    ├── wallpapers/
+    └── sounds/
 ```
 
-## 3. 功能需求详解 (Detailed Features)
+## 2. 数据结构定义 (Data Structures)
 
-### A. iOS 仿真桌面 (Desktop & System)
-- **布局**:
-  - 分页显示应用图标（支持网格布局）。
-  - **Dock 栏**: 底部毛玻璃悬浮，固定 4 个常用 App。
-  - **小组件**: 包含音乐播放器组件（封面、控制）。
-- **交互**: App 打开/关闭缩放动画，底部 HomeBar 手势。
-- **外观**: 支持深色/浅色模式，自定义壁纸。
+### 2.1 User (玩家/主控)
+```json
+{
+  "id": "user_001",
+  "name": "Admin",
+  "avatar": "assets/avatars/user.jpg",
+  "settings": {
+    "theme": "dark",
+    "fontSize": 16,
+    "wallpapers": {
+      "lock": "wp_01.jpg",
+      "home": "wp_02.jpg"
+    }
+  },
+  "wallet": {
+    "balance": 5000.00,
+    "transactions": []
+  }
+}
+```
 
-### B. 仿真微信 (WeChat - Core App)
-需像素级复刻 iOS 微信 UI。
-- **基础通讯**:
-  - 支持文本、表情、图片（上传）、语音（TTS）、视频（气泡+播放）。
-  - 消息撤回、引用回复、长按菜单。
-  - 特色功能：转账交互、拍一拍。
-- **AI 角色扮演 (The Soul)**:
-  - **酒馆卡导入**: 支持 Tavern Card (PNG/JSON)，必须处理 ArrayBuffer/UTF-8 防止乱码。
-  - **人设管理**: 修改头像、昵称、设定。
-  - **记忆系统**: 聊天记录总结，世界书词条检索。
-- **社交圈**:
-  - 朋友圈信息流（点赞、评论）。
-  - 通讯录（字母索引）。
+### 2.2 Character (NPC 角色)
+```json
+{
+  "id": "char_kafka_01",
+  "name": "Kafka",
+  "avatar": "assets/avatars/kafka.jpg",
+  "personality": {
+    "description": "优雅、神秘、喜爱听大提琴",
+    "traits": ["elegant", "mysterious"],
+    "voice_id": "v_kafka_01"
+  },
+  "relationships": {
+    "user_001": { "affinity": 50, "status": "friendly" },
+    "char_blade_02": { "affinity": 80, "status": "partner" }
+  },
+  "state": {
+    "mood": "calm",
+    "current_activity": "listening_music",
+    "location": "home"
+  },
+  "memory": {
+    "short_term": [],
+    "long_term": ["summary_001", "summary_002"]
+  }
+}
+```
 
-### C. 其他生态应用
-- **微博**: 热搜榜、个人主页、发帖。
-- **小剧场**: 文字剧情模式。
-- **世界书**: 词条查阅与编辑。
-- **淘宝**: 模拟电商活动页。
-- **游戏**: HTML5 小游戏容器。
+### 2.3 Message (统一消息格式)
+**CRITICAL**: `Character Phone` 功能依赖此结构的统一性。无论是 A 发给 B，还是 B 发给 A，都存储在同一个 Message 表中，仅通过 query 筛选。
 
-## 4. 技术约束 (Technical Constraints)
-1.  **代码规范**: 严禁面条代码，必须使用 `import/export` 模块化开发。
-2.  **资源管理**: 严禁将图片转为 Base64 硬编码在 JS 中，必须使用 `assets/` 或 `URL.createObjectURL`。
-3.  **编码安全**: 文件上传（如酒馆卡）必须显式指定编码（UTF-8），防止中文乱码。
-4.  **文档维护**: 持续维护 `BLUEPRINT.md` 作为项目真理来源。
+```json
+{
+  "id": "msg_uuid_v4",
+  "timestamp": 1705461600000,
+  "sender_id": "char_kafka_01",
+  "receiver_id": "user_001", // 或 group_id
+  "type": "text", // text, image, voice, video_call, red_packet, system
+  "content": {
+    "text": "最近有空吗？",
+    "src": null, // 图片或音频路径
+    "meta": null // 转账金额、通话时长等元数据
+  },
+  "status": "read", // sent, delivered, read
+  "context_id": "ctx_001" // 用于关联上下文摘要
+}
+```
 
-## 5. 执行计划 (Execution Plan)
+### 2.4 SiriState (系统智能体状态)
+```json
+{
+  "active": true,
+  "config": {
+    "personality_mode": "tsundere", // cold, gentle, tsundere, crazy
+    "wake_word": "Hey Siri",
+    "voice_enabled": true
+  },
+  "evolution": {
+    "level": 3,
+    "experience": 450, // 经验值，通过互动获取
+    "affinity": 60     // 好感度
+  },
+  "memory_access": {
+    "authorized_apps": ["wechat", "notes", "photos", "calendar"],
+    "last_scan": 1705462000000
+  }
+}
+```
 
-### Step 1: 蓝图与骨架 (Current)
-- 生成本蓝图文件。
-- 创建目录结构。
-- 实现 `index.html` 和 `css/os.css`。
+## 3. 开发路线图 (Development Roadmap)
 
-### Step 2: 核心系统
-- 实现 `js/os.js` (图标渲染, 音乐组件)。
-- 实现 `js/store.js` (数据层)。
+### Phase 1: Foundation & Refactoring (当前阶段)
+- [ ] **重构 Settings**: 将 4000+ 行 `settings.js` 拆分为模块化结构。
+- [ ] **建立 Core OS**: 完善 `os.js` 和 `store.js`，确保应用生命周期管理稳定。
+- [ ] **实现 Siri 设置**: 在设置中增加 Siri 配置页。
 
-### Step 3: 微信 UI 框架
-- 搭建微信 App 基础界面 (TabBar)。
+### Phase 2: The Social Web (微信核心)
+- [ ] **WeChat UI 复刻**: 1:1 还原 iOS 微信界面。
+- [ ] **消息系统**: 实现统一的消息存储与收发逻辑。
+- [ ] **角色手机 (Spy Mode)**: 实现基于 unified message store 的多视角查看器。
+
+### Phase 3: Soul & Intelligence (Siri 集成)
+- [ ] **Siri 唤醒与交互**: 实现长按触发、语音/文字输入界面。
+- [ ] **全知逻辑连接**: 编写 Siri 读取 `store.js` 数据的接口。
+- [ ] **LLM API 对接**: 对接实际的大模型接口，驱动角色回复和 Siri 思考。
+
+### Phase 4: Ecosystem Expansion (生态完善)
+- [ ] **朋友圈 (Moments)**: 基于关系网的动态生成。
+- [ ] **其他应用**: 网易云、微博、世界书。
+- [ ] **线下模式**: 图文冒险类交互。
+
+## 4. Immediate Tasks (执行清单)
+1.  备份现有 `js/apps/settings.js`。
+2.  创建 `js/apps/settings/` 下的子文件 (`index.js`, `router.js`, `pages/*.js`)。
+3.  迁移代码逻辑，同时清理无用代码。
+4.  更新 `index.html` 引入新的模块入口。
