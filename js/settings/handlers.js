@@ -3,13 +3,17 @@
  * 负责 Settings App 的各种事件处理和页面跳转逻辑
  */
 
-import { Service } from './state.js';
-import { renderProfilePageContent, renderWifiPageContent, renderBluetoothPageContent, renderCellularPageContent, renderHotspotPageContent, renderChatPageContent, renderFontPageDesignV5, renderAppearancePageContent, renderNotificationPageContent } from './ui_render.js';
+// 移除 import
+// import { Service } from './state.js';
+// import { render... } from './ui_render.js';
+
+// 定义全局命名空间
+window.SettingsHandlers = {};
 
 /**
  * 绑定设置页主界面事件
  */
-export function bindSettingsEvents(app, closeCallback) {
+window.SettingsHandlers.bindSettingsEvents = function (app, closeCallback) {
     // Back Button
     const backBtn = app.querySelector('#settings-back');
     if (backBtn) {
@@ -22,7 +26,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const profileRow = app.querySelector('.profile-row');
     if (profileRow) {
         profileRow.addEventListener('click', () => {
-            openProfilePage(app);
+            window.SettingsHandlers.openProfilePage(app);
         });
     }
 
@@ -71,7 +75,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const wifiItem = app.querySelector('[data-action="wifi-page"]');
     if (wifiItem) {
         wifiItem.addEventListener('click', () => {
-            openWifiPage(app);
+            window.SettingsHandlers.openWifiPage(app);
         });
     }
 
@@ -79,7 +83,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const bluetoothItem = app.querySelector('[data-action="bluetooth-page"]');
     if (bluetoothItem) {
         bluetoothItem.addEventListener('click', () => {
-            openBluetoothPage(app);
+            window.SettingsHandlers.openBluetoothPage(app);
         });
     }
 
@@ -87,7 +91,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const cellularItem = app.querySelector('[data-action="cellular-page"]');
     if (cellularItem) {
         cellularItem.addEventListener('click', () => {
-            openCellularPage(app);
+            window.SettingsHandlers.openCellularPage(app);
         });
     }
 
@@ -95,7 +99,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const hotspotItem = app.querySelector('[data-action="hotspot-page"]');
     if (hotspotItem) {
         hotspotItem.addEventListener('click', () => {
-            openHotspotPage(app);
+            window.SettingsHandlers.openHotspotPage(app);
         });
     }
 
@@ -103,7 +107,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const chatItem = app.querySelector('[data-action="chat-page"]');
     if (chatItem) {
         chatItem.addEventListener('click', () => {
-            openChatPage(app);
+            window.SettingsHandlers.openChatPage(app);
         });
     }
 
@@ -111,7 +115,7 @@ export function bindSettingsEvents(app, closeCallback) {
     const fontItem = app.querySelector('[data-action="font-page"]');
     if (fontItem) {
         fontItem.addEventListener('click', () => {
-            openFontPage(app);
+            window.SettingsHandlers.openFontPage(app);
         });
     }
 
@@ -119,15 +123,31 @@ export function bindSettingsEvents(app, closeCallback) {
     const appearanceItem = app.querySelector('[data-action="appearance-page"]');
     if (appearanceItem) {
         appearanceItem.addEventListener('click', () => {
-            openAppearancePage(app);
+            window.SettingsHandlers.openAppearancePage(app);
         });
     }
 
     // Notification Page (通知)
+    // Chara AI Page (Placeholder)
+    const charaAiItem = app.querySelector('[data-action="chara-ai-page"]');
+    if (charaAiItem) {
+        charaAiItem.addEventListener('click', () => {
+            alert('Chara AI 功能正在开发中，敬请期待！');
+        });
+    }
+
+    // Developer Page (Placeholder)
+    const devItem = app.querySelector('[data-action="developer-page"]');
+    if (devItem) {
+        devItem.addEventListener('click', () => {
+            alert('开发者选项暂未开放。');
+        });
+    }
+
     const notificationItem = app.querySelector('[data-action="notification-page"]');
     if (notificationItem) {
         notificationItem.addEventListener('click', () => {
-            openNotificationPage(app);
+            window.SettingsHandlers.openNotificationPage(app);
         });
     }
 }
@@ -135,14 +155,17 @@ export function bindSettingsEvents(app, closeCallback) {
 /**
  * 打开个人资料页
  */
-export function openProfilePage(settingsApp) {
+/**
+ * 打开个人资料页
+ */
+window.SettingsHandlers.openProfilePage = function (settingsApp) {
     let profilePage = settingsApp.querySelector('.profile-page');
     if (!profilePage) {
         profilePage = document.createElement('div');
         profilePage.className = 'profile-page';
-        profilePage.innerHTML = renderProfilePageContent();
+        profilePage.innerHTML = window.SettingsUI.renderProfilePageContent();
         settingsApp.appendChild(profilePage);
-        bindProfilePageEvents(profilePage);
+        window.SettingsHandlers.bindProfilePageEvents(profilePage);
     }
     requestAnimationFrame(() => {
         profilePage.classList.add('active');
@@ -152,7 +175,10 @@ export function openProfilePage(settingsApp) {
 /**
  * 绑定个人资料页事件
  */
-export function bindProfilePageEvents(profilePage) {
+/**
+ * 绑定个人资料页事件
+ */
+window.SettingsHandlers.bindProfilePageEvents = function (profilePage) {
     // 返回按钮
     const backBtn = profilePage.querySelector('#profile-back');
     if (backBtn) {
@@ -334,19 +360,324 @@ export function bindProfilePageEvents(profilePage) {
             }
         });
     }
+    // 数据管理事件绑定
+    window.SettingsHandlers.bindDataManagementEvents(profilePage);
 }
+
+/**
+ * 绑定数据管理部分事件 (Import/Export/Compress)
+ */
+window.SettingsHandlers.bindDataManagementEvents = function (page) {
+    const s = window.sysStore;
+
+    // 1. 压缩图片
+    const btnCompress = page.querySelector('#btn-compress-images');
+    if (btnCompress) {
+        btnCompress.addEventListener('click', async () => {
+            if (!confirm('⚠️ 压缩将降低所有本地已存储图片的质量以释放空间，此操作不可逆。\n确定继续吗？')) return;
+
+            btnCompress.innerText = '压缩中...';
+            try {
+                let savedSpace = 0;
+                for (let key in localStorage) {
+                    if (localStorage.hasOwnProperty(key)) {
+                        const val = localStorage[key];
+                        if (val && val.startsWith('data:image')) {
+                            const oldSize = val.length;
+                            // Attempt compress
+                            const img = new Image();
+                            img.src = val;
+                            await new Promise(r => img.onload = r);
+
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const max = 1024; // Limit max dimension
+                            let w = img.width;
+                            let h = img.height;
+                            if (w > max || h > max) {
+                                if (w > h) { h = Math.round(h * max / w); w = max; }
+                                else { w = Math.round(w * max / h); h = max; }
+                            }
+                            canvas.width = w;
+                            canvas.height = h;
+                            ctx.drawImage(img, 0, 0, w, h);
+
+                            // Compress
+                            const newVal = canvas.toDataURL('image/jpeg', 0.5);
+                            if (newVal.length < oldSize) {
+                                localStorage.setItem(key, newVal);
+                                savedSpace += (oldSize - newVal.length);
+                            }
+                        }
+                    }
+                }
+                const mb = (savedSpace / 1024 / 1024).toFixed(2);
+                alert(`✅ 压缩完成！共节省了 ${mb} MB 空间。`);
+                // Refresh size display
+                const sizeEl = page.querySelector('#local-img-size');
+                if (sizeEl) sizeEl.innerText = '计算中...';
+                // Recalculate - lazy reload or quick calc
+                setTimeout(() => {
+                    let total = 0;
+                    for (let k in localStorage) if (localStorage[k].startsWith('data:image')) total += localStorage[k].length;
+                    if (sizeEl) sizeEl.innerText = (total / 1024 / 1024).toFixed(2) + ' MB';
+                    btnCompress.innerText = '压缩';
+                }, 500);
+
+            } catch (e) {
+                alert('压缩出错: ' + e.message);
+                btnCompress.innerText = '压缩';
+            }
+        });
+    }
+
+    // 2. 导出数据
+    const btnExport = page.querySelector('#btn-export-data');
+    if (btnExport) {
+        btnExport.addEventListener('click', () => {
+            showExportModal();
+        });
+    }
+
+    // 3. 导入数据
+    const btnImport = page.querySelector('#btn-import-data');
+    if (btnImport) {
+        btnImport.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,.zip';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.name.endsWith('.zip')) {
+                    // ZIP Import
+                    if (!window.JSZip) { alert('JSZip 库未加载，无法解压 ZIP'); return; }
+                    try {
+                        const zip = new JSZip();
+                        const loadedZip = await zip.loadAsync(file);
+                        let count = 0;
+                        for (let filename in loadedZip.files) {
+                            if (!loadedZip.files[filename].dir) {
+                                const content = await loadedZip.files[filename].async('string');
+                                try {
+                                    const json = JSON.parse(content);
+                                    Object.keys(json).forEach(k => localStorage.setItem(k, json[k]));
+                                    count++;
+                                } catch (err) { console.error('Error parsing file in zip', filename, err); }
+                            }
+                        }
+                        alert(`✅ 成功导入了 ${count} 个数据切片！请刷新页面。`);
+                        location.reload();
+                    } catch (e) {
+                        alert('❌ 导入 ZIP 失败: ' + e.message);
+                    }
+                } else {
+                    // JSON Import
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if (typeof data !== 'object') throw new Error('Invalid JSON');
+
+                            if (confirm(`检测到备份文件，包含 ${Object.keys(data).length} 个键值对。\n导入将覆盖同名数据，确定导入吗？`)) {
+                                Object.keys(data).forEach(k => {
+                                    localStorage.setItem(k, data[k]);
+                                });
+                                alert('✅ 导入成功！'); // No reload mandated for basic json unless critical
+                                location.reload();
+                            }
+                        } catch (e) {
+                            alert('❌ 解析失败: ' + e.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        });
+    }
+
+    // ... 其他按钮 (Cleaning etc.) 可以在此扩展
+}
+
+// 辅助函数：显示导出模态框 (UI Style matching Screenshot)
+function showExportModal() {
+    // Check existing
+    if (document.querySelector('.action-sheet-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'action-sheet-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.4); z-index: 1000;
+        display: flex; flex-direction: column; justify-content: flex-end;
+        align-items: center; opacity: 0; transition: opacity 0.2s;
+    `;
+
+    const sheet = document.createElement('div');
+    sheet.style.cssText = `
+        background: #f2f2f7; width: 95%; max-width: 400px; border-radius: 14px;
+        margin-bottom: 30px; overflow: hidden; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        display: flex; flex-direction: column; gap: 1px;
+    `;
+    // Dark mode adjust
+    if (window.SettingsHandlers.isDarkMode()) {
+        sheet.style.background = '#1c1c1e';
+    }
+
+    const titleDiv = document.createElement('div');
+    titleDiv.innerText = '选择导出方式';
+    titleDiv.style.cssText = `
+        padding: 15px; text-align: center; color: #8e8e93; font-size: 13px; font-weight: 500;
+        background: rgba(255,255,255,0.8);
+    `;
+    if (window.SettingsHandlers.isDarkMode()) titleDiv.style.background = '#2c2c2e';
+
+    const createBtn = (text, onClick, isCancel = false, subtitle = '') => {
+        const btn = document.createElement('div');
+        btn.style.cssText = `
+            padding: 16px; text-align: center; font-size: 18px; color: ${isCancel ? '#007aff' : '#007aff'};
+            background: rgba(255,255,255,0.8); cursor: pointer; border-top: 1px solid rgba(0,0,0,0.1);
+        `;
+        if (window.SettingsHandlers.isDarkMode()) {
+            btn.style.background = '#2c2c2e';
+            btn.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+        }
+        if (isCancel) {
+            btn.style.marginTop = '8px';
+            btn.style.borderRadius = '14px';
+            btn.style.fontWeight = '600';
+            btn.style.background = window.SettingsHandlers.isDarkMode() ? '#2c2c2e' : '#fff';
+        }
+
+        if (subtitle) {
+            btn.innerHTML = `<div>${text}</div><div style="font-size:12px; color:#8e8e93; margin-top:2px;">${subtitle}</div>`;
+        } else {
+            btn.innerText = text;
+        }
+
+        btn.onclick = () => {
+            closeSheet();
+            if (onClick) onClick();
+        };
+        return btn;
+    };
+
+    // Options
+    const btnSplit = createBtn('分片导出 (推荐)', () => doExport('split'), false, '打包为 ZIP, 解压每个切片选择增量导入');
+    const btnSmart = createBtn('智能导出 (单个大文件)', () => doExport('smart'), false, '太大可能会导致导入不了');
+    const btnLegacy = createBtn('传统导出', () => doExport('legacy'), false, '兼容旧版或内存小的浏览器');
+    const btnCancel = createBtn('取消', null, true);
+
+    // Grouping
+    const groupMenu = document.createElement('div');
+    groupMenu.style.cssText = 'border-radius: 14px; overflow: hidden; display:flex; flex-direction:column;';
+
+    groupMenu.appendChild(titleDiv);
+    groupMenu.appendChild(btnSplit);
+    groupMenu.appendChild(btnSmart);
+    groupMenu.appendChild(btnLegacy);
+
+    sheet.style.background = 'transparent'; // Reset for gap layout
+    sheet.appendChild(groupMenu);
+    sheet.appendChild(btnCancel);
+
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+    });
+
+    function closeSheet() {
+        overlay.style.opacity = '0';
+        sheet.style.transform = 'translateY(100%)';
+        setTimeout(() => overlay.remove(), 300);
+    }
+}
+
+async function doExport(type) {
+    const data = { ...localStorage };
+
+    if (type === 'split') {
+        if (!window.JSZip) { alert('JSZip 尚未加载，请检查网络或刷新页面'); return; }
+        const zip = new JSZip();
+        // Split strategy: Group by functionality or size
+        // Simple strategy: Images in one folder, core settings in root, etc.
+        // Or chunk by size (e.g. 5MB chunks)
+
+        let chunkIndex = 0;
+        let currentChunk = {};
+        let currentSize = 0;
+        const LIMIT = 2 * 1024 * 1024; // 2MB per chunk
+
+        for (let key in data) {
+            const val = data[key];
+            const size = key.length + val.length;
+            if (currentSize + size > LIMIT && Object.keys(currentChunk).length > 0) {
+                zip.file(`chunk_${chunkIndex}.json`, JSON.stringify(currentChunk));
+                chunkIndex++;
+                currentChunk = {};
+                currentSize = 0;
+            }
+            currentChunk[key] = val;
+            currentSize += size;
+        }
+        // Last chunk
+        if (Object.keys(currentChunk).length > 0) {
+            zip.file(`chunk_${chunkIndex}.json`, JSON.stringify(currentChunk));
+        }
+
+        try {
+            const content = await zip.generateAsync({ type: "blob" });
+            downloadBlob(content, `chara_backup_split_${Date.now()}.zip`);
+        } catch (e) { alert('Zip 生成失败: ' + e.message); }
+
+    } else if (type === 'smart') {
+        // Single file
+        const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        downloadBlob(blob, `chara_backup_full_${Date.now()}.json`);
+    } else {
+        // Legacy - Simple stringify? Same as smart but maybe prettier?
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "text/plain" });
+        downloadBlob(blob, `chara_backup_legacy_${Date.now()}.txt`);
+    }
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Helper for check
+window.SettingsHandlers.isDarkMode = function () {
+    return window.sysStore.get('dark_mode') !== 'false';
+}
+
 
 /**
  * 打开 Wi-Fi (API) 页面
  */
-export function openWifiPage(settingsApp) {
+/**
+ * 打开 Wi-Fi (API) 页面
+ */
+window.SettingsHandlers.openWifiPage = function (settingsApp) {
     let wifiPage = settingsApp.querySelector('.wifi-page');
     if (!wifiPage) {
         wifiPage = document.createElement('div');
         wifiPage.className = 'profile-page wifi-page';
-        wifiPage.innerHTML = renderWifiPageContent();
+        wifiPage.innerHTML = window.SettingsUI.renderWifiPageContent();
         settingsApp.appendChild(wifiPage);
-        bindWifiPageEvents(wifiPage);
+        window.SettingsHandlers.bindWifiPageEvents(wifiPage);
     }
     requestAnimationFrame(() => {
         wifiPage.classList.add('active');
@@ -358,7 +689,10 @@ let sessionConnected = false;
 /**
  * 绑定 Wi-Fi 页事件
  */
-export function bindWifiPageEvents(page) {
+/**
+ * 绑定 Wi-Fi 页事件
+ */
+window.SettingsHandlers.bindWifiPageEvents = function (page) {
     // Back
     const backBtn = page.querySelector('#wifi-back');
     if (backBtn) {
@@ -552,21 +886,24 @@ export function bindWifiPageEvents(page) {
                 const key = sw.dataset.switch;
                 if (key) s.set(key, sw.classList.contains('on'));
             });
-            const tempSlider = page.querySelector('#api-temp-slider');
-            if (tempSlider) s.set('api_temperature', tempSlider.value);
-            const statusDiv = page.querySelector('#connection-status');
-            if (sessionConnected) {
-                s.set('api_connected', 'true');
-                if (statusDiv) {
-                    statusDiv.innerText = '已连接';
-                    statusDiv.style.color = '#34c759';
-                }
-            } else if (statusDiv && statusDiv.innerText.includes('未连接')) {
-                s.set('api_connected', 'false');
-            }
-            alert('设置已保存');
+            const sliderConfig = page.querySelector('#api-temp-slider');
+            if (sliderConfig) s.set('api_temperature', sliderConfig.value);
+            // ...
         });
     }
+
+    // Slider live update
+    const apiTempSlider = page.querySelector('#api-temp-slider');
+    const apiTempDisplay = page.querySelector('#temp-display');
+    if (apiTempSlider && apiTempDisplay) {
+        apiTempSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            apiTempDisplay.textContent = val.toString();
+            const percent = (val / 2) * 100;
+            e.target.style.background = `linear-gradient(to right, #007aff 0%, #007aff ${percent}%, #3a3a3c ${percent}%, #3a3a3c 100%)`;
+        });
+    }
+
 
     // Presets Logic
     const presetRow = page.querySelector('#preset-row');
@@ -700,14 +1037,17 @@ export function bindWifiPageEvents(page) {
 /**
  * 打开蓝牙 (语音服务) 页面
  */
-export function openBluetoothPage(settingsApp) {
+/**
+ * 打开蓝牙 (语音服务) 页面
+ */
+window.SettingsHandlers.openBluetoothPage = function (settingsApp) {
     let btPage = settingsApp.querySelector('.bluetooth-page');
     if (!btPage) {
         btPage = document.createElement('div');
         btPage.className = 'profile-page bluetooth-page';
-        btPage.innerHTML = renderBluetoothPageContent();
+        btPage.innerHTML = window.SettingsUI.renderBluetoothPageContent();
         settingsApp.appendChild(btPage);
-        bindBluetoothPageEvents(btPage);
+        window.SettingsHandlers.bindBluetoothPageEvents(btPage);
     }
     requestAnimationFrame(() => {
         btPage.classList.add('active');
@@ -717,7 +1057,10 @@ export function openBluetoothPage(settingsApp) {
 /**
  * 绑定蓝牙页事件
  */
-export function bindBluetoothPageEvents(page) {
+/**
+ * 绑定蓝牙页事件
+ */
+window.SettingsHandlers.bindBluetoothPageEvents = function (page) {
     // Back
     const backBtn = page.querySelector('#bluetooth-back');
     if (backBtn) {
@@ -795,14 +1138,17 @@ export function bindBluetoothPageEvents(page) {
 /**
  * 打开图像 (NovelAI) 页面
  */
-export function openCellularPage(settingsApp) {
+/**
+ * 打开图像 (NovelAI) 页面
+ */
+window.SettingsHandlers.openCellularPage = function (settingsApp) {
     let cellularPage = settingsApp.querySelector('.cellular-page');
     if (!cellularPage) {
         cellularPage = document.createElement('div');
         cellularPage.className = 'profile-page cellular-page';
-        cellularPage.innerHTML = renderCellularPageContent();
+        cellularPage.innerHTML = window.SettingsUI.renderCellularPageContent();
         settingsApp.appendChild(cellularPage);
-        bindCellularPageEvents(cellularPage);
+        window.SettingsHandlers.bindCellularPageEvents(cellularPage);
     }
     requestAnimationFrame(() => {
         cellularPage.classList.add('active');
@@ -812,7 +1158,10 @@ export function openCellularPage(settingsApp) {
 /**
  * 绑定图像页事件
  */
-export function bindCellularPageEvents(page) {
+/**
+ * 绑定图像页事件
+ */
+window.SettingsHandlers.bindCellularPageEvents = function (page) {
     // Back
     const backBtn = page.querySelector('#cellular-back');
     if (backBtn) {
@@ -854,14 +1203,17 @@ export function bindCellularPageEvents(page) {
 /**
  * 打开后台活动页面
  */
-export function openHotspotPage(settingsApp) {
+/**
+ * 打开后台活动页面
+ */
+window.SettingsHandlers.openHotspotPage = function (settingsApp) {
     let hotspotPage = settingsApp.querySelector('.hotspot-page');
     if (!hotspotPage) {
         hotspotPage = document.createElement('div');
         hotspotPage.className = 'profile-page hotspot-page';
-        hotspotPage.innerHTML = renderHotspotPageContent();
+        hotspotPage.innerHTML = window.SettingsUI.renderHotspotPageContent();
         settingsApp.appendChild(hotspotPage);
-        bindHotspotPageEvents(hotspotPage);
+        window.SettingsHandlers.bindHotspotPageEvents(hotspotPage);
     }
     requestAnimationFrame(() => {
         hotspotPage.classList.add('active');
@@ -871,7 +1223,10 @@ export function openHotspotPage(settingsApp) {
 /**
  * 绑定后台活动页事件
  */
-export function bindHotspotPageEvents(page) {
+/**
+ * 绑定后台活动页事件
+ */
+window.SettingsHandlers.bindHotspotPageEvents = function (page) {
     // Back
     const backBtn = page.querySelector('#hotspot-back');
     if (backBtn) {
@@ -922,21 +1277,27 @@ export function bindHotspotPageEvents(page) {
 /**
  * 打开聊天设置页面
  */
-export function openChatPage(app) {
+/**
+ * 打开聊天设置页面
+ */
+window.SettingsHandlers.openChatPage = function (app) {
     const page = document.createElement('div');
     page.className = 'settings-page';
-    page.innerHTML = renderChatPageContent();
+    page.innerHTML = window.SettingsUI.renderChatPageContent();
     app.appendChild(page);
     requestAnimationFrame(() => {
         page.classList.add('active');
     });
-    bindChatPageEvents(page);
+    window.SettingsHandlers.bindChatPageEvents(page);
 }
 
 /**
  * 绑定聊天页事件
  */
-export function bindChatPageEvents(page) {
+/**
+ * 绑定聊天页事件
+ */
+window.SettingsHandlers.bindChatPageEvents = function (page) {
     const backBtn = page.querySelector('#chat-back');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
@@ -960,22 +1321,28 @@ export function bindChatPageEvents(page) {
 /**
  * 打开字体设置页面
  */
-export function openFontPage(app) {
+/**
+ * 打开字体设置页面
+ */
+window.SettingsHandlers.openFontPage = function (app) {
     const page = document.createElement('div');
     page.className = 'settings-page font-page-v5';
     page.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--ios-bg); z-index: 300; transition: transform 0.3s ease; transform: translateX(100%); display: flex; flex-direction: column;";
-    page.innerHTML = renderFontPageDesignV5();
+    page.innerHTML = window.SettingsUI.renderFontPageDesignV5();
     app.appendChild(page);
     requestAnimationFrame(() => {
         page.style.transform = 'translateX(0)';
     });
-    bindFontPageDesignEventsV5(page);
+    window.SettingsHandlers.bindFontPageDesignEventsV5(page);
 }
 
 /**
  * 绑定字体设计页 (V5) 事件
  */
-export function bindFontPageDesignEventsV5(page) {
+/**
+ * 绑定字体设计页 (V5) 事件
+ */
+window.SettingsHandlers.bindFontPageDesignEventsV5 = function (page) {
     const backBtn = page.querySelector('#font-back-v5');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
@@ -1114,22 +1481,28 @@ export function bindFontPageDesignEventsV5(page) {
 /**
  * 打开外观设置页面
  */
-export function openAppearancePage(app) {
+/**
+ * 打开外观设置页面
+ */
+window.SettingsHandlers.openAppearancePage = function (app) {
     const page = document.createElement('div');
     page.className = 'settings-page appearance-page';
     page.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--ios-bg); z-index: 300; transition: transform 0.3s ease; transform: translateX(100%); display: flex; flex-direction: column;";
-    page.innerHTML = renderAppearancePageContent();
+    page.innerHTML = window.SettingsUI.renderAppearancePageContent();
     app.appendChild(page);
     requestAnimationFrame(() => {
         page.style.transform = 'translateX(0)';
     });
-    bindAppearancePageEvents(page);
+    window.SettingsHandlers.bindAppearancePageEvents(page);
 }
 
 /**
  * 绑定外观页事件
  */
-export function bindAppearancePageEvents(page) {
+/**
+ * 绑定外观页事件
+ */
+window.SettingsHandlers.bindAppearancePageEvents = function (page) {
     page.querySelector('#appearance-back').addEventListener('click', () => {
         page.style.transform = 'translateX(100%)';
         setTimeout(() => page.remove(), 350);
@@ -1241,19 +1614,57 @@ export function bindAppearancePageEvents(page) {
         btn.addEventListener('click', () => { alert('功能开发中...'); });
     });
 
-    const handleUpload = (type, previewEl) => {
+    const resizeImage = (file, maxWidth = 1080, quality = 0.6) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Compress
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    };
+
+    const handleUpload = async (type, previewEl) => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.onchange = e => {
+        input.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = ev => {
-                const src = ev.target.result;
-                updateWallpaper(type, src, previewEl);
-            };
-            reader.readAsDataURL(file);
+
+            // Feedback
+            alert('正在处理图片，请稍候...');
+
+            try {
+                // Compression (Fix for black wallpaper/storage full issues)
+                const resizedBase64 = await resizeImage(file);
+                updateWallpaper(type, resizedBase64, previewEl);
+                alert('壁纸设置成功！');
+            } catch (err) {
+                console.error('Image processing failed:', err);
+                alert('图片处理失败，请重试');
+            }
         };
         input.click();
     };
@@ -1274,8 +1685,27 @@ export function bindAppearancePageEvents(page) {
         const label = type === 'lock' ? '锁屏壁纸' : '主屏壁纸';
         if (src) {
             previewEl.innerHTML = `<div style="${closeBtnStyle}" class="wp-reset" data-target="${type}">×</div>`;
+            // Call OS to update immediately
+            if (window.os) {
+                if (type === 'lock' && window.os.updateLockScreenWallpaper) {
+                    window.os.updateLockScreenWallpaper(src);
+                } else if (type === 'home' && window.os.updateHomeScreenWallpaper) {
+                    window.os.updateHomeScreenWallpaper(src);
+                }
+            }
         } else {
             previewEl.innerHTML = `<div style="${wpTextStyle}">点击设置<br>${label}</div>`;
+            // Call OS to clear immediately (pass empty string or default)
+            if (window.os) {
+                if (type === 'lock' && window.os.updateLockScreenWallpaper) {
+                    window.os.updateLockScreenWallpaper(''); // Or restore default logic if needed
+                } else if (type === 'home' && window.os.updateHomeScreenWallpaper) {
+                    // Ideally pass default wallpaper logic here, but empty checks in OS might handle it or just clear it.
+                    // For now let's just leave it, reload will restore default if removed key.
+                    // Or better, trigger reload of wallpapers
+                    if (window.os.loadWallpapers) window.os.loadWallpapers();
+                }
+            }
         }
         if (src) {
             const newReset = previewEl.querySelector('.wp-reset');
@@ -1283,12 +1713,6 @@ export function bindAppearancePageEvents(page) {
                 e.stopPropagation();
                 handleReset(type, previewEl);
             });
-        }
-        if (type === 'home') {
-            const wp = document.querySelector('.wallpaper');
-            if (wp) wp.style.setProperty('background-image', src ? `url('${src}')` : 'none', 'important');
-        } else if (window.os && window.os.updateLockScreenWallpaper) {
-            window.os.updateLockScreenWallpaper(src);
         }
     };
 
@@ -1315,22 +1739,28 @@ export function bindAppearancePageEvents(page) {
 /**
  * 打开通知设置页面
  */
-export function openNotificationPage(app) {
+/**
+ * 打开通知设置页面
+ */
+window.SettingsHandlers.openNotificationPage = function (app) {
     const page = document.createElement('div');
     page.className = 'settings-page notification-page';
     page.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--ios-bg); z-index: 300; transition: transform 0.3s ease; transform: translateX(100%); display: flex; flex-direction: column;";
-    page.innerHTML = renderNotificationPageContent();
+    page.innerHTML = window.SettingsUI.renderNotificationPageContent();
     app.appendChild(page);
     requestAnimationFrame(() => {
         page.style.transform = 'translateX(0)';
     });
-    bindNotificationPageEvents(page);
+    window.SettingsHandlers.bindNotificationPageEvents(page);
 }
 
 /**
  * 绑定通知页事件
  */
-export function bindNotificationPageEvents(page) {
+/**
+ * 绑定通知页事件
+ */
+window.SettingsHandlers.bindNotificationPageEvents = function (page) {
     const s = window.sysStore;
     const builtinSounds = {
         'classic': 'https://files.catbox.moe/73u5nm.mp3',
@@ -1496,21 +1926,30 @@ export function bindNotificationPageEvents(page) {
 /**
  * 生成经典声音 URL
  */
-export function generateClassicSound() {
+/**
+ * 生成经典声音 URL
+ */
+window.SettingsHandlers.generateClassicSound = function () {
     return 'https://cdn.freesound.org/previews/709/709515_11861866-lq.mp3';
 }
 
 /**
  * 生成积木声音 URL
  */
-export function generateBlockSound() {
+/**
+ * 生成积木声音 URL
+ */
+window.SettingsHandlers.generateBlockSound = function () {
     return 'https://cdn.freesound.org/previews/411/411089_5121236-lq.mp3';
 }
 
 /**
  * 生成可爱声音 URL
  */
-export function generateCuteSound() {
+/**
+ * 生成可爱声音 URL
+ */
+window.SettingsHandlers.generateCuteSound = function () {
     return 'https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3';
 }
 

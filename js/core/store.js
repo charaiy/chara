@@ -27,7 +27,12 @@ class Store {
         try {
             this.cache[key] = value;
             localStorage.setItem(APP_PREFIX + key, JSON.stringify(value));
-        } catch (e) { }
+        } catch (e) {
+            console.error('Storage Save Failed:', e);
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+                alert('保存失败：存储空间不足。请删除一些大图片或使用图床功能。');
+            }
+        }
     }
 
     remove(key) {

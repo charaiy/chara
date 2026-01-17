@@ -152,4 +152,11 @@ const Service = {
     }
 };
 
-export { ICONS, Service };
+// 挂载到全局对象
+window.SettingsState = {
+    ICONS,
+    Service
+};
+
+// export { ICONS, Service };
+

@@ -442,7 +442,7 @@ class CharaOS {
     openApp(appName) {
         console.log('Opening App:', appName);
 
-        if (appName === 'dock-settings' || appName === 'settings') {
+        if (appName === 'dock-settings' || appName === 'settings' || appName === 'app-appearance') {
             this.openSettings();
         } else if (appName === '微信') {
             // Placeholder for Step 3
@@ -450,13 +450,26 @@ class CharaOS {
     }
 
     openSettings() {
+        // Check if SettingsApp module is loaded
+        if (!window.SettingsApp) {
+            console.error('SettingsApp module not loaded yet.');
+            alert('设置应用尚未加载，请检查控制台错误或刷新页面。');
+            return;
+        }
+
         // Check if exists
         let app = document.getElementById('app-settings');
         if (!app) {
-            // 使用 SettingsApp 模块初始化
-            const container = document.getElementById('os-root');
-            window.SettingsApp.init(container, () => this.closeActiveApp());
-            app = document.getElementById('app-settings');
+            try {
+                // 使用 SettingsApp 模块初始化
+                const container = document.getElementById('os-root');
+                window.SettingsApp.init(container, () => this.closeActiveApp());
+                app = document.getElementById('app-settings');
+            } catch (e) {
+                console.error('Failed to init SettingsApp:', e);
+                alert('启动设置失败: ' + e.message);
+                return;
+            }
         }
 
         // Animate In with slight delay to ensure DOM paint
@@ -580,6 +593,31 @@ class CharaOS {
     updateLockScreenWallpaper(base64) {
         const bg = document.getElementById('lock-screen-bg');
         if (bg) bg.src = base64;
+    }
+
+    updateHomeScreenWallpaper(base64) {
+        const wp = document.querySelector('.wallpaper');
+        if (wp) {
+            // Force remove any gradient shorthand
+            wp.style.background = 'none';
+            // Set image with !important
+            if (base64) {
+                // Ensure valid data URI just in case
+                const bgUrl = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
+                wp.style.setProperty('background-image', `url("${bgUrl}")`, 'important');
+                // Ensure size is cover
+                wp.style.setProperty('background-size', 'cover', 'important');
+                wp.style.setProperty('background-position', 'center', 'important');
+                wp.style.setProperty('background-repeat', 'no-repeat', 'important');
+                // Force full opacity if it was hidden
+                wp.style.opacity = '1';
+                console.log('Wallpaper updated via OS (Length: ' + base64.length + ')');
+            } else {
+                // Restore default gradient
+                wp.style.removeProperty('background-image');
+                wp.style.background = 'linear-gradient(135deg, #1a1a1a, #000)';
+            }
+        }
     }
 }
 

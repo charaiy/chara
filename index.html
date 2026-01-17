@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CharaOS</title>
     <link rel="stylesheet" href="css/os.css">
-    <link rel="stylesheet" href="css/apps/settings.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
 <body>
@@ -275,12 +276,28 @@
         <div class="home-bar"></div>
     </div>
 
+    <!-- Error Handler -->
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            // Ignore trivial errors
+            if (msg.includes('ResizeObserver') || msg.includes('Script error')) return;
+            alert('系统错误 (System Error):\n' + msg + '\nFile: ' + url + '\nLine: ' + line);
+            return false;
+        };
+    </script>
+
     <!-- JS Modules -->
-    <script src="js/utils.js"></script>
-    <script src="js/store.js"></script>
-    <script src="js/api.js"></script>
-    <script type="module" src="js/apps/settings/index.js"></script>
-    <script src="js/os.js"></script>
+    <script src="js/core/utils.js?v=3"></script>
+    <script src="js/core/store.js?v=3"></script>
+    <script src="js/core/api.js?v=3"></script>
+    <!-- Settings App Modules (Non-ESM) -->
+    <script src="js/settings/state.js?v=3"></script>
+    <script src="js/settings/ui_render.js?v=3"></script>
+    <script src="js/settings/handlers.js?v=3"></script>
+    <script src="js/settings/managers.js?v=3"></script>
+    <script src="js/settings/index.js?v=3"></script>
+
+    <script src="js/core/os.js?v=3"></script>
 </body>
 
 </html>

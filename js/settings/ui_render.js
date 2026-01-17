@@ -3,12 +3,18 @@
  * 负责 Settings App 的 UI 渲染逻辑 (HTML 生成)
  */
 
-import { ICONS } from './state.js';
+// 移除 import，改用全局变量
+// import { ICONS } from './state.js';
+
+// 定义全局命名空间
+window.SettingsUI = {};
 
 /**
  * 渲染设置 App 主界面
  */
-export function renderSettingsApp() {
+window.SettingsUI.renderSettingsApp = function () {
+    const ICONS = window.SettingsState.ICONS;
+
     const div = document.createElement('div');
     div.id = 'app-settings';
     div.className = 'app-window';
@@ -57,26 +63,26 @@ export function renderSettingsApp() {
 
             <!-- Display Section -->
             <div class="settings-group">
-                ${createSettingsItem('fullscreen', '全屏模式', '#5856d6', true, '', 'fullscreen-toggle')}
-                ${createSettingsItem('wifi', 'Wi-Fi', '#007aff', false, 'CharaNet', 'wifi-page')}
-                ${createSettingsItem('mic', '语音', '#ff9500', false, '', 'bluetooth-page')}
-                ${createSettingsItem('palette', '图像', '#af52de', false, '', 'cellular-page')}
-                ${createSettingsItem('hourglass', '后台活动', '#34c759', false, '', 'hotspot-page')}
-                ${createSettingsItem('moon', '暗黑模式', '#5856d6', true, '', 'dark-mode-toggle')}
+                ${window.SettingsUI.createSettingsItem('fullscreen', '全屏模式', '#5856d6', true, '', 'fullscreen-toggle')}
+                ${window.SettingsUI.createSettingsItem('wifi', 'Wi-Fi', '#007aff', false, 'CharaNet', 'wifi-page')}
+                ${window.SettingsUI.createSettingsItem('mic', '语音', '#ff9500', false, '', 'bluetooth-page')}
+                ${window.SettingsUI.createSettingsItem('palette', '图像', '#af52de', false, '', 'cellular-page')}
+                ${window.SettingsUI.createSettingsItem('hourglass', '后台活动', '#34c759', false, '', 'hotspot-page')}
+                ${window.SettingsUI.createSettingsItem('moon', '暗黑模式', '#5856d6', true, '', 'dark-mode-toggle')}
             </div>
 
             <!-- General Section -->
             <div class="settings-group">
-                ${createSettingsItem('bubble', '聊天', '#007aff', false, '', 'chat-page')}
-                ${createSettingsItem('text', '字体', '#8e8e93', false, '', 'font-page')}
-                ${createSettingsItem('sun', '外观', '#007aff', false, '', 'appearance-page')}
-                ${createSettingsItem('bell', '通知', '#ff3b30', false, '', 'notification-page')}
+                ${window.SettingsUI.createSettingsItem('bubble', '聊天', '#007aff', false, '', 'chat-page')}
+                ${window.SettingsUI.createSettingsItem('text', '字体', '#8e8e93', false, '', 'font-page')}
+                ${window.SettingsUI.createSettingsItem('sun', '外观', '#007aff', false, '', 'appearance-page')}
+                ${window.SettingsUI.createSettingsItem('bell', '通知', '#ff3b30', false, '', 'notification-page')}
             </div>
             
             <!-- App Section -->
             <div class="settings-group">
-                ${createSettingsItem('wrench', '开发者', '#666666')}
-                ${createSettingsItem('robot', 'Chara AI', '#000000')}
+                ${window.SettingsUI.createSettingsItem('wrench', '开发者', '#666666', false, '', 'developer-page')}
+                ${window.SettingsUI.createSettingsItem('robot', 'Chara AI', '#000000', false, '', 'chara-ai-page')}
             </div>
         </div>
     `;
@@ -86,7 +92,8 @@ export function renderSettingsApp() {
 /**
  * 创建通用设置项 HTML
  */
-export function createSettingsItem(iconType, label, color, isSwitch = false, valueText = '', switchId = '') {
+window.SettingsUI.createSettingsItem = function (iconType, label, color, isSwitch = false, valueText = '', switchId = '') {
+    const ICONS = window.SettingsState.ICONS;
     const iconSvg = ICONS[iconType] || `<span style="font-size:16px;font-weight:bold;">${iconType.charAt(0).toUpperCase()}</span>`;
 
     let rightContent = `<div class="settings-chevron">›</div>`;
@@ -121,7 +128,7 @@ export function createSettingsItem(iconType, label, color, isSwitch = false, val
 /**
  * 渲染个人资料页面内容
  */
-export function renderProfilePageContent() {
+window.SettingsUI.renderProfilePageContent = function () {
     const currentAvatar = window.sysStore.get('user_avatar') || '';
     const avatarHtml = currentAvatar ?
         `<img src="${currentAvatar}" alt="Profile" id="profile-page-avatar-img">` :
@@ -154,7 +161,6 @@ export function renderProfilePageContent() {
             <div class="profile-avatar" id="btn-upload-avatar">
                 ${avatarHtml}
                 <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
-                <div class="profile-avatar-edit-hint" style="position:absolute; bottom:0; right:0; background:#007aff; color:white; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:12px; border:2px solid #1c1c1e;">+</div>
             </div>
             <div class="profile-header-name" id="edit-profile-name" style="cursor: pointer;">${userName}</div>
             <div class="profile-header-email" id="edit-profile-email" style="cursor: pointer;">${userEmail}</div>
@@ -259,7 +265,57 @@ export function renderProfilePageContent() {
                     </div>
                 </div>
             </div>
+
+            <!-- 数据管理 -->
+            <div class="settings-section-title">数据管理</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon">
+                    <div class="settings-label">本地图片占用</div>
+                    <div class="settings-value" id="local-img-size">Loading...</div>
+                    <div id="btn-compress-images" style="background: rgba(142,142,147,0.12); padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #000; cursor: pointer;">压缩</div>
+                </div>
+                <div class="settings-item no-icon" id="btn-export-data" style="cursor: pointer;">
+                    <div class="settings-label">导出所有数据</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-import-data" style="cursor: pointer;">
+                    <div class="settings-label">导入备份文件</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-clean-redundant" style="cursor: pointer;">
+                    <div class="settings-label">清理冗余数据</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-delete-worldbook" style="cursor: pointer;">
+                    <div class="settings-label">删除世界书</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-advanced-clean" style="cursor: pointer;">
+                    <div class="settings-label">高级数据清理</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-check-repair" style="cursor: pointer;">
+                    <div class="settings-label">数据检查与修复</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-reset-appearance" style="cursor: pointer;">
+                    <div class="settings-label">重置当前外观</div>
+                </div>
+                 <div class="settings-item no-icon" id="btn-reset-all" style="cursor: pointer;">
+                    <div class="settings-label" style="color: #ff3b30;">初始化所有内容 (慎用)</div>
+                </div>
+            </div>
             
+            <script>
+                // Calculate size immediately
+                (function(){
+                    try {
+                        let total = 0;
+                        for(let key in localStorage){
+                            if(localStorage.hasOwnProperty(key) && localStorage[key].startsWith('data:image')){
+                                total += localStorage[key].length;
+                            }
+                        }
+                        const mb = (total / 1024 / 1024).toFixed(2);
+                        const el = document.getElementById('local-img-size');
+                        if(el) el.innerText = mb + ' MB';
+                    } catch(e) {}
+                })();
+            </script>
             <div style="height: 50px;"></div>
         </div>
     `;
@@ -268,7 +324,7 @@ export function renderProfilePageContent() {
 /**
  * 渲染 Wi-Fi (API) 页面内容
  */
-export function renderWifiPageContent() {
+window.SettingsUI.renderWifiPageContent = function () {
     const s = window.sysStore;
     const tempValue = s.get('api_temperature') || '0.7';
     // pct for initial slider gradient
@@ -430,7 +486,8 @@ export function renderWifiPageContent() {
                             <span class="wifi-label">随机性 (Temperature)</span>
                             <span id="temp-display" style="color:var(--wp-subtext); font-size: 17px; font-variant-numeric: tabular-nums;">${tempValue}</span>
                         </div>
-                        <input type="range" class="ios-slider wifi-slider" id="api-temp-slider" min="0" max="2" step="0.1" value="${tempValue}">
+                        <input type="range" id="api-temp-slider" min="0" max="2" step="0.1" value="${tempValue}"
+                            style="width: 100%; height: 4px; border-radius: 2px; -webkit-appearance: none; background: linear-gradient(to right, #007aff 0%, #007aff ${(tempValue / 2) * 100}%, #3a3a3c ${(tempValue / 2) * 100}%, #3a3a3c 100%);">
                     </div>
                 </div>
 
@@ -464,7 +521,7 @@ export function renderWifiPageContent() {
 /**
  * 渲染蓝牙（语音服务）页面内容
  */
-export function renderBluetoothPageContent() {
+window.SettingsUI.renderBluetoothPageContent = function () {
     const s = window.sysStore;
 
     // 样式常量
@@ -521,7 +578,7 @@ export function renderBluetoothPageContent() {
 /**
  * 渲染图像（NovelAI）页面内容
  */
-export function renderCellularPageContent() {
+window.SettingsUI.renderCellularPageContent = function () {
     const s = window.sysStore;
 
     const isNovelAI = s.get('novelai_enabled') === 'true';
@@ -580,7 +637,7 @@ export function renderCellularPageContent() {
 /**
  * 渲染后台活动页面内容
  */
-export function renderHotspotPageContent() {
+window.SettingsUI.renderHotspotPageContent = function () {
     const s = window.sysStore;
 
     const isBgActivity = s.get('bg_activity_enabled') === 'true';
@@ -629,7 +686,7 @@ export function renderHotspotPageContent() {
 /**
  * 渲染聊天设置页面内容
  */
-export function renderChatPageContent() {
+window.SettingsUI.renderChatPageContent = function () {
     const s = window.sysStore;
     const listLoadCount = s.get('chat_list_load_count') || '20';
     const internalLoadCount = s.get('chat_internal_load_count') || '50';
@@ -664,7 +721,7 @@ export function renderChatPageContent() {
 /**
  * 渲染字体设置页面 (Design V5)
  */
-export function renderFontPageDesignV5() {
+window.SettingsUI.renderFontPageDesignV5 = function () {
     const s = window.sysStore;
     const isDark = s.get('dark_mode') !== 'false';
     const darkClass = isDark ? 'force-dark' : '';
@@ -872,7 +929,10 @@ export function renderFontPageDesignV5() {
 /**
  * 渲染外观设置页面的 HTML
  */
-export function renderAppearancePageContent() {
+/**
+ * 渲染外观设置页面的 HTML
+ */
+window.SettingsUI.renderAppearancePageContent = function () {
     const s = window.sysStore;
     const lockEnabled = s.get('lock_screen_enabled') === 'true';
     const password = s.get('lock_screen_password') || '';
@@ -903,7 +963,7 @@ export function renderAppearancePageContent() {
                 <div class="settings-back" id="appearance-back" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; color: #007aff;">
                     <svg viewBox="0 0 12 20" width="12" height="20" style="fill: #007aff;"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
                 </div>
-                <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff;">外观</div>
+                <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff;">外观</div>
                 <div id="appearance-save" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">保存</div>
             </div>
         </div>
@@ -1020,7 +1080,7 @@ export function renderAppearancePageContent() {
 /**
  * 渲染通知设置页面的 HTML
  */
-export function renderNotificationPageContent() {
+window.SettingsUI.renderNotificationPageContent = function () {
     const s = window.sysStore;
     const notificationEnabled = s.get('notification_enabled') !== 'false';
     const notificationSound = s.get('notification_sound') || '';
@@ -1054,7 +1114,7 @@ export function renderNotificationPageContent() {
                 <div class="settings-back" id="notification-back" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; color: #007aff;">
                     <svg viewBox="0 0 12 20" width="12" height="20" style="fill: #007aff;"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
                 </div>
-                <div style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff;">通知</div>
+                <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff;">通知</div>
                 <div id="notification-save" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">保存</div>
             </div>
         </div>
