@@ -53,110 +53,149 @@ const ICONS = {
     moon: '<svg viewBox="0 0 24 24" fill="white" width="18" height="18"><path d="M9 2c-1.05 0-2.05.16-3 .46 4.06 1.27 7 5.06 7 9.54 0 4.48-2.94 8.27-7 9.54.95.3 1.95.46 3 .46 5.52 0 10-4.48 10-10S14.52 2 9 2z"/></svg>'
 };
 
-/**
- * Service 服务对象
- */
 const Service = {
-    // ImgBB 上传
+    // === 1. 图片与文件服务 ===
     async uploadToImgBB(file, apiKey) {
         const formData = new FormData();
         formData.append('image', file);
-
         try {
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-                method: 'POST',
-                body: formData
-            });
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
             const data = await res.json();
-            if (data.success) {
-                return data.data.url;
-            } else {
-                throw new Error(data.error ? data.error.message : 'Upload failed');
-            }
-        } catch (e) {
-            console.error('ImgBB Upload Error:', e);
-            throw e;
-        }
+            return data.success ? data.data.url : null;
+        } catch (e) { return null; }
     },
 
-    // GitHub 备份
-    async backupToGithub(token, user, repo, filename, content) {
-        const path = `https://api.github.com/repos/${user}/${repo}/contents/${filename}`;
-
-        // 1. 获取现有文件的 SHA (如果存在) 以便更新
-        let sha = '';
-        try {
-            const checkRes = await fetch(path, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
+    async compressImage(dataUrl) {
+        if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl;
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const max = 1024;
+                let w = img.width, h = img.height;
+                if (w > max || h > max) {
+                    if (w > h) { h = Math.round(h * max / w); w = max; }
+                    else { w = Math.round(w * max / h); h = max; }
                 }
-            });
-            if (checkRes.ok) {
-                const checkData = await checkRes.json();
-                sha = checkData.sha;
-            }
-        } catch (e) { /* ignore */ }
-
-        // 2. 上传新内容 (Base64 编码)
-        // 处理中文编码问题
-        const base64Content = btoa(unescape(encodeURIComponent(content)));
-
-        const body = {
-            message: `Backup from CharaOS - ${new Date().toLocaleString()}`,
-            content: base64Content
-        };
-        if (sha) body.sha = sha;
-
-        const res = await fetch(path, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = () => resolve(dataUrl); // 出错时返回原图，不挂死
+            img.src = dataUrl;
         });
-
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.message || 'Backup failed');
-        }
-        return true;
     },
 
-    // GitHub 恢复
-    async restoreFromGithub(token, user, repo, filename) {
+    downloadFile(content, filename, type = 'application/json') {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+    },
+
+    // === 2. GitHub 备份服务 ===
+    async githubAction(action, { token, user, repo, filename, content }) {
         const path = `https://api.github.com/repos/${user}/${repo}/contents/${filename}`;
-        const res = await fetch(path, {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
+        const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
+
+        if (action === 'upload') {
+            let sha = '';
+            try {
+                const check = await fetch(path, { headers });
+                if (check.ok) sha = (await check.json()).sha;
+            } catch (e) { }
+            const body = { message: `Backup ${new Date().toLocaleString()}`, content: btoa(unescape(encodeURIComponent(content))) };
+            if (sha) body.sha = sha;
+            const res = await fetch(path, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            return res.ok;
+        }
+
+        if (action === 'download') {
+            const res = await fetch(path, { headers });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))));
+        }
+    },
+
+    // === 3. 数据管理逻辑 ===
+    async doExport(type, data) {
+        if (type === 'smart') {
+            this.downloadFile(JSON.stringify(data), `chara_backup_full_${Date.now()}.json`);
+        } else if (type === 'split') {
+            if (!window.JSZip) throw new Error('JSZip not loaded');
+            const zip = new JSZip();
+            let chunkIdx = 0, current = {}, size = 0;
+            const LIMIT = 2 * 1024 * 1024;
+            for (let k in data) {
+                const s = k.length + data[k].length;
+                if (size + s > LIMIT) {
+                    zip.file(`chunk_${chunkIdx}.json`, JSON.stringify(current));
+                    chunkIdx++; current = {}; size = 0;
+                }
+                current[k] = data[k]; size += s;
             }
-        });
-
-        if (!res.ok) {
-            throw new Error('File not found or access denied');
+            if (Object.keys(current).length) zip.file(`chunk_${chunkIdx}.json`, JSON.stringify(current));
+            const blob = await zip.generateAsync({ type: 'blob' });
+            this.downloadFile(blob, `chara_backup_split_${Date.now()}.zip`, 'application/zip');
         }
+    },
 
-        const data = await res.json();
-        // content 是 base64，可能有换行
-        const cleanContent = data.content.replace(/\n/g, '');
-        // 解码
+    // === 4. AI 与 语音 核心逻辑 ===
+    async pullModels(baseUrl, apiKey) {
         try {
-            const jsonStr = decodeURIComponent(escape(atob(cleanContent)));
-            return JSON.parse(jsonStr);
-        } catch (e) {
-            throw new Error('Failed to parse backup file');
-        }
+            const cleanUrl = baseUrl.replace(/\/$/, '');
+            const targetUrl = cleanUrl.endsWith('/v1') ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
+            const res = await fetch(targetUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.data || [];
+        } catch (e) { return null; }
+    },
+
+    async testVoice({ type, domain, groupId, apiKey, model, text }) {
+        try {
+            const baseUrl = `https://${domain.replace(/\/$/, '')}`;
+            let url, body;
+
+            if (type === 'domestic') {
+                url = `${baseUrl}/v1/tts/stream?GroupId=${groupId}`;
+                body = JSON.stringify({ model, text, voice_id: 'female-tianmei' });
+            } else {
+                url = `${baseUrl}/v1/audio/speech`;
+                body = JSON.stringify({ model, input: text, voice: 'alloy' });
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: body
+            });
+            if (!res.ok) return null;
+            return await res.blob();
+        } catch (e) { return null; }
+    },
+
+    playAudio(blobOrUrl, volume = 1) {
+        const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
+        const audio = new Audio(url);
+        audio.volume = volume;
+        audio.play();
+        return audio;
     }
 };
 
-// 挂载到全局对象
-window.SettingsState = {
-    ICONS,
-    Service
+const BUILTIN_SOUNDS = {
+    'classic': 'https://files.catbox.moe/73u5nm.mp3',
+    'block': 'https://files.catbox.moe/s7gftd.wav',
+    'cute': 'https://files.catbox.moe/i3mohu.mp3'
 };
+
+window.SettingsState = { ICONS, Service, BUILTIN_SOUNDS };
+
 
 // export { ICONS, Service };
 

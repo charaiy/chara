@@ -7,7 +7,29 @@
 // import { ICONS } from './state.js';
 
 // 定义全局命名空间
-window.SettingsUI = {};
+window.SettingsUI = {
+    /**
+     * 创建统一的导航头部 HTML
+     */
+    createHeaderHTML: function (title, backId = 'settings-back', actionText = '', actionId = '', isDark = false) {
+        const backColor = isDark ? '#fff' : '#007aff';
+        const titleColor = isDark ? '#fff' : '#000';
+        const actionHtml = actionText ? `<div class="settings-action" id="${actionId}" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">${actionText}</div>` : '<div style="width: 70px;"></div>';
+
+        return `
+            <div class="settings-header" style="${isDark ? 'background: rgba(0,0,0,0.8); backdrop-filter: saturate(180%) blur(20px); border-bottom: none;' : ''}">
+                <div class="settings-nav" style="display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px;">
+                    <div class="settings-back" id="${backId}" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer;">
+                        <svg viewBox="0 0 12 20" width="12" height="20" style="fill: ${backColor};"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
+                    </div>
+                    <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: ${titleColor};">${title}</div>
+                    ${actionHtml}
+                </div>
+            </div>
+        `;
+    }
+};
+
 
 /**
  * 渲染设置 App 主界面
@@ -30,18 +52,7 @@ window.SettingsUI.renderSettingsApp = function () {
     const userName = s.get('user_name') || 'Chara User';
 
     div.innerHTML = `
-        <div class="settings-header">
-            <div class="settings-nav">
-                <!-- Back button (Close App) -->
-                <div class="settings-back" id="settings-back" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; opacity: 0;">
-                    <svg viewBox="0 0 12 20" width="12" height="20" style="fill: #007aff;"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
-                </div>
-                 <!-- Title -->
-                <div class="settings-title">设置</div>
-                 <!-- Placeholder for symmetry -->
-                <div style="width: 70px;"></div>
-            </div>
-        </div>
+        ${window.SettingsUI.createHeaderHTML('设置')}
         <div class="settings-search" style="margin: 0 16px 10px 16px;">
             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             搜索
@@ -151,13 +162,7 @@ window.SettingsUI.renderProfilePageContent = function () {
 
     return `
         <div class="profile-header">
-            <div class="settings-nav" style="display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px;">
-                <div class="settings-back" id="profile-back" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; color: #007aff;">
-                    <svg viewBox="0 0 12 20" width="12" height="20" style="fill: #007aff;"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
-                </div>
-                <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600;">Apple ID</div>
-                <div style="width: 70px;"></div>
-            </div>
+            ${window.SettingsUI.createHeaderHTML('Apple ID', 'profile-back')}
             <div class="profile-avatar" id="btn-upload-avatar">
                 ${avatarHtml}
                 <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
@@ -523,10 +528,10 @@ window.SettingsUI.renderWifiPageContent = function () {
  */
 window.SettingsUI.renderBluetoothPageContent = function () {
     const s = window.sysStore;
+    const voiceMode = s.get('voice_interface_type') || 'domestic'; // 'domestic' 或 'global'
 
-    // 样式常量
-    const labelStyle = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; font-size: 17px; color: #fff; letter-spacing: -0.4px;';
-    const inputStyle = 'text-align: right; background: transparent; border: none; color: #007aff; font-size: 17px; width: 100%; outline: none; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+    const labelStyle = 'flex: 1; font-size: 17px; color: #fff;';
+    const inputStyle = 'text-align: right; background: transparent; border: none; color: #007aff; font-size: 17px; width: 100%; outline: none; padding: 0;';
     const groupTitleStyle = 'padding: 0 15px 8px 15px; font-size: 13px; color: #8e8e93; text-transform: uppercase; letter-spacing: -0.1px; margin-top: 25px;';
 
     return `
@@ -541,36 +546,42 @@ window.SettingsUI.renderBluetoothPageContent = function () {
         </div>
 
         <div class="profile-content" style="padding-top: 0;">
-            <!-- 语音服务设置 -->
-            <div style="padding: 0 15px 8px 15px; font-size: 13px; color: #8e8e93; text-transform: uppercase; letter-spacing: -0.1px; margin-top: 5px;">语音服务 (MiniMax)</div>
+            <div style="padding: 10px 15px; font-size: 13px; color: #8e8e93;">接口配置</div>
             <div class="settings-group">
                 <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">Group ID</div>
-                    <input type="text" class="settings-input" data-key="voice_group_id" placeholder="输入 ID" value="${s.get('voice_group_id') || ''}" style="${inputStyle} color: #8e8e93;">
+                    <div class="settings-label" style="${labelStyle}">接口类型</div>
+                    <select class="settings-input" data-key="voice_interface_type" style="${inputStyle} direction: rtl;">
+                        <option value="domestic" ${voiceMode === 'domestic' ? 'selected' : ''}>国内接口 (MiniMax)</option>
+                        <option value="global" ${voiceMode === 'global' ? 'selected' : ''}>国外/通用接口 (OpenAI)</option>
+                    </select>
+                </div>
+                <div class="settings-item no-icon">
+                    <div class="settings-label" style="${labelStyle}">域名</div>
+                    <input type="text" class="settings-input" data-key="voice_domain" placeholder="如: api.minimax.chat" value="${s.get('voice_domain') || (voiceMode === 'domestic' ? 'api.minimax.chat' : 'api.openai.com')}" style="${inputStyle}">
                 </div>
                 <div class="settings-item no-icon">
                     <div class="settings-label" style="${labelStyle}">API Key</div>
-                    <input type="password" class="settings-input" data-key="voice_api_key" placeholder="输入 Key" value="${s.get('voice_api_key') || ''}" style="${inputStyle} color: #8e8e93;">
+                    <input type="password" class="settings-input" data-key="voice_api_key" placeholder="Bearer Key" value="${s.get('voice_api_key') || ''}" style="${inputStyle}">
                 </div>
                 <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">模型</div>
-                    <input type="text" class="settings-input" data-key="voice_model" placeholder="speech-01" value="${s.get('voice_model') || 'speech-01'}" style="${inputStyle} color: #8e8e93;">
+                    <div class="settings-label" style="${labelStyle}">模型 (Model)</div>
+                    <input type="text" class="settings-input" data-key="voice_model" placeholder="如: speech-01" value="${s.get('voice_model') || (voiceMode === 'domestic' ? 'speech-01' : 'tts-1')}" style="${inputStyle}">
                 </div>
-                <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">接口域名</div>
-                    <input type="text" class="settings-input" data-key="voice_domain" placeholder="api.minimax.chat" value="${s.get('voice_domain') || 'api.minimax.chat'}" style="${inputStyle} color: #8e8e93;">
+                <div class="settings-item no-icon" id="voice-group-row" style="display: ${voiceMode === 'domestic' ? 'flex' : 'none'};">
+                    <div class="settings-label" style="${labelStyle}">Group ID</div>
+                    <input type="text" class="settings-input" data-key="voice_group_id" placeholder="MiniMax ID" value="${s.get('voice_group_id') || ''}" style="${inputStyle}">
                 </div>
             </div>
 
-            <!-- 测试按钮 -->
             <div style="${groupTitleStyle}">测试</div>
             <div class="settings-group">
                 <div class="settings-item" id="btn-test-voice" style="justify-content: center; cursor: pointer;">
-                    <div style="width: 100%; text-align: center; font-size: 17px; color: #007aff;">测试语音合成</div>
+                    <div style="width: 100%; text-align: center; font-size: 17px; color: #007aff;">立即试听</div>
                 </div>
             </div>
-
-            <div style="height: 50px;"></div>
+            <div style="padding: 10px 15px; font-size: 12px; color: #8e8e93; line-height: 1.4;">
+                MiniMax 接口需要 Group ID；通用接口默认使用 OpenAI 规范路径 (/v1/audio/speech)。
+            </div>
         </div>
     `;
 }
@@ -580,14 +591,13 @@ window.SettingsUI.renderBluetoothPageContent = function () {
  */
 window.SettingsUI.renderCellularPageContent = function () {
     const s = window.sysStore;
-
+    const isUniversal = s.get('img_gen_universal') === 'true';
     const isNovelAI = s.get('novelai_enabled') === 'true';
+    const naiModel = s.get('novelai_model') || 'v4.5 curated';
 
-    // 样式常量
-    const labelStyle = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; font-size: 17px; color: #fff; letter-spacing: -0.4px;';
-    const inputStyle = 'text-align: right; background: transparent; border: none; color: #007aff; font-size: 17px; width: 100%; outline: none; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+    const labelStyle = 'flex: 1; font-size: 17px; color: #fff;';
+    const inputStyle = 'text-align: right; background: transparent; border: none; color: #007aff; font-size: 17px; width: 100%; outline: none; padding: 0;';
     const groupTitleStyle = 'padding: 0 15px 8px 15px; font-size: 13px; color: #8e8e93; text-transform: uppercase; letter-spacing: -0.1px; margin-top: 25px;';
-    const rowBtnStyle = 'width: 100%; text-align: center; font-size: 17px; background: transparent; border: none; padding: 4px 0; cursor: pointer;';
 
     return `
         <div class="profile-header" style="padding-bottom: 10px; background: #000;">
@@ -600,36 +610,41 @@ window.SettingsUI.renderCellularPageContent = function () {
             </div>
         </div>
 
-        <div class="profile-content" style="padding-top: 10px;">
-            <!-- NovelAI 设置 -->
-            <div style="${groupTitleStyle}">图像生成 (NovelAI)</div>
+        <div class="profile-content" style="padding-top: 0;">
+            <div style="padding: 10px 15px; font-size: 13px; color: #8e8e93;">基础设置</div>
             <div class="settings-group">
                 <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">启用服务</div>
+                    <div class="settings-label" style="${labelStyle}">通用生图引擎</div>
+                    <div class="ios-switch ${isUniversal ? 'on' : ''}" data-switch="img_gen_universal"><div class="switch-knob"></div></div>
+                </div>
+            </div>
+            <div style="padding: 0 15px 15px; font-size: 12px; color: #8e8e93; line-height: 1.4;">
+                开启后，系统将自动使用内置接口生成图像，无需配置 API。优先于 NovelAI。
+            </div>
+
+            <div style="${groupTitleStyle}">NovelAI (专业生图)</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon">
+                    <div class="settings-label" style="${labelStyle}">启用 NovelAI</div>
                     <div class="ios-switch ${isNovelAI ? 'on' : ''}" data-switch="novelai_enabled"><div class="switch-knob"></div></div>
                 </div>
-                <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">模型</div>
-                    <div class="settings-value" style="font-size:17px; color:#8e8e93;">V4.5 Full</div>
+                <div class="settings-item no-icon" id="nai-model-row" style="cursor: pointer;">
+                    <div class="settings-label" style="${labelStyle}">当前模型</div>
+                    <div id="nai-model-display" style="color: #8e8e93; font-size: 16px;">${naiModel.toUpperCase()}</div>
+                    <svg viewBox="0 0 8 13" width="8" height="13" style="fill: #c7c7cc; margin-left: 8px;"><path d="M1.5 1L0 2.5l4 4-4 4L1.5 12l5.5-5.5z"/></svg>
                 </div>
                 <div class="settings-item no-icon">
                     <div class="settings-label" style="${labelStyle}">API Key</div>
-                    <input type="password" class="settings-input" data-key="novelai_key" placeholder="输入 Key" value="${s.get('novelai_key') || ''}" style="${inputStyle} color: #8e8e93;">
+                    <input type="password" class="settings-input" data-key="novelai_key" placeholder="Bearer Key" value="${s.get('novelai_key') || ''}" style="${inputStyle}">
                 </div>
             </div>
 
-            <!-- 操作按钮 -->
-            <div style="${groupTitleStyle}">操作</div>
+            <div style="${groupTitleStyle}">高级操作</div>
             <div class="settings-group">
-                <div class="settings-item" id="btn-novelai-params" style="justify-content: center; cursor: pointer;">
-                    <div style="${rowBtnStyle} color: #007aff;">生成参数设置</div>
-                </div>
                 <div class="settings-item" id="btn-novelai-test" style="justify-content: center; cursor: pointer;">
-                    <div style="${rowBtnStyle} color: #007aff;">测试生成</div>
+                    <div style="color: #007aff; font-size: 17px;">测试图像生成</div>
                 </div>
             </div>
-
-            <div style="height: 50px;"></div>
         </div>
     `;
 }
@@ -670,14 +685,15 @@ window.SettingsUI.renderHotspotPageContent = function () {
                     <input type="number" class="settings-input-small" data-key="bg_check_interval" value="${s.get('bg_check_interval') || '30'}" style="width:50px; text-align:right; background:transparent; border:none; color:#8e8e93; font-size:17px; outline:none;">
                 </div>
                 <div class="settings-item no-icon">
-                    <div class="settings-label" style="${labelStyle}">冷却时间 (小时)</div>
+                    <div class="settings-label" style="${labelStyle}">拉黑冷却 (小时)</div>
                     <input type="number" class="settings-input-small" data-key="bg_cooldown_hours" value="${s.get('bg_cooldown_hours') || '1'}" style="width:50px; text-align:right; background:transparent; border:none; color:#8e8e93; font-size:17px; outline:none;">
                 </div>
             </div>
-
-            <!-- 提示信息 -->
-            <div style="padding: 15px; font-size: 12px; color: #8e8e93; text-align: center; line-height: 1.5;">
-                ⚠️ 开启后台活动会增加 API 费用，请谨慎使用
+            <div style="padding: 10px 15px; font-size: 13px; color: #8e8e93; line-height: 1.4;">
+                配置项说明：<br>
+                1. 检测间隔控制系统后台唤醒 API 的周期。<br>
+                2. 冷却时间用于未来扩展功能（如角色主动申请加回好友）。<br>
+                3. 开启后台活动会增加 API 费用，请谨慎使用。
             </div>
         </div>
     `;
@@ -723,25 +739,13 @@ window.SettingsUI.renderChatPageContent = function () {
  */
 window.SettingsUI.renderFontPageDesignV5 = function () {
     const s = window.sysStore;
-    const isDark = s.get('dark_mode') !== 'false';
-    const darkClass = isDark ? 'force-dark' : '';
-
     const activeFontStr = s.get('active_font');
-    let activeFont = null;
-    try { activeFont = activeFontStr ? JSON.parse(activeFontStr) : null; } catch (e) { }
+    const activeFont = activeFontStr ? JSON.parse(activeFontStr) : null;
+    const customFonts = JSON.parse(s.get('custom_fonts') || '[]');
+    const currentUrl = activeFont ? activeFont.value : '';
+    const currentName = activeFont ? activeFont.name : '系统默认 (System)';
 
-    const customFontsStr = s.get('custom_fonts') || '[]';
-    let customFonts = [];
-    try { customFonts = JSON.parse(customFontsStr); } catch (e) { }
-
-    const currentUrl = (activeFont && activeFont.type !== 'system') ? activeFont.value : '';
-    const currentName = (activeFont && activeFont.type !== 'system') ? activeFont.name : 'System Default';
-
-    let optionsHtml = `<option value="">-- 选择一个预设 (Select Preset) --</option>`;
-    customFonts.forEach(font => {
-        const selected = (activeFont && activeFont.id === font.id) ? 'selected' : '';
-        optionsHtml += `<option value="${font.id}" ${selected}>${font.name}</option>`;
-    });
+    const sectionTitleStyle = "padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 25px;";
 
     return `
         <div class="settings-header" style="background: rgba(0,0,0,0.8); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: none; position: sticky; top: 0; z-index: 100;">
@@ -750,178 +754,58 @@ window.SettingsUI.renderFontPageDesignV5 = function () {
                     <svg viewBox="0 0 12 20" width="12" height="20" style="fill: #007aff;"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
                 </div>
                 <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff;">字体设置</div>
-                <div class="settings-action" id="btn-apply-font" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">保存</div>
+                <div class="settings-action btn-apply-font-trigger" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">应用</div>
             </div>
         </div>
-        <div class="settings-content font-page-content ${darkClass}">
-            <style>
-                .font-page-content {
-                    --fp-bg: #f2f2f7;
-                    --fp-text: #000000;
-                    --fp-subtext: #8e8e93;
-                    --fp-input-bg: #ffffff;
-                    --fp-input-border: #e5e5ea;
-                    --fp-preview-bg: #ffffff;
-                    --fp-btn-sec-bg: #ffffff;
-                    --fp-btn-sec-text: #007aff;
-                    --fp-danger-bg: #ffffff;
-                    --fp-danger-text: #ff3b30;
-                    
-                    background-color: var(--fp-bg) !important;
-                    color: var(--fp-text);
-                    padding: 20px;
-                    box-sizing: border-box;
-                    height: 100%;
-                    overflow-y: auto;
-                }
-
-                /* FORCE DARK MODE CLASSES */
-                .font-page-content.force-dark {
-                    --fp-bg: #000000;
-                    --fp-text: #ffffff;
-                    --fp-subtext: #8e8e93;
-                    --fp-input-bg: #1c1c1e;
-                    --fp-input-border: #333333;
-                    --fp-preview-bg: #1c1c1e;
-                    --fp-btn-sec-bg: #1c1c1e;
-                    --fp-btn-sec-text: #0a84ff;
-                    --fp-danger-bg: #1c1c1e;
-                    --fp-danger-text: #ff453a;
-                    
-                    background-color: #000000 !important;
-                    color: #ffffff !important;
-                }
-
-                /* Header Config */
-                .font-page-header {
-                    background: #f2f2f7;
-                    border-bottom: 1px solid #e5e5ea;
-                }
-                .font-page-header.force-dark {
-                    background-color: #000000 !important;
-                    border-bottom: 0.5px solid #1c1c1e !important;
-                }
-                .font-page-header.force-dark .settings-title { color: #fff !important; }
-                .font-page-header.force-dark svg { fill: #0a84ff !important; }
-
-                .font-form-group { margin-bottom: 24px; }
-                
-                .font-sublabel { 
-                    display: block; margin-bottom: 8px; margin-left: 4px;
-                    font-size: 13px; color: var(--fp-subtext); text-transform: uppercase; letter-spacing: -0.2px;
-                }
-                
-                .font-control-row { display: flex; gap: 12px; }
-                
-                .font-select { 
-                    flex: 1; height: 46px; padding: 0 16px; 
-                    border-radius: 10px; 
-                    border: 1px solid var(--fp-input-border); 
-                    background-color: var(--fp-input-bg); 
-                    font-size: 17px; color: var(--fp-text); 
-                    appearance: none;
-                    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-                    background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
-                }
-                
-                .font-btn-small {
-                    height: 46px; padding: 0 16px;
-                    border-radius: 10px;
-                    font-size: 15px; font-weight: 600;
-                    border: none;
-                    cursor: pointer;
-                    display: flex; align-items: center; justify-content: center;
-                    border: 1px solid var(--fp-input-border);
-                    flex-shrink: 0; white-space: nowrap;
-                }
-                
-                .btn-save-preset { background: var(--fp-btn-sec-bg); color: var(--fp-text); }
-                .btn-delete-preset { background: var(--fp-danger-bg); color: var(--fp-danger-text); }
-                /* Inverse text color for buttons in Dark Mode if needed, but variables handle it */
-                .font-page-content.force-dark .btn-save-preset { color: #ffffff; }
-
-                .font-input-container { position: relative; }
-                .font-input-box {
-                    width: 100%; height: 46px; padding: 0 16px; 
-                    padding-right: 44px;
-                    border-radius: 10px; 
-                    border: 1px solid var(--fp-input-border);
-                    background-color: var(--fp-input-bg);
-                    font-size: 17px; 
-                    color: var(--fp-text);
-                    box-sizing: border-box;
-                    outline: none;
-                }
-                .font-input-box::placeholder { color: var(--fp-subtext); }
-                
-                .font-file-icon {
-                    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-                    color: #007aff; font-size: 20px; cursor: pointer;
-                }
-
-                .font-preview-box {
-                    width: 100%; height: 140px; 
-                    padding: 20px;
-                    background: var(--fp-preview-bg);
-                    border-radius: 12px;
-                    border: 1px solid var(--fp-input-border);
-                    box-sizing: border-box;
-                    font-size: 20px;
-                    line-height: 1.5;
-                    overflow: auto;
-                    color: var(--fp-text);
-                    display: flex; flex-direction: column; justify-content: center; text-align: center;
-                }
-
-                .font-main-btn {
-                    width: 100%; height: 50px;
-                    border-radius: 12px;
-                    font-size: 17px; font-weight: 600;
-                    border: none;
-                    cursor: pointer;
-                    margin-bottom: 16px;
-                    text-align: center;
-                }
-                .btn-primary { background: #007aff; color: #ffffff; }
-                .btn-secondary { background: var(--fp-btn-sec-bg); color: var(--fp-text); border: 1px solid var(--fp-input-border); }
-                .font-page-content.force-dark .btn-secondary { color: var(--fp-btn-sec-text); }
-                
-                .font-control-row > * { min-width: 0; }
-            </style>
-            
-            <div class="font-form-group">
-                <span class="font-sublabel">字体预设 (PRESETS)</span>
-                <div class="font-control-row">
-                    <select id="font-preset-select" class="font-select">${optionsHtml}</select>
-                    <button id="btn-save-preset" class="font-btn-small btn-save-preset">保存</button>
-                    <button id="btn-delete-preset" class="font-btn-small btn-delete-preset">删除</button>
+        
+        <div class="settings-content" style="padding-top: 0;">
+            <!-- 预设 Section -->
+            <div style="${sectionTitleStyle}">库中收藏</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon" id="font-preset-row">
+                    <div class="settings-label">当前预设</div>
+                    <div style="color: #8e8e93; font-size: 16px; display: flex; align-items: center;">
+                        <span id="font-preset-display">${currentName}</span>
+                        <div class="settings-chevron">
+                           <svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 1.5L6.5 6.5L1.5 11.5" stroke="#5d5d62" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item no-icon" style="justify-content: space-between;">
+                    <span id="btn-save-preset" style="color: #007aff; font-size: 16px; cursor: pointer;">保存为新预设</span>
+                    <span id="btn-delete-preset" style="color: #ff3b30; font-size: 16px; cursor: pointer;">删除此预设</span>
                 </div>
             </div>
 
-            <div class="font-form-group">
-                <span class="font-sublabel">URL 或 本地文件 (SOURCE)</span>
-                <div class="font-input-container">
-                    <input type="text" id="font-url-input" class="font-input-box" value="${currentUrl}" placeholder="https://example.com/font.ttf">
-                    <div id="font-file-trigger" class="font-file-icon" title="Upload Local File">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+            <!-- 配置源 Section -->
+            <div style="${sectionTitleStyle}">字体配置</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon" style="flex-direction: column; align-items: stretch; padding: 12px 16px; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="settings-label" style="font-size: 15px; color: #8e8e93;">字体源 (URL 或 Base64)</span>
+                        <div id="font-file-trigger" style="background: rgba(118,118,128,0.24); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #007aff; cursor: pointer;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        </div>
                     </div>
+                    <textarea id="font-url-input" style="background: rgba(118,118,128,0.12); border: 1px solid rgba(255,255,255,0.05); color: #fff; font-size: 14px; width: 100%; height: 80px; outline: none; padding: 12px; border-radius: 10px; resize: none; font-family: monospace;" placeholder="请输入字体直链或粘贴 Base64 数据...">${currentUrl}</textarea>
                     <input type="file" id="font-file-input" style="display:none;" accept=".ttf,.otf,.woff,.woff2">
                 </div>
             </div>
 
-            <div class="font-form-group">
-                <span class="font-sublabel">实时预览 (PREVIEW)</span>
-                <div id="realtime-preview" class="font-preview-box" style="font-family: '${currentName}', sans-serif;">
-                    <div>你好世界 Hello World</div>
-                    <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">这是字体预览效果 12345.</div>
+            <!-- 预览 Section -->
+             <div style="${sectionTitleStyle}">排版预览</div>
+             <div style="margin: 0 16px; padding: 30px 20px; background: #1c1c1e; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 140px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <div id="realtime-preview" style="font-family: '${currentName}', sans-serif; text-align: center; width: 100%; transition: all 0.3s ease;">
+                    <div style="font-size: 28px; color: #fff; font-weight: 500; margin-bottom: 12px;">Chara OS 字体</div>
+                    <div style="font-size: 15px; color: #8e8e93; line-height: 1.5;">这是一段示例文本。<br>The quick brown fox jumps over the lazy dog.</div>
                 </div>
-            </div>
+             </div>
 
-            <div style="margin-top: 40px;">
-                <button id="btn-apply-font" class="font-main-btn btn-primary">保存并应用</button>
-                <button id="btn-reset-font" class="font-main-btn btn-secondary">恢复默认字体</button>
+            <div style="margin-top: 40px; padding: 0 20px; display: flex; flex-direction: column; gap: 14px;">
+                <div class="btn-apply-font-trigger" style="background: #007aff; color: #fff; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">应用当前字体</div>
+                <div id="btn-reset-font" style="background: #fff; color: #000; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">恢复默认字体</div>
             </div>
-            <div style="height: 50px;"></div>
+            <div style="height: 60px;"></div>
         </div>
     `;
 }
@@ -949,7 +833,7 @@ window.SettingsUI.renderAppearancePageContent = function () {
     const sectionTitleStyle = "padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 25px;";
     const wpSectionStyle = "display: flex; justify-content: center; gap: 40px; padding: 20px 0;";
     const wpWrapperStyle = "display: flex; flex-direction: column; align-items: center; gap: 10px;";
-    const wpLabelStyle = "font-size: 13px; color: #fff; font-weight: 500;";
+    const wpLabelStyle = "font-size: 13px; color: #8e8e93; font-weight: 500;";
 
     const wpPreviewStyle = (src) => `width: 100px; height: 180px; border-radius: 14px; background-color: #333; background-size: cover; background-position: center; border: 1px solid rgba(255,255,255,0.15); position: relative; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.3); ${src ? `background-image: url('${src}');` : ''} display: flex; align-items: center; justify-content: center;`;
     const wpTextStyle = "font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; pointer-events: none;";
@@ -1022,25 +906,35 @@ window.SettingsUI.renderAppearancePageContent = function () {
                     <div style="${wpLabelStyle}">主屏幕</div>
                 </div>
             </div>
+
             
-            <!-- Presets & Advanced Section -->
-            <div style="${sectionTitleStyle}">预设管理</div>
+            <!-- Appearance Section -->
+            <div style="${sectionTitleStyle}">外观方案</div>
             <div class="settings-group">
-                <!-- Appearance Preset -->
-                <div class="settings-item no-icon">
-                    <div class="settings-label">外观预设</div>
+                <div class="settings-item no-icon" id="appearance-preset-row">
+                    <div class="settings-label">当前预设</div>
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <span style="color:#8e8e93; font-size:16px;">默认</span>
+                        <span id="appearance-preset-display" style="color:#8e8e93; font-size:16px;">默认</span>
                         <div class="settings-chevron">›</div>
                     </div>
                 </div>
-                 <!-- CSS Preset -->
-                <div class="settings-item no-icon">
-                    <div class="settings-label">CSS 预设</div>
+                <div class="settings-item no-icon" id="btn-save-appearance-preset" style="justify-content: center; cursor: pointer;">
+                    <div style="color: #007aff; font-size: 17px;">存储为新预设</div>
+                </div>
+            </div>
+
+             <!-- CSS Section -->
+             <div style="${sectionTitleStyle}">CSS 方案</div>
+             <div class="settings-group">
+                <div class="settings-item no-icon" id="css-preset-row">
+                    <div class="settings-label">当前预设</div>
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <span style="color:#8e8e93; font-size:16px;">无</span>
+                        <span id="css-preset-display" style="color:#8e8e93; font-size:16px;">无</span>
                          <div class="settings-chevron">›</div>
                     </div>
+                </div>
+                <div class="settings-item no-icon" id="btn-save-css-preset" style="justify-content: center; cursor: pointer;">
+                    <div style="color: #007aff; font-size: 17px;">存储为新预设</div>
                 </div>
             </div>
 
@@ -1068,10 +962,6 @@ window.SettingsUI.renderAppearancePageContent = function () {
                     <div class="settings-label" style="color: #007aff;">导入外观配置</div>
                     <div class="settings-chevron">›</div>
                 </div>
-            </div>
-            
-            <div style="padding: 10px 30px; font-size: 12px; color: #8e8e93; text-align: center;">
-                点击预览图上传新壁纸。
             </div>
         </div>
     `;
@@ -1185,3 +1075,74 @@ window.SettingsUI.renderNotificationPageContent = function () {
         </div>
     `;
 }
+/**
+ * 渲染导出选项的操作表 (ActionSheet)
+ */
+window.SettingsUI.renderExportSheet = function (isDark) {
+    const bg = isDark ? '#1c1c1e' : '#f2f2f7';
+    const itemBg = isDark ? '#2c2c2e' : '#ffffff';
+    const textColor = isDark ? '#ffffff' : '#000000';
+    const border = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+    return `
+        <div class="action-sheet-mask" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 20px; animation: fadeIn 0.3s ease;">
+            <div class="action-sheet-container" style="width: 92%; max-width: 400px; animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                <div style="background: ${itemBg}; border-radius: 14px; overflow: hidden; margin-bottom: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                    <div style="padding: 15px; text-align: center; color: #8e8e93; font-size: 13px; border-bottom: 1px solid ${border};">选择导出方式</div>
+                    <div class="sheet-item" data-type="split" style="padding: 16px; text-align: center; color: #007aff; font-size: 18px; border-bottom: 1px solid ${border}; cursor: pointer;">
+                        分片导出 (推荐)
+                        <div style="font-size: 12px; color: #8e8e93; margin-top: 2px;">打包为 ZIP, 增量导入更稳定</div>
+                    </div>
+                    <div class="sheet-item" data-type="smart" style="padding: 16px; text-align: center; color: #007aff; font-size: 18px; border-bottom: 1px solid ${border}; cursor: pointer;">
+                        智能导出 (单个文件)
+                        <div style="font-size: 12px; color: #8e8e93; margin-top: 2px;">适合数据量较小的情况</div>
+                    </div>
+                    <div class="sheet-item" data-type="legacy" style="padding: 16px; text-align: center; color: #007aff; font-size: 18px; cursor: pointer;">传统导出</div>
+                </div>
+                <div class="sheet-close" style="background: ${itemBg}; border-radius: 14px; padding: 16px; text-align: center; color: #007aff; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">取消</div>
+            </div>
+            <style>
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            </style>
+        </div>
+    `;
+};
+
+/**
+ * 渲染通用选项选择弹窗 (Modal) - 增强版支持删除
+ */
+window.SettingsUI.renderSelectionModal = function ({ title, items, isDark, canDelete = false }) {
+    const bg = isDark ? '#1c1c1e' : '#f2f2f7';
+    const text = isDark ? '#ffffff' : '#000000';
+    const border = isDark ? '#333333' : '#c6c6c8';
+    const headBg = isDark ? '#2c2c2e' : '#ffffff';
+
+    let itemsHtml = '';
+    items.forEach(item => {
+        itemsHtml += `
+            <div class="modal-selection-item" data-id="${item.id}" style="padding: 14px 16px; border-bottom: 1px solid ${border}; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 16px; flex: 1; pointer-events: none;">${item.label}</span>
+                ${canDelete && item.id !== 'default' && item.id !== 'none' ? `
+                    <div class="modal-item-delete" data-id="${item.id}" style="color: #ff3b30; font-size: 20px; font-weight: bold; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; margin-right: -10px;">×</div>
+                ` : `
+                    <div style="color: #8e8e93; font-size: 14px;">${item.id === 'default' || item.id === 'none' ? '系统' : ''}</div>
+                `}
+            </div>
+        `;
+    });
+
+    return `
+        <div class="modal-mask" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center;">
+            <div class="modal-body" style="background: ${bg}; width: 85%; max-height: 70%; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: ${text};">
+                <div style="padding: 15px; text-align: center; font-weight: bold; border-bottom: 1px solid ${border}; background: ${headBg}; position: relative;">
+                    ${title}
+                    <div class="modal-close" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #8e8e93; font-weight: normal; cursor: pointer; font-size: 18px; padding: 5px;">✕</div>
+                </div>
+                <div class="modal-list no-scrollbar" style="overflow-y: auto; flex: 1;">
+                    ${itemsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+};

@@ -68,9 +68,7 @@ body {
     border-radius: 0;
 }
 
-#os-root.fullscreen-mode .settings-header {
-    padding-top: 20px;
-}
+
 
 .wallpaper {
     position: absolute;
@@ -333,14 +331,14 @@ body {
     font-size: 105px;
     font-weight: 400;
     color: #ffffff;
-    /* 鏍囧噯绮楃粏 */
+    /* 标准粗细 */
     letter-spacing: -4px;
     /* Tighter tracking for big text */
     line-height: 1;
     font-variant-numeric: tabular-nums;
     width: 100%;
     margin-bottom: 15px;
-    /* 鏃堕棿鍜屾棩鏈熷ぉ姘斾箣闂寸殑闂磋窛 */
+    /* 时间和日期天气之间的间距 */
 }
 
 .system-info-row {
@@ -349,9 +347,9 @@ body {
     align-items: center;
     gap: 12px;
     font-size: 14px;
-    /* 鏇村皬鐨勫瓧鍙?*/
+    /* 更小的字号 */
     font-weight: 400;
-    /* 鏇寸粏 */
+    /* 更细 */
     opacity: 0.75;
     letter-spacing: 0.3px;
 }
@@ -636,7 +634,7 @@ body {
     display: grid;
     grid-template-columns: repeat(2, 60px);
     column-gap: 35px;
-    /* 绮剧‘璁＄畻闂磋窛浠ュ尮閰?155px 瀹藉害鐨勭粍浠?*/
+    /* 精确计算间距以匹配 155px 宽度的组件 */
     row-gap: 20px;
     width: 155px;
     justify-content: center;
@@ -782,7 +780,7 @@ body {
     overflow: hidden;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     background: #2a2a2a;
-    /* 榛樿鏋佺畝鐏拌壊锛屾棤鍥炬 */
+    /* 默认极简灰色，无图案 */
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -803,7 +801,7 @@ body {
     position: fixed;
     z-index: 1000;
     width: 110px;
-    /* 鏋佽嚧绮剧畝瀹藉害 */
+    /* 极致精简宽度 */
     background: rgba(30, 30, 30, 0.95);
     backdrop-filter: blur(25px);
     border-radius: 10px;
@@ -829,7 +827,7 @@ body {
     padding: 8px 4px;
     color: white;
     font-size: 13px;
-    /* 鏇村皬瀛楀彿 */
+    /* 更小字号 */
     cursor: pointer;
     border-radius: 6px;
     transition: background 0.1s;
@@ -1282,9 +1280,7 @@ body {
 
 /* --- Fullscreen Overrides --- */
 
-#os-root.fullscreen-mode .settings-header {
-    padding-top: 54px !important;
-}
+
 
 #os-root.fullscreen-mode .home-bar {
     width: 220px !important;

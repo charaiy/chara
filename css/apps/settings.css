@@ -114,7 +114,8 @@
     display: none;
 }
 
-.settings-item:active {
+.settings-item:active,
+.settings-item.selected {
     background-color: #2c2c2e;
 }
 
@@ -591,4 +592,181 @@
 #os-root.light-mode .settings-header[style*="background: rgba"] {
     background: rgba(242, 242, 247, 0.9) !important;
     backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* =========================================
+   Fullscreen Overrides (Settings App Only)
+   ========================================= */
+#os-root.fullscreen-mode .settings-header {
+    padding-top: 54px !important;
+}
+
+/* =========================================
+   Font Design Page (V5) - Reimagined Premium UI
+   ========================================= */
+.font-page-content {
+    --fp-bg: #f2f2f7;
+    --fp-card: #fff;
+    --fp-text: #000;
+    --fp-subtext: #8e8e93;
+    --fp-input-bg: #f2f2f7;
+    --fp-input-border: transparent;
+    --fp-preview-bg: rgba(255, 255, 255, 0.7);
+    --fp-accent: #007aff;
+    --fp-danger: #ff3b30;
+
+    background-color: var(--fp-bg) !important;
+    padding: 20px 16px;
+    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
+    width: 100%;
+}
+
+#os-root.dark-mode .font-page-content,
+.font-page-content.force-dark {
+    --fp-bg: #000;
+    --fp-card: #1c1c1e;
+    --fp-text: #fff;
+    --fp-input-bg: #2c2c2e;
+    --fp-preview-bg: rgba(28, 28, 30, 0.7);
+}
+
+.font-card {
+    background: var(--fp-card);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+}
+
+.font-sublabel {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fp-subtext);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.font-control-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.font-select,
+.font-input-box {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: none;
+    background-color: var(--fp-input-bg);
+    font-size: 16px;
+    color: var(--fp-text);
+    box-sizing: border-box;
+}
+
+.font-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+}
+
+.font-btn-small {
+    flex-shrink: 0;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+    border: none;
+}
+
+.font-btn-small:active {
+    transform: scale(0.96);
+}
+
+.btn-save-preset {
+    background: rgba(0, 122, 255, 0.1);
+    color: var(--fp-accent);
+}
+
+.btn-delete-preset {
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--fp-danger);
+}
+
+.font-preview-box {
+    width: 100%;
+    min-height: 140px;
+    padding: 24px;
+    background: var(--fp-preview-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--fp-text);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.font-main-btn {
+    width: 100%;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: opacity 0.2s;
+}
+
+.font-main-btn:active {
+    opacity: 0.7;
+}
+
+.btn-primary {
+    background: var(--fp-accent);
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #000;
+    color: #fff;
+}
+
+#os-root.dark-mode .btn-secondary {
+    background: #fff;
+    color: #000;
+}
+
+/* --- Utility: Hide Scrollbar --- */
+.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+}
+
+/* Modal List Smooth Scroll */
+.modal-list {
+    -webkit-overflow-scrolling: touch;
 }

@@ -1,16 +1,33 @@
+const WEATHER_MAP = {
+    0: '晴', 1: '晴', 2: '多云', 3: '阴',
+    45: '雾', 48: '雾',
+    51: '小雨', 53: '中雨', 55: '大雨',
+    61: '小雨', 63: '中雨', 65: '大雨',
+    71: '小雪', 73: '中雪', 75: '大雪',
+    80: '阵雨', 81: '阵雨', 82: '暴雨',
+    95: '雷雨', 96: '雷伴冰雹', 99: '雷伴冰雹'
+};
+
 class CharaOS {
     constructor() {
+        this.dom = {};
+        this.activeElement = null;
+        this.activeApp = null;
+        this.isLocked = false;
+
         this.initDOM();
-        this.initClock();
-        this.initWeather(); // New Weather Logic
-        this.initInteractions();
-        this.loadCustomData();
-        this.initLockScreen();
-        console.log('CharaOS Initialized (Local Mode)');
+        this._initClockModule();
+        this._initWeatherModule();
+        this._initInteractionModule();
+        this._initLockScreenModule();
+        this._loadSystemConfigs();
+
+        console.log('CharaOS Initialized (Refactored)');
     }
 
     initDOM() {
         this.dom = {
+            root: document.getElementById('os-root'),
             time: document.querySelector('.status-bar .time'),
             bigTime: document.querySelector('.big-time'),
             dateDisplay: document.querySelector('.date-display'),
@@ -22,12 +39,21 @@ class CharaOS {
             photoWidgets: document.querySelectorAll('.photo-widget'),
             contextMenu: document.getElementById('context-menu'),
             menuRename: document.getElementById('menu-rename'),
-            menuUpload: document.getElementById('menu-upload')
+            menuUpload: document.getElementById('menu-upload'),
+            wallpaper: document.querySelector('.wallpaper'),
+            lockScreen: {
+                root: document.getElementById('lock-screen'),
+                bg: document.getElementById('lock-screen-bg'),
+                time: document.getElementById('lock-time'),
+                date: document.getElementById('lock-date'),
+                passContainer: document.getElementById('lock-pass-container'),
+                passInput: document.getElementById('lock-pass-input'),
+            }
         };
-        this.activeElement = null;
     }
 
-    initClock() {
+
+    _initClockModule() {
         const update = () => {
             const timeStr = window.utils.getFormattedTime();
             const dateStr = window.utils.getFormattedDate();
@@ -36,13 +62,9 @@ class CharaOS {
             if (this.dom.bigTime) this.dom.bigTime.textContent = timeStr;
             if (this.dom.dateDisplay) this.dom.dateDisplay.textContent = dateStr;
 
-            const lockTime = document.getElementById('lock-time');
-            const lockDate = document.getElementById('lock-date');
-            if (lockTime) lockTime.textContent = timeStr;
-            if (lockDate) lockDate.textContent = dateStr;
-
-            // Mock Weather Update: If existing, could update here.
-            // if (this.dom.weatherDisplay) ...
+            const { time: lTime, date: lDate } = this.dom.lockScreen;
+            if (lTime) lTime.textContent = timeStr;
+            if (lDate) lDate.textContent = dateStr;
 
             this.updateAnalogClock();
         };
@@ -69,15 +91,15 @@ class CharaOS {
         if (sHand) sHand.style.transform = `rotate(${sDeg}deg)`;
     }
 
-    loadCustomData() {
+
+    _loadSystemConfigs() {
         // Load theme preference
-        const osRoot = document.getElementById('os-root');
         const savedTheme = window.sysStore.get('theme_mode');
-        if (savedTheme === 'light') osRoot.classList.add('light-theme');
+        if (savedTheme === 'light') this.dom.root.classList.add('light-theme');
 
         // Load Fullscreen Preference
         if (window.sysStore.get('fullscreen_mode') === 'on') {
-            osRoot.classList.add('fullscreen-mode');
+            this.dom.root.classList.add('fullscreen-mode');
         }
 
         // Load System Display Settings
@@ -122,6 +144,7 @@ class CharaOS {
         const customCSS = window.sysStore.get('custom_css');
         if (customCSS) this.applyCustomCSS(customCSS);
     }
+
 
     applyCustomCSS(css) {
         let style = document.getElementById('user-custom-css');
@@ -178,7 +201,7 @@ class CharaOS {
         }
     }
 
-    initInteractions() {
+    _initInteractionModule() {
         const container = this.dom.desktopContainer;
 
         // 1. Desktop Scrolling (Mouse Drag Simulation)
@@ -369,18 +392,7 @@ class CharaOS {
         });
     }
 
-    initWeather() {
-        // WMO Weather Codes to Chinese
-        const weatherMap = {
-            0: '晴', 1: '晴', 2: '多云', 3: '阴',
-            45: '雾', 48: '雾',
-            51: '小雨', 53: '中雨', 55: '大雨',
-            61: '小雨', 63: '中雨', 65: '大雨',
-            71: '小雪', 73: '中雪', 75: '大雪',
-            80: '阵雨', 81: '阵雨', 82: '暴雨',
-            95: '雷雨', 96: '雷伴冰雹', 99: '雷伴冰雹'
-        };
-
+    _initWeatherModule() {
         const fetchWeather = async (lat, lon, locationName) => {
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
@@ -390,7 +402,7 @@ class CharaOS {
                 if (data.current_weather) {
                     const code = data.current_weather.weathercode;
                     const temp = Math.round(data.current_weather.temperature);
-                    const desc = weatherMap[code] || '未知';
+                    const desc = WEATHER_MAP[code] || '未知';
 
                     if (this.dom.weatherDisplay) {
                         this.dom.weatherDisplay.innerHTML = `<span class="weather-location">${locationName}</span> <span class="weather-icon">${desc}</span> ${temp}°C`;
@@ -405,14 +417,11 @@ class CharaOS {
             }
         };
 
-        // Reverse Geocoding to get city name
         const getLocationName = async (lat, lon) => {
             try {
-                // Use Nominatim for reverse geocoding (free, no API key)
                 const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=zh`;
                 const res = await fetch(url, { headers: { 'User-Agent': 'CharaOS/1.0' } });
                 const data = await res.json();
-                // Try to get city or district name
                 return data.address?.city || data.address?.district || data.address?.county || data.address?.state || '未知地区';
             } catch (e) {
                 console.warn('Reverse geocoding failed:', e);
@@ -420,24 +429,36 @@ class CharaOS {
             }
         };
 
-        // Get Location
+        const savedLat = window.sysStore.get('last_lat');
+        const savedLon = window.sysStore.get('last_lon');
+        const savedName = window.sysStore.get('last_location_name');
+
+        if (savedLat && savedLon && savedName) {
+            fetchWeather(savedLat, savedLon, savedName);
+            return;
+        }
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                     const lat = pos.coords.latitude;
                     const lon = pos.coords.longitude;
                     const locationName = await getLocationName(lat, lon);
+                    window.sysStore.set('last_lat', lat.toString());
+                    window.sysStore.set('last_lon', lon.toString());
+                    window.sysStore.set('last_location_name', locationName);
                     fetchWeather(lat, lon, locationName);
                 },
                 (err) => {
                     console.warn('Geolocation denied, using default (Beijing)', err);
-                    fetchWeather(39.9042, 116.4074, '北京'); // Default Beijing
+                    fetchWeather(39.9042, 116.4074, '北京');
                 }
             );
         } else {
             fetchWeather(39.9042, 116.4074, '北京');
         }
     }
+
 
     openApp(appName) {
         console.log('Opening App:', appName);
@@ -507,11 +528,10 @@ class CharaOS {
         }
     }
 
-    initLockScreen() {
-        const lockScreen = document.getElementById('lock-screen');
+    _initLockScreenModule() {
+        const { root: lockScreen, bg, passContainer, passInput } = this.dom.lockScreen;
         const isEnabled = window.sysStore.get('lock_screen_enabled') === 'true';
 
-        // Check if lock screen exists (it should)
         if (!lockScreen) return;
 
         if (!isEnabled) {
@@ -522,21 +542,13 @@ class CharaOS {
         lockScreen.classList.remove('hidden');
         this.isLocked = true;
 
-        // Apply wallpaper
         const wp = window.sysStore.get('lock_screen_wallpaper');
-        if (wp) {
-            const bg = document.getElementById('lock-screen-bg');
-            if (bg) bg.src = wp;
-        }
+        if (wp && bg) bg.src = wp;
 
-        // Unlock logic
         const handleUnlock = () => {
             if (!this.isLocked) return;
             const password = window.sysStore.get('lock_screen_password');
             if (password) {
-                // Show password input
-                const passContainer = document.getElementById('lock-pass-container');
-                const passInput = document.getElementById('lock-pass-input');
                 if (passContainer) passContainer.classList.remove('hidden');
                 if (passInput) {
                     passInput.focus();
@@ -569,57 +581,52 @@ class CharaOS {
     }
 
     unlock() {
-        const lockScreen = document.getElementById('lock-screen');
+        const { root: lockScreen, passContainer, passInput } = this.dom.lockScreen;
+        if (!lockScreen) return;
+
         lockScreen.classList.add('unlocked');
         this.isLocked = false;
         setTimeout(() => {
             lockScreen.classList.add('hidden');
             lockScreen.classList.remove('unlocked');
-            const passContainer = document.getElementById('lock-pass-container');
-            const passInput = document.getElementById('lock-pass-input');
             if (passContainer) passContainer.classList.add('hidden');
             if (passInput) passInput.value = '';
         }, 400);
     }
 
+
     loadWallpapers() {
         const homeWp = window.sysStore.get('home_screen_wallpaper');
-        if (homeWp) {
-            const wp = document.querySelector('.wallpaper');
-            if (wp) wp.style.setProperty('background-image', `url('${homeWp}')`, 'important');
+        if (homeWp && this.dom.wallpaper) {
+            this.dom.wallpaper.style.setProperty('background-image', `url('${homeWp}')`, 'important');
         }
     }
 
     updateLockScreenWallpaper(base64) {
-        const bg = document.getElementById('lock-screen-bg');
+        const { bg } = this.dom.lockScreen;
         if (bg) bg.src = base64;
     }
 
     updateHomeScreenWallpaper(base64) {
-        const wp = document.querySelector('.wallpaper');
+        const wp = this.dom.wallpaper;
         if (wp) {
-            // Force remove any gradient shorthand
             wp.style.background = 'none';
-            // Set image with !important
             if (base64) {
-                // Ensure valid data URI just in case
                 const bgUrl = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
                 wp.style.setProperty('background-image', `url("${bgUrl}")`, 'important');
-                // Ensure size is cover
                 wp.style.setProperty('background-size', 'cover', 'important');
                 wp.style.setProperty('background-position', 'center', 'important');
                 wp.style.setProperty('background-repeat', 'no-repeat', 'important');
-                // Force full opacity if it was hidden
                 wp.style.opacity = '1';
-                console.log('Wallpaper updated via OS (Length: ' + base64.length + ')');
+                console.log('Wallpaper updated via OS');
             } else {
-                // Restore default gradient
                 wp.style.removeProperty('background-image');
                 wp.style.background = 'linear-gradient(135deg, #1a1a1a, #000)';
             }
         }
     }
 }
+
 
 
 // Boot OS
