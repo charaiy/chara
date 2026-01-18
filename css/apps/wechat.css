@@ -1,0 +1,1396 @@
+﻿/* ==========================================================================
+
+   WeChat (Simulated) - iOS Design System
+
+   Target: iOS 17+ / WeChat 8.0+
+
+   ========================================================================== */
+
+
+
+:root {
+
+    /* --- Dark Mode (Default) --- */
+
+    --wx-bg: #111111;
+
+    --wx-nav-bg: #111111;
+
+    --wx-cell-bg: #1c1c1e;
+
+    --wx-cell-active: #2c2c2e;
+
+    --wx-text: #ffffff;
+
+    --wx-text-sec: #8e8e93;
+
+    --wx-text-weaker: #636366;
+
+    --wx-border: rgba(255, 255, 255, 0.15);
+
+    --wx-green: #07c160;
+
+    --wx-red: #fa5151;
+
+    --wx-bubble-me: #26ce7b;
+
+    --wx-bubble-other: #2c2c2e;
+
+    --wx-footer-bg: #111111;
+
+    --wx-input-bg: #1f1f1f;
+
+    --wx-extra-icon-bg: #0e0e0e;
+
+    --wx-msg-text: #ffffff;
+
+
+
+    /* 间距与尺寸 (修正版) */
+
+    --wx-status-bar-height: 48px;
+
+    /* 灵动岛区域 */
+
+    --wx-nav-inner-height: 44px;
+
+    --wx-nav-height: calc(var(--wx-status-bar-height) + var(--wx-nav-inner-height));
+
+
+
+    --wx-tab-inner-height: 56px;
+
+    --wx-safe-bottom: 34px;
+
+    /* 底部安全区，防止被圆角切, 恢复为标准的 34px 以远离 HomeBar */
+
+    --wx-tab-height: calc(var(--wx-tab-inner-height) + var(--wx-safe-bottom));
+
+}
+
+
+
+/* --- Light Mode (Force Override) --- */
+
+html body #os-root.light-mode {
+
+    --wx-bg: #ededed;
+
+    --wx-nav-bg: rgba(247, 247, 247, 0.95);
+
+    --wx-cell-bg: #ffffff;
+
+    --wx-cell-active: #f2f2f2;
+
+    --wx-text: #000000;
+
+    --wx-text-sec: rgba(0, 0, 0, 0.6);
+
+    --wx-text-weaker: rgba(0, 0, 0, 0.3);
+
+    --wx-border: rgba(0, 0, 0, 0.08);
+
+    --wx-green: #07c160;
+
+    --wx-bubble-me: #95ec69;
+
+    --wx-bubble-other: #ffffff;
+
+    --wx-footer-bg: #f7f7f7;
+
+    --wx-input-bg: #ffffff;
+
+    --wx-extra-icon-bg: #ffffff;
+
+    --wx-msg-text: #000000;
+
+}
+
+
+
+/* ==========================================================================
+
+   Reset & Base
+
+   ========================================================================== */
+
+.wechat-app {
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    right: 0;
+
+    bottom: 0;
+
+    width: 100%;
+
+    height: 100%;
+
+    background-color: var(--wx-bg);
+
+    color: var(--wx-text);
+
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+
+    overflow: hidden;
+
+    z-index: 1;
+
+    user-select: none;
+
+}
+
+
+
+.wx-scroller {
+
+    height: 100%;
+
+    overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+
+    /* 关键修正：确保内容不被遮挡 */
+
+    padding-top: var(--wx-nav-height);
+
+    padding-bottom: var(--wx-tab-height);
+
+    box-sizing: border-box;
+
+}
+
+
+
+.wx-scroller::-webkit-scrollbar {
+
+    display: none;
+
+    width: 0;
+
+}
+
+
+
+/* ==========================================================================
+
+   Components: NavBar & TabBar
+
+   ========================================================================== */
+
+.wx-navbar {
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    width: 100%;
+
+    height: var(--wx-nav-height);
+
+    padding-top: var(--wx-status-bar-height);
+
+    /* 给状态栏留空 */
+
+    background-color: var(--wx-nav-bg);
+
+    backdrop-filter: blur(20px);
+
+    -webkit-backdrop-filter: blur(20px);
+
+    z-index: 100;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-bottom: 0.5px solid transparent;
+
+    box-sizing: border-box;
+
+}
+
+
+
+.wx-navbar-title {
+
+    font-size: 16px;
+
+    font-weight: 600;
+
+    color: var(--wx-text);
+
+}
+
+
+
+.wx-navbar-left,
+
+.wx-navbar-right {
+
+    position: absolute;
+
+    top: var(--wx-status-bar-height);
+
+    /* 按钮也要下移 */
+
+    height: var(--wx-nav-inner-height);
+
+    padding: 0 16px;
+
+    display: flex;
+
+    align-items: center;
+
+    font-size: 14px;
+
+    color: var(--wx-text);
+
+    z-index: 101;
+
+}
+
+
+
+.wx-navbar-left {
+
+    left: 0;
+
+}
+
+
+
+.wx-navbar-right {
+
+    right: 0;
+
+    gap: 16px;
+
+}
+
+
+
+.wx-tabbar {
+
+    position: absolute;
+
+    bottom: 0;
+
+    left: 0;
+
+    width: 100%;
+
+    height: var(--wx-tab-height);
+
+    padding-bottom: var(--wx-safe-bottom);
+
+    /* 给底部圆角留空 */
+
+    background-color: var(--wx-nav-bg);
+
+    backdrop-filter: blur(20px);
+
+    -webkit-backdrop-filter: blur(20px);
+
+    z-index: 100;
+
+    display: flex;
+
+    align-items: flex-start;
+
+    padding-top: 4px;
+
+    border-top: 0.5px solid transparent;
+
+    box-sizing: border-box;
+
+}
+
+
+
+.wx-tab-item {
+
+    flex: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    /* 会因为 height 变大而居中于整个区域吗？不，padding-bottom 挤上去了 */
+
+    color: var(--wx-text-sec);
+
+    cursor: pointer;
+
+    position: relative;
+
+    /* 修正 Tab Item 高度 */
+
+    height: var(--wx-tab-inner-height);
+
+}
+
+
+
+.wx-tab-item.active {
+
+    color: var(--wx-green);
+
+}
+
+
+
+.wx-tab-icon {
+
+    width: 28px;
+
+    height: 28px;
+
+    margin-bottom: 2px;
+
+}
+
+
+
+.wx-tab-icon svg {
+
+    width: 100%;
+
+    height: 100%;
+
+    fill: currentColor;
+
+}
+
+
+
+.wx-tab-label {
+
+    font-size: 9px;
+
+    font-weight: 500;
+
+    transform: scale(0.9);
+
+}
+
+
+
+/* 徽标 */
+
+.wx-badge {
+
+    position: absolute;
+
+    top: 0;
+
+    right: 50%;
+
+    margin-right: -20px;
+
+    /* 居中偏移 */
+
+    background-color: var(--wx-red);
+
+    color: white;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+    height: 16px;
+
+    min-width: 16px;
+
+    padding: 0 4px;
+
+    border-radius: 9px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    box-sizing: border-box;
+
+    transform: none;
+
+}
+
+
+
+.wx-badge-dot {
+
+    position: absolute;
+
+    top: 2px;
+
+    right: 50%;
+
+    margin-right: -14px;
+
+    width: 8px;
+
+    height: 8px;
+
+    background-color: var(--wx-red);
+
+    border-radius: 50%;
+
+}
+
+
+
+/* ==========================================================================
+
+   Utility: Hairlines (Retina 0.5px border)
+
+   ========================================================================== */
+
+.wx-hairline-bottom {
+
+    position: relative;
+
+}
+
+
+
+.wx-hairline-bottom::after {
+
+    content: " ";
+
+    position: absolute;
+
+    left: 0;
+
+    bottom: 0;
+
+    right: 0;
+
+    height: 1px;
+
+    border-bottom: 1px solid var(--wx-border);
+
+    color: var(--wx-border);
+
+    transform-origin: 0 100%;
+
+    transform: scaleY(0.4);
+
+    z-index: 1;
+
+}
+
+
+
+.wx-hairline-top {
+
+    position: relative;
+
+}
+
+
+
+.wx-hairline-top::before {
+
+    content: " ";
+
+    position: absolute;
+
+    left: 0;
+
+    top: 0;
+
+    right: 0;
+
+    height: 1px;
+
+    border-top: 1px solid var(--wx-border);
+
+    color: var(--wx-border);
+
+    transform-origin: 0 0;
+
+    transform: scaleY(0.4);
+
+    z-index: 1;
+
+}
+
+
+
+/* ==========================================================================
+
+   Page: Me & Cells
+
+   ========================================================================== */
+
+.wx-cell-group {
+
+    margin-top: 8px;
+
+    background-color: transparent;
+
+}
+
+
+
+.wx-cell {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    background-color: var(--wx-cell-bg);
+
+    padding: 12px 16px;
+
+    transition: background-color 0.2s;
+
+}
+
+
+
+.wx-cell:active {
+
+    background-color: var(--wx-cell-active);
+
+}
+
+
+
+.wx-cell-icon {
+
+    width: 24px;
+
+    height: 24px;
+
+    margin-right: 16px;
+
+    border-radius: 4px;
+
+}
+
+
+
+.wx-cell-content {
+
+    flex: 1;
+
+    font-size: 15px;
+
+    color: var(--wx-text);
+
+}
+
+
+
+.wx-cell-arrow {
+
+    width: 8px;
+
+    height: 13px;
+
+    opacity: 0.3;
+
+    border-right: 2px solid var(--wx-text);
+
+    border-bottom: 2px solid var(--wx-text);
+
+    transform: rotate(-45deg);
+
+}
+
+
+
+/* Profile Header */
+
+.wx-profile-header {
+
+    background-color: var(--wx-cell-bg);
+
+    padding: 30px 20px 30px 24px;
+
+    display: flex;
+
+    align-items: center;
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.wx-avatar {
+
+    width: 64px;
+
+    height: 64px;
+
+    border-radius: 8px;
+
+    margin-right: 20px;
+
+    background-color: #eee;
+
+    object-fit: cover;
+
+}
+
+
+
+.wx-profile-info {
+
+    flex: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+}
+
+
+
+.wx-profile-name {
+
+    font-size: 18px;
+
+    font-weight: 600;
+
+    color: var(--wx-text);
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.wx-profile-id {
+
+    font-size: 13px;
+
+    color: var(--wx-text-sec);
+
+    display: flex;
+
+    align-items: center;
+
+}
+
+
+
+.wx-profile-id-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    width: 100%;
+
+    padding-right: 10px;
+
+}
+
+
+
+.wx-icon-qrcode {
+
+    width: 18px;
+
+    height: 18px;
+
+    opacity: 0.6;
+
+    margin-left: auto;
+
+}
+
+/* --- Emergency Z-Index Fix --- */
+.wx-tabbar {
+    z-index: 9999 !important;
+}
+
+.wx-navbar {
+    z-index: 9999 !important;
+}
+
+.wx-scroller {
+    position: relative;
+    z-index: 10;
+}
+
+
+
+/* ==========================================================================
+   Chat Session View
+   ========================================================================== */
+.wx-msg-row {
+    display: flex;
+    margin-bottom: 16px;
+    padding: 0 12px;
+}
+
+.wx-msg-row-me {
+    flex-direction: row-reverse;
+}
+
+.wx-msg-row-other {
+    flex-direction: row;
+}
+
+.wx-msg-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.wx-msg-content {
+    max-width: 70%;
+    margin: 0 10px;
+}
+
+.wx-bubble {
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    position: relative;
+}
+
+.wx-bubble-me {
+    background-color: var(--wx-bubble-me);
+    color: #111;
+    /* Dark text on green background */
+}
+
+.wx-bubble-other {
+    background-color: var(--wx-bubble-other);
+    color: var(--wx-text);
+}
+
+/* Relativize container for absolute positioning of URL bar */
+#wx-sticker-panel {
+    position: relative;
+    overflow: hidden;
+    /* Ensure URL bar slides out from nowhere */
+}
+
+/* Ensure sticker cells trap their absolute children (checkboxes) */
+.wx-sticker-cell {
+    position: relative !important;
+}
+
+/* System Message Style */
+.wx-msg-system {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+}
+
+.wx-msg-system span {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: 80%;
+    text-align: center;
+}
+
+html body #os-root.light-mode .wx-msg-system span {
+    background-color: #dadada;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+
+/* --- Selection / Delete Mode Styles --- */
+
+/* 1. Selection Checkbox (Circle) */
+.wx-sticker-check-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background-color: rgba(0, 0, 0, 0.1);
+    display: none;
+    /* Hidden by default */
+    z-index: 50;
+    pointer-events: none;
+    /* Let clicks pass to the parent cell */
+}
+
+/* Show in Selection Mode */
+.wx-sticker-grid-layout.selection-mode .wx-sticker-check-btn {
+    display: block !important;
+}
+
+/* Selected State */
+.wx-sticker-cell.selected .wx-sticker-check-btn {
+    background-color: var(--wx-green);
+    border-color: var(--wx-green);
+    /* Checkmark SVG */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+    background-size: 16px 16px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Selected Image Effect */
+.wx-sticker-cell.selected img {
+    opacity: 0.8 !important;
+    /* Make selection obvious */
+    transform: scale(0.9);
+}
+
+/* 2. Bottom Action Bar (Fixed at bottom of panel) */
+.wx-sticker-action-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    background-color: var(--wx-bg);
+    /* Use solid background */
+    display: flex;
+    /* Flex layout */
+    align-items: center;
+    justify-content: space-between;
+    /* Cancel left, Delete right */
+    padding: 0 24px;
+    box-sizing: border-box;
+    z-index: 200;
+    /* Higher than tab bar */
+    border-top: 1px solid var(--wx-border);
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.19, 1, 0.22, 1);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    /* Nice shadow */
+}
+
+/* Show Action Bar */
+.wx-sticker-action-bar.active {
+    transform: translateY(0) !important;
+}
+
+/* Buttons */
+.wx-sticker-action-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.wx-sticker-action-btn:active {
+    opacity: 0.7;
+}
+
+.wx-sticker-action-btn.cancel {
+    background-color: var(--wx-cell-bg);
+    color: var(--wx-text);
+}
+
+.wx-sticker-action-btn.delete {
+    background-color: var(--wx-red);
+    color: white;
+}
+
+/* Disabled Delete State (if needed) */
+.wx-sticker-action-btn.delete:disabled {
+    background-color: var(--wx-cell-bg);
+    color: var(--wx-text-sec);
+}
+
+/* Ensure Tab Bar gets covered */
+.wx-sticker-tabs {
+    z-index: 100;
+    /* Action bar is 200 */
+}
+
+/* URL Upload Bar - Hidden by Default */
+.wx-sticker-url-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 72px;
+    /* Fixed height */
+    background-color: var(--wx-bg);
+    /* Match app bg */
+    padding: 12px;
+    box-sizing: border-box;
+    border-top: 0.5px solid var(--wx-border);
+    display: flex;
+    flex-direction: row;
+    /* Layout side by side */
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+    transform: translateY(100%);
+    /* HIDE IT */
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.wx-sticker-url-bar.active {
+    transform: translateY(0);
+    /* SHOW IT */
+}
+
+.wx-sticker-url-input {
+    flex: 1;
+    height: 36px;
+    border: 1px solid var(--wx-border);
+    border-radius: 6px;
+    padding: 0 12px;
+    background: var(--wx-cell-bg);
+    color: var(--wx-text);
+    outline: none;
+    font-size: 14px;
+}
+
+.wx-sticker-url-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wx-sticker-url-btn {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.wx-sticker-url-btn.confirm {
+    background-color: var(--wx-green);
+    color: white;
+}
+
+.wx-sticker-url-btn.cancel {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--wx-text);
+}
+
+.wx-chat-footer-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--wx-footer-bg);
+    border-top: 0.5px solid var(--wx-border);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+}
+
+.wx-chat-footer {
+    width: 100%;
+    min-height: 56px;
+    display: flex;
+    align-items: flex-end;
+    /* 适配长按语音或换行 */
+    padding: 8px 10px;
+    padding-bottom: max(8px, var(--wx-safe-bottom));
+    box-sizing: border-box;
+}
+
+.wx-chat-btn {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wx-text);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.wx-chat-btn svg {
+    opacity: 0.8;
+}
+
+.wx-chat-input {
+    flex: 1;
+    background-color: var(--wx-input-bg);
+    border-radius: 6px;
+    min-height: 38px;
+    max-height: 100px;
+    border: none;
+    padding: 8px 12px;
+    font-size: 16px;
+    margin: 0 4px;
+    outline: none;
+    box-sizing: border-box;
+    color: var(--wx-text);
+}
+
+/* Dark mode input */
+/* Extra Panel Styles */
+.wx-extra-panel {
+    height: 0;
+    overflow: hidden;
+    background-color: var(--wx-footer-bg);
+    transition: height 0.2s cubic-bezier(0.1, 0.7, 0.1, 1);
+    border-top: 0.5px solid var(--wx-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.wx-extra-panel.active {
+    height: 280px;
+    /* Slightly taller for better spacing */
+    padding-bottom: var(--wx-safe-bottom);
+}
+
+/* 默认网格容器 (用于菜单) */
+.wx-extra-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, auto);
+    /* Change 1fr to auto to avoid stretching */
+    gap: 24px 20px;
+    /* Increase gap */
+    padding: 24px 24px;
+    align-content: start;
+}
+
+/* --- Sticker Panel Redesign --- */
+.wx-sticker-tabs {
+    height: 48px;
+    background-color: var(--wx-footer-bg);
+    /* Match panel bg */
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    flex-shrink: 0;
+    /* Remove shadow separator to blend in */
+    /* box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05); */
+    z-index: 10;
+}
+
+.wx-sticker-tab-icon {
+    width: 44px;
+    height: 36px;
+    /* Fixed height for card look */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wx-text-sec);
+    position: relative;
+    cursor: pointer;
+    border-radius: 6px;
+    /* Rounded corners */
+    margin-right: 4px;
+    transition: all 0.2s;
+}
+
+.wx-sticker-tab-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+.wx-sticker-tab-icon.active {
+    color: var(--wx-text);
+    background-color: var(--wx-cell-bg);
+    /* White card */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    /* Subtle shadow */
+}
+
+.wx-sticker-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    background-color: var(--wx-footer-bg);
+    /* Use grey bg */
+    padding: 12px;
+    /* Hide Scrollbar */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.wx-sticker-scroll-area::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+}
+
+.wx-sticker-title {
+    font-size: 12px;
+    color: var(--wx-text-sec);
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+.wx-sticker-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    align-content: start;
+}
+
+.wx-sticker-cell {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: transform 0.1s;
+}
+
+.wx-sticker-cell:active {
+    transform: scale(0.95);
+    background-color: rgba(0, 0, 0, 0.05);
+    /* Touch feedback */
+}
+
+.wx-sticker-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Special Style for the "Add" Button */
+.wx-sticker-add-btn {
+    border: 1px dashed #ccc;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    /* Slightly rounder */
+}
+
+/* Dark Mode Fix for Add Button */
+html:not(.light-mode) .wx-sticker-add-btn {
+    border-color: #555;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.wx-sticker-add-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--wx-text-sec);
+}
+
+/* 表情面板专用的滚动网格 */
+.wx-sticker-scroll-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: max-content;
+    /* Allow infinite rows */
+    gap: 16px;
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+    /* Fill remaining height */
+}
+
+.wx-extra-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.wx-extra-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--wx-extra-icon-bg);
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.wx-extra-icon:active {
+    opacity: 0.7;
+}
+
+.wx-extra-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: var(--wx-text);
+    color: var(--wx-text);
+    /* Fallback */
+}
+
+/* Sticker preview images inside icons */
+.wx-extra-icon img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+}
+
+.wx-extra-item span {
+    font-size: 11px;
+    color: var(--wx-text-sec);
+    text-align: center;
+}
+
+.wx-extra-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 0 20px 0;
+}
+
+.wx-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--wx-text);
+    opacity: 0.2;
+}
+
+.wx-dot.active {
+    opacity: 0.6;
+}
+
+
+
+/* --- Spacer Fix --- */
+.wx-scroller {
+    padding-top: 0 !important;
+}
+
+.wx-nav-spacer {
+    width: 100%;
+    height: var(--wx-nav-height);
+    flex-shrink: 0;
+}
+
+
+
+/* --- Cache Bypass Classes --- */
+.wx-view-container {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background-color: var(--wx-bg);
+    /* NO PADDING - We use spacer */
+    padding: 0 !important;
+}
+
+.wx-scroller::-webkit-scrollbar {
+    display: none;
+}
+
+.wx-tabbar-fixed {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--wx-tab-height);
+    padding-bottom: var(--wx-safe-bottom);
+    background-color: var(--wx-nav-bg);
+    backdrop-filter: blur(20px);
+    z-index: 9999 !important;
+    /* Force Visible */
+    display: flex;
+    border-top: none;
+    box-sizing: border-box;
+}
+
+
+
+/* --- UI Polish: Color Fusion & Hidden Exit --- */
+html body #os-root.light-mode {
+    /* ͳһ뱳ɫΪ iOS ΢ž */
+    --wx-nav-bg: #ededed !important;
+    --wx-bg: #ededed !important;
+}
+
+.wx-navbar {
+    /* Ƴָʵں */
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* ˳ť */
+.wx-hidden-exit {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80px;
+    /* 㹻Ĵ */
+    height: 100%;
+    z-index: 2000;
+    /*  NavBar ݸ */
+    background: transparent;
+    cursor: default;
+    /* ʾͣ */
+}
+
+.wx-hidden-exit:active {
+    /* ʱһ㼫΢ķ(ѡ) */
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* iOS Switch Component */
+.wx-switch {
+    width: 51px;
+    height: 31px;
+    background-color: #39393d;
+    border-radius: 16px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+html body #os-root.light-mode .wx-switch {
+    background-color: #e9e9ea;
+}
+
+.wx-switch.checked {
+    background-color: var(--wx-green) !important;
+}
+
+.wx-switch-node {
+    width: 27px;
+    height: 27px;
+    background-color: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s;
+}
+
+.wx-switch.checked .wx-switch-node {
+    transform: translateX(20px);
+}

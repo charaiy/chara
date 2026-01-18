@@ -32,6 +32,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================
+// 初始化全屏模式 (页面加载时)
+// =========================================
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const isFullscreen = window.sysStore?.get('fullscreen_mode') === 'true';
+        if (isFullscreen) {
+            const root = document.getElementById('os-root');
+            if (root) root.classList.add('fullscreen-mode');
+        }
+    }, 50);
+});
+
+// =========================================
 // 初始化主题管理器 (页面加载时)
 // =========================================
 document.addEventListener('DOMContentLoaded', () => {

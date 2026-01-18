@@ -169,3 +169,57 @@ window.ThemeManager = (function () {
         isDarkMode
     };
 })();
+
+// =========================================
+// AI 管理器 - 负责 LLM 接口调用
+// =========================================
+window.AIManager = (function () {
+    async function generateText(systemPrompt, userPrompt = "Hello") {
+        const s = window.sysStore;
+        const apiUrl = s.get('main_api_url');
+        const apiKey = s.get('main_api_key');
+        const model = s.get('main_model') || 'gpt-3.5-turbo';
+
+        if (!apiUrl || !apiKey) {
+            console.warn('[AIManager] API not configured');
+            return null;
+        }
+
+        try {
+            console.log('[AIManager] Generating text with model:', model);
+            const response = await fetch(`${apiUrl.replace(/\/$/, '')}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    max_tokens: 150,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                console.error('[AIManager] API Error:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            if (data.choices && data.choices.length > 0) {
+                return data.choices[0].message.content.trim();
+            }
+            return null;
+
+        } catch (e) {
+            console.error('[AIManager] Request Failed:', e);
+            return null;
+        }
+    }
+
+    return { generateText };
+})();

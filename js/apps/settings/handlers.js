@@ -50,7 +50,7 @@ const genericBind = (prefix) => (page) => {
     // 统一保存
     const saveBtn = page.querySelector(`#${prefix}-save`) || page.querySelector(`#${prefix}-save-btn`);
     if (saveBtn) saveBtn.onclick = () => {
-        page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
+        page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value.trim())); // Trim values
         page.querySelectorAll('.ios-switch').forEach(sw => {
             const k = sw.dataset.switch;
             if (k) s.set(k, sw.classList.contains('on'));
@@ -89,7 +89,8 @@ const PAGE_CONFIG = {
  */
 window.SettingsHandlers.bindSettingsEvents = function (app, closeCallback) {
     const s = window.sysStore;
-    app.querySelector('#settings-back').onclick = () => closeCallback();
+    const backBtn = app.querySelector('#settings-back');
+    if (backBtn) backBtn.onclick = () => closeCallback();
 
     app.querySelectorAll('[data-action], .profile-row').forEach(el => {
         const action = el.dataset.action || 'profile-row';
@@ -114,6 +115,29 @@ window.SettingsHandlers.bindSettingsEvents = function (app, closeCallback) {
         const isOn = sw.classList.toggle('on');
         s.set('dark_mode', isOn ? 'true' : 'false');
         window.ThemeManager?.setDarkMode(isOn);
+
+        // 立即更新头部样式
+        const header = app.querySelector('.settings-header');
+        const title = app.querySelector('.settings-title');
+        const backSvg = app.querySelector('.settings-back svg');
+
+        if (isOn) {
+            if (header) {
+                header.style.background = 'rgba(0,0,0,0.8)';
+                header.style.backdropFilter = 'saturate(180%) blur(20px)';
+                header.style.borderBottom = 'none';
+            }
+            if (title) title.style.color = '#fff';
+            if (backSvg) backSvg.style.fill = '#fff';
+        } else {
+            if (header) {
+                header.style.background = '';
+                header.style.backdropFilter = '';
+                header.style.borderBottom = '';
+            }
+            if (title) title.style.color = '#000';
+            if (backSvg) backSvg.style.fill = '#007aff';
+        }
     };
 };
 
@@ -264,8 +288,14 @@ window.SettingsHandlers.openWifiPage = (page) => {
     const bindPull = (id, urlK, keyK, modelK) => {
         const btn = page.querySelector('#' + id); if (!btn) return;
         btn.onclick = async () => {
-            const url = page.querySelector(`[data-key="${urlK}"]`).value;
-            const key = page.querySelector(`[data-key="${keyK}"]`).value;
+            const url = page.querySelector(`[data-key="${urlK}"]`).value.trim();
+            const key = page.querySelector(`[data-key="${keyK}"]`).value.trim();
+
+            // Auto-save credentials when pulling
+            const s = window.sysStore;
+            s.set(urlK, url);
+            s.set(keyK, key);
+
             btn.innerText = "...";
             const ms = await window.SettingsState.Service.pullModels(url, key);
             btn.innerText = "拉取";
@@ -279,7 +309,7 @@ window.SettingsHandlers.openWifiPage = (page) => {
                     s.set(modelK, it.dataset.id); m.remove();
                 });
                 m.querySelector('.modal-close').onclick = () => m.remove();
-            } else alert('暂时无法连接 API');
+            } else alert('暂时无法连接 API\n请检查地址和 Key 是否正确');
         };
     };
     bindPull('btn-pull-models', 'main_api_url', 'main_api_key', 'main_model');

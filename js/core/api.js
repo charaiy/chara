@@ -19,14 +19,41 @@ const API = {
     init(options = {}) {
         this.config = { ...this.config, ...options };
 
-        // 从存储加载
-        const savedKey = window.sysStore?.get('api_key');
-        const savedUrl = window.sysStore?.get('api_url');
-        const savedModel = window.sysStore?.get('api_model');
+        // 从存储加载 (Prioritize 'main_' keys used by Settings App)
+        const s = window.sysStore;
+        if (!s) return;
 
-        if (savedKey) this.config.apiKey = savedKey;
-        if (savedUrl) this.config.baseUrl = savedUrl;
-        if (savedModel) this.config.model = savedModel;
+        // 加载并去除首尾空格
+        let savedKey = s.get('main_api_key') || s.get('api_key');
+        let savedUrl = s.get('main_api_url') || s.get('api_url');
+        const savedModel = s.get('main_model') || s.get('api_model');
+
+        if (savedKey) this.config.apiKey = String(savedKey).trim();
+        if (savedUrl) this.config.baseUrl = String(savedUrl).trim().replace(/\/+$/, ''); // 去除末尾斜杠
+        if (savedModel) this.config.model = String(savedModel).trim();
+    },
+
+    /**
+     * 构造完整的 API Endpoint URL (核心修复)
+     */
+    _getEndpoint() {
+        let url = this.config.baseUrl;
+        // 如果 URL 已经包含 /v1 (用户手误输入)，尝试智能处理
+        // 但最安全的做法是：如果包含 /chat/completions 直接用，否则...
+        if (url.endsWith('/chat/completions')) {
+            return url;
+        }
+
+        // 标准化: 移除末尾的 /v1 (因为我们下面会加) 
+        // 或者是如果用户输入了 v1 结尾，我们就不重复加了... 
+        // 策略: 总是移除末尾的 /, 如果没 v1 且不是 azure，加上 /v1
+
+        // 简单策略: 检测 endWith /v1
+        if (url.endsWith('/v1')) {
+            return `${url}/chat/completions`;
+        }
+
+        return `${url}/v1/chat/completions`;
     },
 
     /**
@@ -34,8 +61,8 @@ const API = {
      * @param {string} key 
      */
     setApiKey(key) {
-        this.config.apiKey = key;
-        window.sysStore?.set('api_key', key);
+        this.config.apiKey = String(key).trim();
+        window.sysStore?.set('main_api_key', this.config.apiKey);
     },
 
     /**
@@ -43,8 +70,8 @@ const API = {
      * @param {string} url 
      */
     setBaseUrl(url) {
-        this.config.baseUrl = url;
-        window.sysStore?.set('api_url', url);
+        this.config.baseUrl = String(url).trim().replace(/\/+$/, '');
+        window.sysStore?.set('main_api_url', this.config.baseUrl);
     },
 
     /**
@@ -53,11 +80,16 @@ const API = {
      * @returns {Promise<string>}
      */
     async chat(messages) {
+        // Ensure we have the latest config
+        this.init();
+
         if (!this.config.apiKey) {
             throw new Error('API Key 未配置');
         }
 
-        const url = `${this.config.baseUrl}/v1/chat/completions`;
+        const url = this._getEndpoint();
+
+        console.log('[API] Chat Req:', url); // Debug Log
 
         const response = await fetch(url, {
             method: 'POST',
@@ -73,7 +105,8 @@ const API = {
         });
 
         if (!response.ok) {
-            throw new Error(`API 请求失败: ${response.status}`);
+            // Include status text for better debugging
+            throw new Error(`API 请求失败: ${response.status} (${response.statusText})`);
         }
 
         const data = await response.json();
@@ -87,11 +120,15 @@ const API = {
      * @returns {Promise<string>} - 完整响应
      */
     async chatStream(messages, onChunk) {
+        // Ensure we have the latest config
+        this.init();
+
         if (!this.config.apiKey) {
             throw new Error('API Key 未配置');
         }
 
-        const url = `${this.config.baseUrl}/v1/chat/completions`;
+        const url = this._getEndpoint();
+        console.log('[API] Stream Req:', url);
 
         const response = await fetch(url, {
             method: 'POST',

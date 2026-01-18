@@ -41,19 +41,19 @@ project_root/
 │   │   │   │   ├── general.js
 │   │   │   │   ├── siri_cfg.js  # [NEW] Siri 设置
 │   │   │   │   └── about.js
-│   │   │   └── utils.js
 │   │   ├── wechat/              # [Core App] 模拟微信
-│   │   │   ├── services/        # 业务逻辑
-│   │   │   │   ├── chat.js      # 消息发送/接收
-│   │   │   │   ├── contacts.js  # 通讯录/关系网
+│   │   │   ├── index.js         # [Entry] 应用入口
+│   │   │   ├── services/        # [Logic Layer] 纯业务逻辑
+│   │   │   │   ├── chat.js      # 消息收发, 记忆总结
+│   │   │   │   ├── contacts.js  # 通讯录, 关系网, 酒馆卡导入
 │   │   │   │   └── moments.js   # 朋友圈逻辑
-│   │   │   ├── ui/              # 视图层
-│   │   │   │   ├── bubbles.js   # 聊天气泡渲染
-│   │   │   │   ├── components.js
-│   │   │   │   └── views.js
-│   │   │   └── extensions/      # 插件系统
-│   │   │       ├── redpacket.js # 红包/转账
-│   │   │       └── voice_call.js# 语音通话模拟
+│   │   │   ├── ui/              # [View Layer] 纯 DOM 操作
+│   │   │   │   ├── views.js     # 主要页面渲染
+│   │   │   │   ├── bubbles.js   # 气泡渲染工厂
+│   │   │   │   └── components.js# 通用组件
+│   │   │   └── extensions/      # [Plugin Layer] 独立功能扩展
+│   │   │       ├── redpacket.js # 钱包, 转账, 亲属卡
+│   │   │       └── voice_call.js# 语音/视频通话模拟
 │   │   ├── character_phone/     # [Core App] 角色手机查看器
 │   │   │   ├── index.js
 │   │   │   └── viewer.js
@@ -62,7 +62,9 @@ project_root/
 │   │   └── worldbook/           # 世界书/图鉴
 │   └── utils/
 │       ├── dom.js               # 下层 DOM 操作封装
-│       └── helpers.js           # 通用工具函数
+│       ├── helpers.js           # 通用工具函数 (UUID, Merge)
+│       ├── time.js              # 时间/日期管理
+│       └── tavern.js            # 酒馆卡 (PNG) 解析
 └── assets/
     ├── icons/
     ├── wallpapers/

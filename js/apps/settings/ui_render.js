@@ -11,17 +11,22 @@ window.SettingsUI = {
     /**
      * 创建统一的导航头部 HTML
      */
-    createHeaderHTML: function (title, backId = 'settings-back', actionText = '', actionId = '', isDark = false) {
+    createHeaderHTML: function (title, backId = 'settings-back', actionText = '', actionId = '', isDark = false, hideBack = false) {
         const backColor = isDark ? '#fff' : '#007aff';
         const titleColor = isDark ? '#fff' : '#000';
         const actionHtml = actionText ? `<div class="settings-action" id="${actionId}" style="width: 70px; display: flex; justify-content: flex-end; color: #007aff !important; cursor: pointer; font-weight: 600;">${actionText}</div>` : '<div style="width: 70px;"></div>';
+        const backVisibility = hideBack ? 'opacity: 0;' : '';
+
+        const backHtml = backId ?
+            `<div class="settings-back" id="${backId}" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; ${backVisibility}">
+                <svg viewBox="0 0 12 20" width="12" height="20" style="fill: ${backColor};"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
+            </div>` :
+            `<div style="width: 70px;"></div>`;
 
         return `
             <div class="settings-header" style="${isDark ? 'background: rgba(0,0,0,0.8); backdrop-filter: saturate(180%) blur(20px); border-bottom: none;' : ''}">
                 <div class="settings-nav" style="display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px;">
-                    <div class="settings-back" id="${backId}" style="width: 70px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer;">
-                        <svg viewBox="0 0 12 20" width="12" height="20" style="fill: ${backColor};"><path d="M10 0L0 10l10 10 1.5-1.5L3 10l8.5-8.5z"/></svg>
-                    </div>
+                    ${backHtml}
                     <div class="settings-title" style="flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: ${titleColor};">${title}</div>
                     ${actionHtml}
                 </div>
@@ -36,23 +41,24 @@ window.SettingsUI = {
  */
 window.SettingsUI.renderSettingsApp = function () {
     const ICONS = window.SettingsState.ICONS;
+    const s = window.sysStore;
+    const isDark = s.get('dark_mode') !== 'false';
 
     const div = document.createElement('div');
     div.id = 'app-settings';
     div.className = 'app-window';
 
     // 获取当前头像
-    const currentAvatar = window.sysStore.get('user_avatar') || '';
+    const currentAvatar = s.get('user_avatar') || '';
     const avatarHtml = currentAvatar ?
         `<img src="${currentAvatar}" alt="Profile" id="settings-main-avatar-img">` :
         ICONS.person;
 
     // 获取用户信息
-    const s = window.sysStore;
     const userName = s.get('user_name') || 'Chara User';
 
     div.innerHTML = `
-        ${window.SettingsUI.createHeaderHTML('设置')}
+        ${window.SettingsUI.createHeaderHTML('设置', 'settings-back', undefined, undefined, isDark, true)}
         <div class="settings-search" style="margin: 0 16px 10px 16px;">
             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             搜索
@@ -140,13 +146,15 @@ window.SettingsUI.createSettingsItem = function (iconType, label, color, isSwitc
  * 渲染个人资料页面内容
  */
 window.SettingsUI.renderProfilePageContent = function () {
-    const currentAvatar = window.sysStore.get('user_avatar') || '';
+    const ICONS = window.SettingsState.ICONS;
+    const s = window.sysStore;
+    const isDark = s.get('dark_mode') !== 'false';
+    const currentAvatar = s.get('user_avatar') || '';
     const avatarHtml = currentAvatar ?
         `<img src="${currentAvatar}" alt="Profile" id="profile-page-avatar-img">` :
         ICONS.person;
 
     // 获取开关状态
-    const s = window.sysStore;
     const isImgBB = s.get('imgbb_enabled') === 'true';
     const isCatbox = s.get('catbox_enabled') === 'true';
     const isGithub = s.get('github_enabled') === 'true';
@@ -161,17 +169,18 @@ window.SettingsUI.renderProfilePageContent = function () {
     const userEmail = s.get('user_email') || 'chara@example.com';
 
     return `
-        <div class="profile-header">
-            ${window.SettingsUI.createHeaderHTML('Apple ID', 'profile-back')}
-            <div class="profile-avatar" id="btn-upload-avatar">
-                ${avatarHtml}
-                <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
-            </div>
-            <div class="profile-header-name" id="edit-profile-name" style="cursor: pointer;">${userName}</div>
-            <div class="profile-header-email" id="edit-profile-email" style="cursor: pointer;">${userEmail}</div>
-        </div>
+        ${window.SettingsUI.createHeaderHTML('Apple ID', 'profile-back', undefined, undefined, isDark)}
         
         <div class="profile-content">
+            <!-- Scrollable Avatar Info Section -->
+            <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0 30px 0;">
+                <div class="profile-avatar" id="btn-upload-avatar" style="margin-bottom: 12px;">
+                    ${avatarHtml}
+                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
+                </div>
+                <div class="profile-header-name" id="edit-profile-name" style="cursor: pointer; font-size: 24px; font-weight: 600; margin-bottom: 4px; color: ${isDark ? '#fff' : '#000'};">${userName}</div>
+                <div class="profile-header-email" id="edit-profile-email" style="cursor: pointer; font-size: 13px; color: #8e8e93;">${userEmail}</div>
+            </div>
             <!-- ImgBB 设置 -->
             <div class="settings-group">
                 <div class="settings-item no-icon">

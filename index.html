@@ -7,6 +7,7 @@
     <title>CharaOS</title>
     <link rel="stylesheet" href="css/os.css">
     <link rel="stylesheet" href="css/apps/settings.css">
+    <link rel="stylesheet" href="css/apps/wechat.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
@@ -287,7 +288,10 @@
     </script>
 
     <!-- JS Modules -->
-    <script src="js/core/utils.js?v=3"></script>
+    <script src="js/utils/helpers.js?v=3"></script>
+    <script src="js/utils/dom.js?v=3"></script>
+    <script src="js/utils/time.js?v=3"></script>
+    <script src="js/utils/tavern.js?v=3"></script>
     <script src="js/core/store.js?v=3"></script>
     <script src="js/core/api.js?v=3"></script>
     <!-- Settings App Modules (Non-ESM) -->
@@ -295,7 +299,17 @@
     <script src="js/apps/settings/ui_render.js?v=3"></script>
     <script src="js/apps/settings/handlers.js?v=3"></script>
     <script src="js/apps/settings/managers.js?v=3"></script>
+
     <script src="js/apps/settings/index.js?v=3"></script>
+
+    <!-- WeChat App Modules -->
+    <script src="js/apps/wechat/services/contacts.js"></script>
+    <script src="js/apps/wechat/services/chat.js"></script>
+    <script src="js/apps/wechat/ui/components.js"></script>
+    <script src="js/apps/wechat/ui/bubbles.js"></script>
+    <script src="js/apps/wechat/ui/views.js"></script>
+    <script src="js/apps/wechat/extensions/redpacket.js"></script>
+    <script src="js/apps/wechat/index.js"></script>
 
     <script src="js/core/os.js?v=3"></script>
 </body>

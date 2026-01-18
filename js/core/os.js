@@ -465,9 +465,80 @@ class CharaOS {
 
         if (appName === 'dock-settings' || appName === 'settings' || appName === 'app-appearance') {
             this.openSettings();
-        } else if (appName === '微信') {
-            // Placeholder for Step 3
+        } else if (appName === 'app-wechat' || appName === '微信') {
+            this.openWeChat();
         }
+    }
+
+    async openWeChat() {
+        if (!window.WeChat || !window.WeChat.App) {
+            console.log('Loading WeChat scripts sequentially...');
+
+            const loadScript = (src) => {
+                // [Cache Busting Update - Fix Black Dot]
+                return new Promise((resolve, reject) => {
+                    // Force Cache Busting
+                    const script = document.createElement('script');
+                    script.type = 'text/javascript'; // Ensure MIME type
+                    script.src = src + '?v=' + Date.now();
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                    document.head.appendChild(script);
+                });
+            };
+
+            try {
+                // Dependency Order: Services -> Components -> Views -> App Index
+                await loadScript('js/apps/wechat/services/contacts.js');
+                await loadScript('js/apps/wechat/services/chat.js');
+                await loadScript('js/apps/wechat/services/stickers.js');
+                await loadScript('js/apps/wechat/ui/bubbles.js');
+                await loadScript('js/apps/wechat/ui/components.js');
+                await loadScript('js/apps/wechat/ui/views.js');
+                await loadScript('js/apps/wechat/index.js');
+
+                console.log('WeChat all scripts loaded.');
+            } catch (e) {
+                console.error('Failed to load WeChat:', e);
+                alert('无法加载微信模块(Script Error)。\n' + e.message);
+                return;
+            }
+        }
+
+        let app = document.getElementById('app-wechat-window');
+        if (!app) {
+            // Create container
+            app = document.createElement('div');
+            app.id = 'app-wechat-window';
+            app.className = 'app-window hidden'; // Use common app-window class
+
+            // Add specific style for WeChat window if needed or reuse os.css global styles
+            // The wechat.css defines #app-wechat, which is the inner content
+            document.getElementById('os-root').appendChild(app);
+
+            // Init WeChat
+            try {
+                // Support both structures: window.WeChat.App.init (Standard) or window.WeChat.init (Legacy/Simple)
+                if (window.WeChat.App && window.WeChat.App.init) {
+                    window.WeChat.App.init(app);
+                } else if (window.WeChat.init) {
+                    window.WeChat.init(app);
+                } else {
+                    throw new Error("WeChat init method not found");
+                }
+            } catch (e) {
+                console.error("WeChat Init Failed:", e);
+                return;
+            }
+        }
+
+        requestAnimationFrame(() => {
+            app.classList.remove('hidden');
+            app.classList.add('active');
+        });
+
+        this.activeApp = app;
+        this.toggleHomeBarAction(true);
     }
 
     openSettings() {
