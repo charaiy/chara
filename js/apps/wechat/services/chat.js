@@ -46,6 +46,7 @@ window.WeChat.Services.Chat = {
         // 排除自我对话或文件助手
         if (this._activeSession !== 'me' && this._activeSession !== 'file_helper') {
             this.triggerAIReply();
+            this.checkAutoSummary(this._activeSession);
         }
     },
 
@@ -102,20 +103,14 @@ window.WeChat.Services.Chat = {
 
         } catch (e) {
             console.error('[ChatService] AI Reply Failed:', e);
-            let errorHint = e.message || '未知错误';
 
-            if (errorHint.includes('401')) {
-                errorHint = '鉴权失败 (401)\n请检查 设置->Wi-Fi 中的 API Key';
-            } else if (errorHint.includes('404')) {
-                errorHint = '地址无效 (404)\n请检查 设置->Wi-Fi 中的代理地址';
-            } else if (errorHint.includes('Failed to fetch')) {
-                errorHint = '网络请求失败\n请检查网络或代理地址连通性';
-            }
+            // 直接显示 API 返回的具体错误信息，方便调试
+            let errorHint = e.message || '未知错误';
 
             const errorMsg = window.sysStore.addMessage({
                 sender_id: 'system',
                 receiver_id: 'user',
-                content: `*(信号中断: ${errorHint})*`,
+                content: `*(系统提示: ${errorHint})*`,
                 type: 'system'
             });
             this.updateUI(errorMsg);
@@ -131,19 +126,31 @@ window.WeChat.Services.Chat = {
      * @param {string} persona 
      */
     buildContext(targetId, persona) {
-        // 获取最近 20 条记录
-        const rawHistory = window.sysStore.getMessagesBySession(targetId).slice(-20);
+        // 获取角色配置的记忆限制，默认为 200
+        const char = window.sysStore.getCharacter(targetId);
+        const limit = char?.settings?.memory_limit || 200;
+
+        // 获取最近 N 条记录
+        const rawHistory = window.sysStore.getMessagesBySession(targetId).slice(-limit);
 
         // 映射为 API 格式 { role, content }
         const history = rawHistory.map(m => ({
-            role: (m.sender_id === 'user' || m.sender_id === 'me') ? 'user' : 'assistant',
+            role: (m.sender_id === 'user' || m.sender_id === 'me' || m.sender_id === 'my') ? 'user' : 'assistant',
             content: m.content
         }));
 
         // 组装 System Prompt + History
-        // 注意：history 中已包含了刚发送的用户消息
+        // 注入长期记忆 (Long-term Memories)
+        const memories = char?.memories || [];
+        let enhancedPersona = persona;
+
+        if (memories.length > 0) {
+            const memoryText = memories.map(m => `- ${m.content}`).join('\n');
+            enhancedPersona += `\n\n[长期记忆]\n${memoryText}\n(以上是你对该用户的长期记忆，请在对话中参考这些事实)`;
+        }
+
         return [
-            { role: "system", content: persona },
+            { role: "system", content: enhancedPersona },
             ...history
         ];
     },
@@ -210,6 +217,110 @@ window.WeChat.Services.Chat = {
     /**
      * 接收消息 (兼容旧接口，通常由 triggerAIReply 替代)
      */
+    async checkAutoSummary(sessionId) {
+        if (!sessionId || sessionId === 'me') return;
+
+        try {
+            const char = window.sysStore.getCharacter(sessionId);
+            // Default threshold is 50 if not set
+            const settings = char?.settings || {};
+            const summaryConfig = settings.summaryConfig || {};
+
+            // Check if enabled (default to true if not set)
+            const enabled = summaryConfig.autoEnabled !== false;
+            if (!enabled) return;
+
+            const threshold = summaryConfig.threshold || 50;
+            const messages = window.sysStore.getMessagesBySession(sessionId);
+
+            // Check if we hit the threshold since last summary
+            // For simplicity, we just check if total count is a multiple or if specific marker exists
+            // A better way: store 'lastSummaryIndex' in character data.
+            const lastSummaryIndex = char.lastSummaryIndex || 0;
+            const newCount = messages.length - lastSummaryIndex;
+
+            if (newCount >= threshold) {
+                console.log(`[AutoSummary] Triggering summary for ${sessionId} (New messages: ${newCount})`);
+                await this.performSummary(sessionId, messages, lastSummaryIndex);
+            }
+
+        } catch (e) {
+            console.warn('[AutoSummary] Check failed', e);
+        }
+    },
+
+    async performSummary(sessionId, allMessages, lastSummaryIndex) {
+        const Api = window.Core?.Api || window.API;
+        if (!Api) return;
+
+        // Extract new messages to summarize
+        const newMessages = allMessages.slice(lastSummaryIndex);
+        if (newMessages.length === 0) return;
+
+        // 1. Prepare Prompt
+        const char = window.sysStore.getCharacter(sessionId);
+        const settings = char?.settings || {};
+        const summaryConfig = settings.summaryConfig || {};
+        const customPrompt = summaryConfig.autoPrompt;
+
+        const defaultPrompt = (window.WeChat.Defaults && window.WeChat.Defaults.SUMMARY_PROMPT)
+            || "Please summarize the following conversation history into a concise long-term memory.";
+
+        const finalPrompt = customPrompt ? customPrompt : defaultPrompt;
+
+        // 2. Convert messages to text
+        const dialogueText = newMessages.map(m => {
+            const sender = (m.sender_id === 'user' || m.sender_id === 'me') ? 'User' : (char.name || 'Assistant');
+            return `${sender}: ${m.content}`;
+        }).join('\n');
+
+        // 3. Call AI
+        // We'll insert a system message asking for summary
+        try {
+            // Notify User (Optional: "正在整理记忆...")
+            this.updateUI({
+                sender_id: 'system',
+                content: '正在整理长期记忆...',
+                type: 'system'
+            });
+
+            const response = await Api.chat([
+                { role: 'system', content: finalPrompt },
+                { role: 'user', content: `Here is the conversation to summarize:\n${dialogueText}` }
+            ]);
+
+            if (response) {
+                // 4. Save to Memories
+                const memories = char.memories || [];
+                memories.unshift({
+                    id: Date.now(),
+                    content: response,
+                    timestamp: Date.now()
+                });
+
+                // Update 'lastSummaryIndex'
+                window.sysStore.updateCharacter(sessionId, {
+                    memories,
+                    lastSummaryIndex: allMessages.length
+                });
+
+                this.updateUI({
+                    sender_id: 'system',
+                    content: '记忆整理完成。',
+                    type: 'system'
+                });
+            }
+
+        } catch (e) {
+            console.error('[AutoSummary] Execution failed', e);
+            this.updateUI({
+                sender_id: 'system',
+                content: '记忆整理失败: ' + e.message,
+                type: 'system'
+            });
+        }
+    },
+
     receiveMessage(sessionId, text) {
         // 保留此方法仅为了兼容性，实际逻辑已合并到 triggerAIReply
         this.updateUI({

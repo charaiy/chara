@@ -11,20 +11,38 @@ window.WeChat.Views = {
      * 渲染聊天会话详情
      */
     renderChatSession(sessionId) {
-        // Mock Messages
-        const messages = [
-            { id: 1, type: 'text', content: '这是一条模拟消息', sender: 'other', avatar: '' },
-            { id: 2, type: 'text', content: '测试消息发送', sender: 'me', avatar: '' }
-        ];
+        // Fetch real messages from sysStore
+        const messages = (window.sysStore && window.sysStore.getMessagesBySession)
+            ? window.sysStore.getMessagesBySession(sessionId)
+            : [];
+
+        const character = (window.sysStore && window.sysStore.getCharacter)
+            ? window.sysStore.getCharacter(sessionId)
+            : null;
+
+        const wallpaperUrl = character?.chat_background || '';
+        const bgStyle = wallpaperUrl ? `background-image: url('${wallpaperUrl}'); background-size: cover; background-position: center;` : 'background-color: var(--wx-bg);';
 
         const renderMsg = (window.WeChat.UI && window.WeChat.UI.Bubbles)
-            ? ((m) => window.WeChat.UI.Bubbles.render(m))
+            ? ((m) => {
+                // Adapt store message to bubble format
+                const isMe = m.sender_id === 'user' || m.sender_id === 'me';
+                let avatar = isMe ? '' : (character?.avatar || '');
+                return window.WeChat.UI.Bubbles.render({
+                    id: m.id,
+                    type: m.type,
+                    content: m.content,
+                    sender: isMe ? 'me' : 'other',
+                    avatar: avatar,
+                    time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                });
+            })
             : ((m) => `<div>${m.content}</div>`);
 
         const listHtml = messages.map(renderMsg).join('');
 
         return `
-            <div class="wx-view-container" id="wx-view-session" style="padding-bottom: 70px; background-color: var(--wx-bg);" onclick="window.WeChat.App.closeAllPanels()">
+            <div class="wx-view-container" id="wx-view-session" style="padding-bottom: 70px; ${bgStyle}" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer"></div>
                 <div class="wx-chat-messages" style="padding: 16px 0;">
                     ${listHtml}
@@ -117,19 +135,43 @@ window.WeChat.Views = {
      * Tab 0: 微信
      */
     renderChatList() {
-        // Mock Chats
-        const chats = [
-            { id: 'file_helper', name: '文件传输助手', lastMsg: '[图片]', time: '12:30', mute: false },
-            { id: 'chara_assistant', name: 'Chara 小助手', lastMsg: '欢迎来到 CharaOS 微信体验版！', time: '10:05', mute: false },
-            { id: 'alice', name: 'Alice', lastMsg: '今晚有空一起吃饭吗？', time: '昨天', mute: true },
-            { id: 'pay', name: '微信支付', lastMsg: '微信支付凭证', time: '星期五', mute: false }
-        ];
+        let chats = [];
+
+        if (window.sysStore) {
+            const allMessages = window.sysStore.getAllMessages();
+            const isMe = (id) => id === 'user' || id === 'me' || id === 'my';
+
+            // Extract all unique session IDs (excluding 'system')
+            const sessionIds = [...new Set(allMessages.map(m => isMe(m.sender_id) ? m.receiver_id : m.sender_id))];
+
+            chats = sessionIds.filter(id => id !== 'system').map(id => {
+                const char = window.sysStore.getCharacter(id);
+                const msgs = window.sysStore.getMessagesBySession(id);
+                const lastMsg = msgs[msgs.length - 1];
+
+                return {
+                    id: id,
+                    name: char?.name || id,
+                    lastMsg: lastMsg ? (lastMsg.type === 'image' ? '[图片]' : lastMsg.content) : '',
+                    time: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+                    avatar: char?.avatar || ''
+                };
+            }).filter(c => c.lastMsg); // Only show active chats
+        }
+
+        // Default if no messages
+        if (chats.length === 0) {
+            chats = [
+                { id: 'file_helper', name: '文件传输助手', lastMsg: '暂无消息', time: '', mute: false },
+                { id: 'chara_assistant', name: 'Chara 小助手', lastMsg: '欢迎使用 CharaOS！', time: '10:05', mute: false }
+            ];
+        }
 
         let listHtml = chats.map(chat => {
             return `
             <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.openChat('${chat.id}')" style="height: 64px; padding: 8px 12px;">
                 <div style="position: relative; margin-right: 10px;">
-                    <img src="assets/images/avatar_placeholder.png" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" style="width: 44px; height: 44px; border-radius: 6px; background: #eee;">
+                    <img src="${chat.avatar || 'assets/images/avatar_placeholder.png'}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" style="width: 44px; height: 44px; border-radius: 6px; background: #eee;">
                 </div>
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
@@ -156,7 +198,7 @@ window.WeChat.Views = {
         `;
 
         return `
-            <div class="wx-view-container" id="wx-view-chat">
+            <div class="wx-view-container" id="wx-view-chat" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer"></div>
                 ${searchBar}
                 ${listHtml}
@@ -196,21 +238,90 @@ window.WeChat.Views = {
                 </div>
 
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '上下文记忆量', extra: '<span style="font-size:15px; color:var(--wx-text-sec);">200</span>' })}
+                    ${(() => {
+                const char = window.sysStore?.getCharacter(sessionId);
+                const limit = char?.settings?.memory_limit || 200;
+                return this._renderCell({
+                    text: '上下文记忆量',
+                    extra: `<span style="font-size:15px; color:var(--wx-text-sec);">${limit}</span>`,
+                    onClick: `window.WeChat.App.setContextMemoryLimit('${sessionId}')`
+                });
+            })()}
                     ${this._renderCell({ text: '关联世界书', showArrow: true, extra: '<span style="font-size:15px; color:var(--wx-text-sec); margin-right:4px;">无</span>' })}
                 </div>
 
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '记忆管理', showArrow: true })}
-                    ${this._renderCell({ text: '设置当前聊天背景', showArrow: true })}
-                    ${this._renderCell({ text: '移除当前聊天背景', showArrow: true })}
-                    ${this._renderCell({ text: '清空聊天记录', showArrow: true })}
+                    ${this._renderCell({ text: '记忆管理', showArrow: true, onClick: `window.WeChat.App.openMemoryManagement('${sessionId}')` })}
+                    ${this._renderCell({ text: '设置当前聊天背景', showArrow: true, onClick: `window.WeChat.App.setChatBackground('${sessionId}')` })}
+                    ${this._renderCell({ text: '移除当前聊天背景', showArrow: true, onClick: `window.WeChat.App.removeChatBackground('${sessionId}')` })}
+                    ${this._renderCell({ text: '清空聊天记录', showArrow: true, onClick: `window.WeChat.App.clearChatHistory('${sessionId}')` })}
                 </div>
                 
                 <!-- Footer Info Pills -->
                 <div style="display: flex; justify-content: center; gap: 10px; padding: 20px 0 40px 0;">
-                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">总消息: 0</div>
-                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">Token: 6,205</div>
+                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">总消息: ${(window.sysStore && window.sysStore.getMessagesBySession(sessionId).length) || 0}</div>
+                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">Token: 0</div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Long-term Memory Management Page
+     */
+    renderMemoryManagement(sessionId) {
+        const char = window.sysStore?.getCharacter(sessionId);
+        const name = char?.name || 'User';
+        const avatar = char?.avatar || 'assets/images/avatar_placeholder.png';
+        const memories = char?.memories || [];
+
+        const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
+        const pageBg = isDark ? '#111111' : '#F2F2F7';
+        const cardBg = isDark ? '#1C1C1E' : '#FFFFFF';
+
+        let listHtml = memories.map((mem, index) => {
+            const dateStr = new Date(mem.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric', month: '1', day: '1',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '/');
+
+            return `
+                <div style="background: ${cardBg}; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: flex-start; margin-bottom: 10px;">
+                        <img src="${avatar}" style="width: 36px; height: 36px; border-radius: 4px; margin-right: 10px; background: #eee;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 15px; font-weight: 500; color: var(--wx-text); margin-bottom: 2px;">${name}</div>
+                            <div style="font-size: 12px; color: var(--wx-text-sec);">${dateStr}</div>
+                        </div>
+                        <div style="display: flex; gap: 16px;">
+                            <div onclick="window.WeChat.App.editMemory('${sessionId}', ${index})" style="cursor: pointer; color: var(--wx-text-sec);">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </div>
+                            <div onclick="window.WeChat.App.deleteMemory('${sessionId}', ${index})" style="cursor: pointer; color: #fa5151;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 15px; line-height: 1.6; color: var(--wx-text); white-space: pre-wrap;">${mem.content}</div>
+                </div>
+            `;
+        }).join('');
+
+        if (memories.length === 0) {
+            listHtml = `
+                <div style="text-align: center; padding: 60px 20px; color: var(--wx-text-sec);">
+                    <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;">📦</div>
+                    <div style="font-size: 15px;">暂无长期记忆</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="wx-scroller" id="wx-view-memory" style="background-color: ${pageBg}; padding-left: 12px; padding-right: 12px;">
+                <div class="wx-nav-spacer"></div>
+                <div style="padding: 12px 0 40px 0;">
+                    ${listHtml}
                 </div>
             </div>
         `;
@@ -314,30 +425,116 @@ window.WeChat.Views = {
      * Persona Settings Page (Character AI Settings)
      */
     renderPersonaSettings(userId) {
-        // Load existing persona
-        const currentPersona = (window.sysStore && window.sysStore.get('persona_' + userId)) || '';
+        // Load existing data from sysStore
+        const char = (window.sysStore && window.sysStore.getCharacter)
+            ? window.sysStore.getCharacter(userId)
+            : null;
+
+        const realName = char?.real_name || '';
+        const remark = char?.remark || '';
+        const nickname = char?.nickname || '';
+        const persona = char?.main_persona || '';
+
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
         const pageBg = isDark ? '#111111' : '#EDEDED';
-        const textColor = isDark ? '#fff' : '#000';
 
         return `
-            <div class="wx-view-container" id="wx-view-persona" style="background-color: ${pageBg};">
+            <div class="wx-scroller" id="wx-view-persona" style="background-color: ${pageBg};">
                 <div class="wx-nav-spacer"></div>
                 
                 <div style="padding: 16px 24px;">
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色真名 (系统识别用)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <input id="wx-edit-real-name" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：阿尔托莉雅·潘德拉贡" value="${realName}" />
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色备注 (只有你知道)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <input id="wx-edit-remark" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：呆毛王" value="${remark}" />
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色网名 (角色对外展示的名号)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+                        <input id="wx-edit-nickname" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：大不列颠小厨娘" value="${nickname}" />
+                    </div>
+
                     <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色人设 (System Prompt)</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px;">
-                        <textarea id="wx-persona-input" 
+                        <textarea id="wx-edit-persona" 
                             style="width: 100%; height: 200px; border: none; background: transparent; resize: none; font-size: 16px; color: var(--wx-text); outline: none; line-height: 1.5;"
-                            placeholder="在此输入角色的性格、背景故事或回复风格...">${currentPersona}</textarea>
-                    </div>
-                    <div style="font-size: 12px; color: var(--wx-text-sec); margin-top: 8px;">
-                        *此设置将直接影响该联系人的自动回复逻辑。
+                            placeholder="在此输入角色的性格、背景故事或回复风格...">${persona}</textarea>
                     </div>
                 </div>
 
-                <div style="padding: 20px 24px;">
-                    <div onclick="window.WeChat.App.savePersonaSettings('${userId}', document.getElementById('wx-persona-input').value)" 
+                <div style="padding: 20px 24px 40px 24px;">
+                    <div onclick="window.WeChat.App.savePersonaSettings('${userId}', {
+                        realName: document.getElementById('wx-edit-real-name').value,
+                        remark: document.getElementById('wx-edit-remark').value,
+                        nickname: document.getElementById('wx-edit-nickname').value,
+                        persona: document.getElementById('wx-edit-persona').value
+                    })" 
+                         style="background-color: #07c160; color: white; text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
+                        保存设置
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Add Friend Page
+     */
+    renderAddFriend() {
+        const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
+        const pageBg = isDark ? '#111111' : '#EDEDED';
+
+        return `
+            <div class="wx-scroller" id="wx-view-add-friend" style="background-color: ${pageBg};">
+                <div class="wx-nav-spacer"></div>
+                
+                <div style="padding: 16px 24px;">
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色真名 (系统识别用)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <input id="wx-add-friend-real-name" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：阿尔托莉雅·潘德拉贡" />
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色备注 (只有你知道)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <input id="wx-add-friend-remark" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：呆毛王" />
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色网名 (角色对外展示的名号)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+                        <input id="wx-add-friend-nickname" 
+                            style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
+                            placeholder="如：大不列颠小厨娘" />
+                    </div>
+
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">角色人设 (System Prompt)</div>
+                    <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px;">
+                        <textarea id="wx-add-friend-persona" 
+                            style="width: 100%; height: 200px; border: none; background: transparent; resize: none; font-size: 16px; color: var(--wx-text); outline: none; line-height: 1.5;"
+                            placeholder="在此输入角色的性格、背景故事或回复风格..."></textarea>
+                    </div>
+                </div>
+
+                <div style="padding: 20px 24px 40px 24px;">
+                    <div onclick="window.WeChat.App.saveNewFriend({
+                        realName: document.getElementById('wx-add-friend-real-name').value,
+                        remark: document.getElementById('wx-add-friend-remark').value,
+                        nickname: document.getElementById('wx-add-friend-nickname').value,
+                        persona: document.getElementById('wx-add-friend-persona').value
+                    })" 
                          style="background-color: #07c160; color: white; text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
                         保存设置
                     </div>
@@ -349,7 +546,13 @@ window.WeChat.Views = {
     /**
      * Friend Settings Page
      */
-    renderFriendSettings() {
+    renderFriendSettings(userId) {
+        const char = (window.sysStore && window.sysStore.getCharacter)
+            ? window.sysStore.getCharacter(userId)
+            : null;
+
+        const isBlacklisted = char?.is_blacklisted === true;
+
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
         const pageBg = isDark ? '#111111' : '#EDEDED';
 
@@ -358,7 +561,7 @@ window.WeChat.Views = {
                 <div class="wx-nav-spacer"></div>
                 
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '设置朋友资料', showArrow: true })}
+                    ${this._renderCell({ text: '设置朋友资料', showArrow: true, onClick: `window.WeChat.App.openPersonaSettings('${userId}')` })}
                     ${this._renderCell({ text: '朋友权限', showArrow: true })}
                     ${this._renderCell({ text: '把他(她)推荐给朋友', showArrow: true })}
                     ${this._renderCell({ text: '添加到桌面', showArrow: true })}
@@ -369,12 +572,12 @@ window.WeChat.Views = {
                 </div>
 
                 <div class="wx-cell-group">
-                     ${this._renderSwitchCell('加入黑名单', false)}
+                     ${this._renderSwitchCell('加入黑名单', isBlacklisted, `window.WeChat.App.toggleBlacklist('${userId}', !${isBlacklisted})`)}
                      ${this._renderCell({ text: '投诉', showArrow: true })}
                 </div>
                 
                 <div class="wx-cell-group">
-                    <div class="wx-cell wx-hairline-bottom" style="justify-content: center; cursor: pointer; background-color: var(--wx-cell-bg);">
+                    <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.deleteFriend('${userId}')" style="justify-content: center; cursor: pointer; background-color: var(--wx-cell-bg);">
                         <span style="font-size: 17px; font-weight: 600; color: var(--wx-red);">删除</span>
                     </div>
                 </div>
@@ -399,7 +602,7 @@ window.WeChat.Views = {
         })).join('');
 
         return `
-            <div class="wx-view-container" id="wx-view-contacts">
+            <div class="wx-view-container" id="wx-view-contacts" onclick="window.WeChat.App.closeAllPanels()">
                <div class="wx-nav-spacer"></div>
                <div style="padding-top: 10px;">
                     ${this._renderSimpleCell('新的朋友', '#fa9d3b', 'contact_add')}
@@ -420,7 +623,7 @@ window.WeChat.Views = {
      */
     renderDiscover() {
         return `
-            <div class="wx-view-container" id="wx-view-discover">
+            <div class="wx-view-container" id="wx-view-discover" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer"></div>
                 <div class="wx-cell-group">
                     ${this._renderCell({ text: '朋友圈', iconColor: '#e0e0e0', iconType: 'moments', showArrow: true })}
@@ -488,11 +691,12 @@ window.WeChat.Views = {
     },
 
     // --- Helpers ---
-    _renderSwitchCell(text, checked = false) {
+    _renderSwitchCell(text, checked = false, onClick = '') {
+        const action = onClick ? `onclick="${onClick}; event.stopPropagation();"` : "onclick=\"this.classList.toggle('checked')\"";
         return `
             <div class="wx-cell wx-hairline-bottom" style="justify-content: space-between;">
                 <div class="wx-cell-text" style="font-size: 16px; color: var(--wx-text);">${text}</div>
-                <div class="wx-switch ${checked ? 'checked' : ''}" onclick="this.classList.toggle('checked')">
+                <div class="wx-switch ${checked ? 'checked' : ''}" ${action}>
                     <div class="wx-switch-node"></div>
                 </div>
             </div>

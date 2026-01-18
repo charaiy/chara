@@ -90,10 +90,10 @@ class Store {
      */
     getMessagesBySession(targetId) {
         const messages = this.getAllMessages();
-        const myId = 'user'; // 默认用户ID，后续可改为从 User 表读取
+        const isMe = (id) => id === 'user' || id === 'me' || id === 'my';
         return messages.filter(m =>
-            (m.sender_id === myId && m.receiver_id === targetId) ||
-            (m.sender_id === targetId && m.receiver_id === myId)
+            (isMe(m.sender_id) && m.receiver_id === targetId) ||
+            (m.sender_id === targetId && isMe(m.receiver_id))
         );
     }
 
@@ -144,6 +144,33 @@ class Store {
         db[id] = window.utils.deepMerge(current, data);
         this.set('chara_db_characters', db);
         return db[id];
+    }
+
+    /**
+     * 删除特定角色
+     */
+    deleteCharacter(id) {
+        const db = this.get('chara_db_characters', {});
+        if (db[id]) {
+            delete db[id];
+            this.set('chara_db_characters', db);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 清空特定会话的所有消息
+     * @param {string} targetId 对方角色 ID
+     */
+    clearMessagesBySession(targetId) {
+        let messages = this.getAllMessages();
+        const isMe = (id) => id === 'user' || id === 'me' || id === 'my';
+        messages = messages.filter(m =>
+            !((isMe(m.sender_id) && m.receiver_id === targetId) ||
+                (m.sender_id === targetId && isMe(m.receiver_id)))
+        );
+        this.set('chara_db_messages', messages);
     }
 }
 

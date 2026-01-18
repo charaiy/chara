@@ -20,18 +20,52 @@ window.WeChat.Services.Contacts = {
         return this._contacts;
     },
 
-    /**
-     * 尝试从 OS Store 读取酒馆卡片并转化为联系人
-     */
+    addContact(contact) {
+        if (!this._contacts.find(c => c.id === contact.id)) {
+            this._contacts.push(contact);
+            this._contacts.sort((a, b) => (a.section || 'Z').localeCompare(b.section || 'Z'));
+            this.persistContact(contact);
+            return true;
+        }
+        return false;
+    },
+
+    removeContact(id) {
+        const index = this._contacts.findIndex(c => c.id === id);
+        if (index !== -1) {
+            this._contacts.splice(index, 1);
+            if (window.sysStore && window.sysStore.deleteCharacter) {
+                window.sysStore.deleteCharacter(id);
+                window.sysStore.clearMessagesBySession(id); // Option: also clear messages? Yes, usually delete friend means clear chat too.
+            }
+            return true;
+        }
+        return false;
+    },
+
+    persistContact(contact) {
+        if (window.sysStore && window.sysStore.updateCharacter) {
+            window.sysStore.updateCharacter(contact.id, {
+                id: contact.id,
+                name: contact.name, // Display name
+                real_name: contact.realName || '',
+                remark: contact.remark || '',
+                nickname: contact.nickname || '',
+                avatar: contact.avatar || '',
+                main_persona: contact.settings?.persona || "Assistant"
+            });
+        }
+    },
+
     loadFromTavern() {
-        // 模拟：从 store 获取 (实际此时我们直接伪造几个，因为没接真实后端)
+        // ... existing loadFromTavern logic ...
+        // (Keeping it as is for compatibility, but making it more robust)
         const fakeHumans = [
             {
                 id: 'alice',
                 name: 'Alice',
                 avatar: 'assets/images/avatar_placeholder.png',
                 section: 'A',
-                // Add persona for API Chat
                 settings: { persona: "You are Alice. You are a helpful assistant." }
             },
             {
@@ -50,28 +84,24 @@ window.WeChat.Services.Contacts = {
             }
         ];
 
-        // Ensure these characters exist in System Store (Real DB)
-        // This fixes the issue where "fake" characters were ghost entities not known by the Chat Service
         if (window.sysStore && window.sysStore.updateCharacter) {
             fakeHumans.forEach(p => {
                 window.sysStore.updateCharacter(p.id, {
                     id: p.id,
                     name: p.name,
                     avatar: p.avatar,
-                    main_persona: p.settings?.persona || "Asssitant"
+                    main_persona: p.settings?.persona || "Assistant"
                 });
             });
         }
 
-        // 合并去重 (Local View)
         fakeHumans.forEach(p => {
             if (!this._contacts.find(c => c.id === p.id)) {
                 this._contacts.push(p);
             }
         });
 
-        // 简单排序
-        this._contacts.sort((a, b) => a.section.localeCompare(b.section));
+        this._contacts.sort((a, b) => (a.section || 'Z').localeCompare(b.section || 'Z'));
     }
 };
 

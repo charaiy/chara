@@ -1,11 +1,10 @@
 /**
- * js/api.js
- * LLM API 封装模块
- * 用于处理与 AI 服务的通信
+ * js/core/api.js
+ * LLM API 核心模块 (Smart Fix Edition)
+ * 增强了 URL 容错能力和错误调试信息
  */
 
 const API = {
-    // 默认配置
     config: {
         baseUrl: '',
         apiKey: '',
@@ -13,175 +12,116 @@ const API = {
     },
 
     /**
-     * 初始化 API 配置
-     * @param {Object} options 
+     * 初始化配置 (每次请求前都会调用，确保拿到最新 Store 数据)
      */
-    init(options = {}) {
-        this.config = { ...this.config, ...options };
-
-        // 从存储加载 (Prioritize 'main_' keys used by Settings App)
+    init() {
         const s = window.sysStore;
         if (!s) return;
 
-        // 加载并去除首尾空格
-        let savedKey = s.get('main_api_key') || s.get('api_key');
-        let savedUrl = s.get('main_api_url') || s.get('api_url');
+        // 优先读取 main_ 前缀的配置 (Settings App 新标准)
+        // 如果没有，才读取旧的 api_ 前缀
+        const savedKey = s.get('main_api_key') || s.get('api_key');
+        const savedUrl = s.get('main_api_url') || s.get('api_url');
         const savedModel = s.get('main_model') || s.get('api_model');
 
         if (savedKey) this.config.apiKey = String(savedKey).trim();
-        if (savedUrl) this.config.baseUrl = String(savedUrl).trim().replace(/\/+$/, ''); // 去除末尾斜杠
+        if (savedUrl) this.config.baseUrl = String(savedUrl).trim(); // 暂时不去尾，交给 _getEndpoint 处理
         if (savedModel) this.config.model = String(savedModel).trim();
+
+        // Debug: 可以在控制台看到当前用的到底是哪套配置
+        // console.log('[API Init] Using:', { 
+        //    url: this.config.baseUrl, 
+        //    model: this.config.model, 
+        //    keyMask: this.config.apiKey ? this.config.apiKey.slice(0, 4) + '***' : 'NONE' 
+        // });
     },
 
     /**
-     * 构造完整的 API Endpoint URL (核心修复)
+     * 智能构造 Endpoint (核心修复)
+     * 无论用户填什么格式，都试图修正为标准的 /v1/chat/completions
      */
     _getEndpoint() {
         let url = this.config.baseUrl;
-        // 如果 URL 已经包含 /v1 (用户手误输入)，尝试智能处理
-        // 但最安全的做法是：如果包含 /chat/completions 直接用，否则...
+        if (!url) return '';
+
+        // 1. 如果用户直接填了完整的 chat 接口地址，直接用
         if (url.endsWith('/chat/completions')) {
             return url;
         }
 
-        // 标准化: 移除末尾的 /v1 (因为我们下面会加) 
-        // 或者是如果用户输入了 v1 结尾，我们就不重复加了... 
-        // 策略: 总是移除末尾的 /, 如果没 v1 且不是 azure，加上 /v1
+        // 2. 移除末尾斜杠
+        url = url.replace(/\/+$/, '');
 
-        // 简单策略: 检测 endWith /v1
+        // 3. 如果用户填了 /v1 结尾，追加 /chat/completions
         if (url.endsWith('/v1')) {
             return `${url}/chat/completions`;
         }
 
+        // 4. 如果没填 /v1，默认补上 /v1/chat/completions
+        // (适用于 OpenAI, DeepSeek, Moonshot 等标准接口)
         return `${url}/v1/chat/completions`;
     },
 
     /**
-     * 设置 API Key
-     * @param {string} key 
-     */
-    setApiKey(key) {
-        this.config.apiKey = String(key).trim();
-        window.sysStore?.set('main_api_key', this.config.apiKey);
-    },
-
-    /**
-     * 设置 Base URL
-     * @param {string} url 
-     */
-    setBaseUrl(url) {
-        this.config.baseUrl = String(url).trim().replace(/\/+$/, '');
-        window.sysStore?.set('main_api_url', this.config.baseUrl);
-    },
-
-    /**
-     * 发送聊天请求 (非流式)
-     * @param {Array} messages 
-     * @returns {Promise<string>}
+     * 发送聊天请求
      */
     async chat(messages) {
-        // Ensure we have the latest config
-        this.init();
+        this.init(); // 确保配置最新
 
         if (!this.config.apiKey) {
-            throw new Error('API Key 未配置');
+            throw new Error('API Key 未配置，请在设置中填写');
         }
 
         const url = this._getEndpoint();
+        console.log('[API] Requesting:', url);
 
-        console.log('[API] Chat Req:', url); // Debug Log
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: this.config.model,
+                    messages: messages,
+                    stream: false // 暂时关闭流式，先跑通逻辑
+                })
+            });
 
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.apiKey}`
-            },
-            body: JSON.stringify({
-                model: this.config.model,
-                messages: messages,
-                stream: false
-            })
-        });
-
-        if (!response.ok) {
-            // Include status text for better debugging
-            throw new Error(`API 请求失败: ${response.status} (${response.statusText})`);
-        }
-
-        const data = await response.json();
-        return data.choices[0]?.message?.content || '';
-    },
-
-    /**
-     * 发送流式聊天请求
-     * @param {Array} messages 
-     * @param {Function} onChunk - 每接收一个 chunk 调用
-     * @returns {Promise<string>} - 完整响应
-     */
-    async chatStream(messages, onChunk) {
-        // Ensure we have the latest config
-        this.init();
-
-        if (!this.config.apiKey) {
-            throw new Error('API Key 未配置');
-        }
-
-        const url = this._getEndpoint();
-        console.log('[API] Stream Req:', url);
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.apiKey}`
-            },
-            body: JSON.stringify({
-                model: this.config.model,
-                messages: messages,
-                stream: true
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API 请求失败: ${response.status}`);
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullContent = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.startsWith('data:'));
-
-            for (const line of lines) {
-                const jsonStr = line.slice(5).trim();
-                if (jsonStr === '[DONE]') continue;
-
+            // 错误处理升级: 尝试读取服务器返回的具体错误信息
+            if (!response.ok) {
+                let errorDetails = '';
                 try {
-                    const json = JSON.parse(jsonStr);
-                    const content = json.choices[0]?.delta?.content || '';
-                    if (content) {
-                        fullContent += content;
-                        if (onChunk) onChunk(content);
-                    }
+                    const errorJson = await response.json();
+                    errorDetails = errorJson.error?.message || JSON.stringify(errorJson);
                 } catch (e) {
-                    // 解析错误忽略
+                    errorDetails = response.statusText;
                 }
-            }
-        }
 
-        return fullContent;
+                // 抛出详细错误，让 ChatService 显示给用户
+                throw new Error(`API错误 (${response.status}): ${errorDetails}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.choices || data.choices.length === 0) {
+                throw new Error('API 返回格式异常: 没有 choices');
+            }
+
+            return data.choices[0].message.content || '';
+
+        } catch (error) {
+            console.error('[API Error]', error);
+            throw error; // 继续抛出，让上层处理
+        }
     }
 };
 
-// 自动初始化
+// 挂载
 if (typeof window !== 'undefined') {
     window.API = API;
-    // 延迟初始化等待 store 加载
-    setTimeout(() => API.init(), 100);
+    // 兼容旧代码引用 Core.Api 的情况
+    window.Core = window.Core || {};
+    window.Core.Api = API;
 }
