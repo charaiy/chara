@@ -110,6 +110,27 @@ class Store {
     }
 
     /**
+     * 根据 ID 获取单条消息
+     */
+    getMessageById(id) {
+        return this.getAllMessages().find(m => m.id === id) || null;
+    }
+
+    /**
+     * 删除单条消息
+     */
+    deleteMessage(id) {
+        const messages = this.getAllMessages();
+        const index = messages.findIndex(m => m.id === id);
+        if (index !== -1) {
+            messages.splice(index, 1);
+            this.set('chara_db_messages', messages);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 添加消息到消息总线
      * @param {Object} payload {sender_id, receiver_id, content, type}
      */

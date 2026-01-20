@@ -147,31 +147,18 @@ html body #os-root.light-mode {
 
 
 .wx-scroller {
-
     height: 100%;
-
     overflow-y: auto;
-
     -webkit-overflow-scrolling: touch;
-
-    /* 关键修正：确保内容不被遮挡 */
-
     padding-top: var(--wx-nav-height);
-
     padding-bottom: var(--wx-tab-height);
-
     box-sizing: border-box;
-
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-
-
 .wx-scroller::-webkit-scrollbar {
-
     display: none;
-
-    width: 0;
-
 }
 
 
@@ -794,9 +781,58 @@ html body #os-root.light-mode {
     /* Ensure URL bar slides out from nowhere */
 }
 
-/* Ensure sticker cells trap their absolute children (checkboxes) */
-.wx-sticker-cell {
-    position: relative !important;
+.wx-msg-time {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+    /* Dark mode default */
+    margin: 20px 0 10px 0;
+    user-select: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+html body #os-root.light-mode .wx-msg-time {
+    color: rgba(0, 0, 0, 0.3);
+}
+
+.wx-msg-time:active {
+    opacity: 0.7;
+}
+
+
+/* --- Status Bar Clock Implementation --- */
+.wx-status-bar-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--wx-status-bar-height);
+    z-index: 10002;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    /* Align bottom of 48px area */
+    padding: 0 26px 14px 26px;
+    /* Adjust for Island and visual balance */
+    box-sizing: border-box;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--wx-text);
+    pointer-events: none;
+    /* Let clicks pass through if needed */
+}
+
+.wx-status-right {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.wx-status-icon {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
 }
 
 /* System Message Style */
@@ -1008,6 +1044,8 @@ html body #os-root.light-mode .wx-msg-system span {
     z-index: 200;
     display: flex;
     flex-direction: column;
+    padding-bottom: var(--wx-safe-bottom);
+    /* Ensure background extends to bottom to prevent "leakage" */
 }
 
 .wx-chat-footer {
@@ -1015,9 +1053,8 @@ html body #os-root.light-mode .wx-msg-system span {
     min-height: 56px;
     display: flex;
     align-items: flex-end;
-    /* 适配长按语音或换行 */
     padding: 8px 10px;
-    padding-bottom: max(8px, var(--wx-safe-bottom));
+    /* Removed extra padding-bottom as it is now handled by container */
     box-sizing: border-box;
 }
 
@@ -1065,8 +1102,8 @@ html body #os-root.light-mode .wx-msg-system span {
 
 .wx-extra-panel.active {
     height: 280px;
-    /* Slightly taller for better spacing */
-    padding-bottom: var(--wx-safe-bottom);
+    padding-top: 0;
+    /* Padding-bottom is handled by container */
 }
 
 /* 默认网格容器 (用于菜单) */
@@ -1301,11 +1338,11 @@ html:not(.light-mode) .wx-sticker-add-btn {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     background-color: var(--wx-bg);
-    /* NO PADDING - We use spacer */
-    padding: 0 !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-.wx-scroller::-webkit-scrollbar {
+.wx-view-container::-webkit-scrollbar {
     display: none;
 }
 
@@ -2067,4 +2104,545 @@ html body #os-root:not(.light-mode) .wx-action-sheet-item {
 html body #os-root:not(.light-mode) .wx-action-sheet-cancel {
     background-color: #2c2c2e;
     color: #007AFF;
+}
+
+/* ==========================================================================
+   Extracted from JS (InjectStyles)
+   ========================================================================== */
+
+/* Force Overrides */
+.wx-scroller,
+.wx-view-container {
+    padding-top: 0 !important;
+}
+
+.wx-tabbar,
+.wx-tabbar-fixed {
+    z-index: 9999 !important;
+    bottom: 0 !important;
+}
+
+.wechat-app {
+    height: 100% !important;
+    overflow: hidden !important;
+    position: absolute;
+    inset: 0;
+}
+
+:root {
+    --wx-override-bg: #111111;
+    --wx-override-nav-bg: #111111;
+    --wx-override-text: #ffffff;
+}
+
+html body #os-root.light-mode {
+    --wx-override-bg: #ededed;
+    --wx-override-nav-bg: #ededed;
+    --wx-override-text: #000000;
+}
+
+.wechat-app,
+.wx-view-container {
+    background-color: var(--wx-override-bg) !important;
+    color: var(--wx-override-text) !important;
+}
+
+.wx-navbar-override {
+    background-color: var(--wx-override-nav-bg) !important;
+    color: var(--wx-override-text) !important;
+}
+
+/* Add Friend Dropdown Menu */
+.wx-add-menu {
+    position: absolute;
+    top: 86px;
+    right: 8px;
+    width: 160px;
+    background: #4c4c4c;
+    border-radius: 8px;
+    z-index: 10002;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.wx-add-menu.active {
+    display: flex;
+    animation: wxFadeIn 0.2s ease;
+}
+
+.wx-add-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.wx-add-menu-item:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.wx-add-menu-icon {
+    margin-right: 12px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wx-add-menu-arrow {
+    position: absolute;
+    top: -10px;
+    right: 16px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 10px solid #4c4c4c;
+}
+
+@keyframes wxFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   Message Bubble Context Menu
+   ========================================================================== */
+.wx-bubble-menu {
+    position: fixed;
+    background: #4c4c4c;
+    border-radius: 12px;
+    z-index: 10005;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    display: none;
+    flex-direction: column;
+    min-width: 110px;
+    max-width: 160px;
+    overflow: hidden;
+    transform: translate(-50%, -100%);
+    /* Position above the touch point */
+    margin-top: -6px;
+    pointer-events: auto;
+}
+
+.wx-bubble-menu.active {
+    display: flex;
+    animation: wxPopScale 0.15s cubic-bezier(0.12, 0, 0.39, 0);
+}
+
+.wx-bubble-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    padding: 0 12px;
+    color: white;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.wx-bubble-menu-item:last-child {
+    border-bottom: none;
+}
+
+.wx-bubble-menu-item:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.wx-bubble-menu-item.delete {
+    color: #fa5151;
+    /* WeChat Red */
+}
+
+@keyframes wxPopScale {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -100%) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -100%) scale(1);
+    }
+}
+
+/* Arrow for the menu */
+.wx-bubble-menu::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #4c4c4c;
+}
+
+/* Flipped state (Menu below the bubble) */
+.wx-bubble-menu.flipped {
+    transform: translate(-50%, 0);
+    /* Position below the Y co-ord */
+    margin-top: 6px;
+}
+
+.wx-bubble-menu.flipped::after {
+    bottom: auto;
+    top: -6px;
+    border-top: none;
+    border-bottom: 6px solid #4c4c4c;
+}
+
+/* Flipped animation to prevent jump */
+.wx-bubble-menu.flipped.active {
+    animation: wxPopScaleFlipped 0.15s cubic-bezier(0.12, 0, 0.39, 0);
+}
+
+@keyframes wxPopScaleFlipped {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 0) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+/* Mask to close menu on click outside */
+.wx-menu-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 10004;
+    display: none;
+    background: transparent;
+}
+
+.wx-menu-mask.active {
+    display: block;
+}
+
+/* ==========================================================================
+   Message Multi-Selection Mode
+   ========================================================================== */
+
+/* 1. Hide normal footer and tabbar in selection mode */
+.wx-msg-selection-active .wx-chat-footer-container,
+.wx-msg-selection-active .wx-tabbar {
+    display: none !important;
+}
+
+/* 2. Message Selection Footer */
+.wx-msg-selection-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: calc(56px + var(--wx-safe-bottom));
+    background-color: var(--wx-footer-bg);
+    border-top: 0.5px solid var(--wx-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding-bottom: var(--wx-safe-bottom);
+    z-index: 10003;
+    animation: wxSlideUp 0.3s ease;
+}
+
+.wx-selection-footer-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 56px;
+    color: var(--wx-text);
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.wx-selection-footer-item:active {
+    opacity: 0.4;
+}
+
+/* 3. Checkbox Styles */
+.wx-msg-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--wx-text-sec);
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+
+.wx-msg-checkbox.checked {
+    background-color: var(--wx-green);
+    border-color: var(--wx-green);
+}
+
+.wx-msg-checkbox svg {
+    display: none;
+}
+
+.wx-msg-checkbox.checked svg {
+    display: block;
+}
+
+/* 4. Selection Mode Layout Adjustments */
+.wx-msg-row-selection {
+    transition: transform 0.3s ease;
+    cursor: pointer;
+    /* Ensure long items don't hide checkbox */
+    padding-left: 12px !important;
+}
+
+/* 5. Entrance Animations */
+@keyframes wxSlideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Light mode overrides for selection UI */
+html body #os-root.light-mode .wx-msg-checkbox {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+html body #os-root.light-mode .wx-msg-selection-footer {
+    background-color: #f7f7f7;
+}
+
+/* ==========================================================================
+   Character Panel (角色面板)
+   ========================================================================== */
+.wx-char-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.wx-char-panel-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.wx-char-panel {
+    width: 100%;
+    max-width: 360px;
+    height: 620px;
+    /* Fixed height for consistency */
+    background: #ffffff;
+    border-radius: 32px;
+    position: relative;
+    padding: 24px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    color: #000000;
+}
+
+.wx-char-panel-overlay.active .wx-char-panel {
+    transform: translateY(0);
+}
+
+.wx-char-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.wx-char-panel-close {
+    cursor: pointer;
+    padding: 8px;
+    margin: -8px;
+}
+
+.wx-char-panel-actions {
+    display: flex;
+    gap: 16px;
+}
+
+.wx-char-panel-action {
+    cursor: pointer;
+}
+
+.wx-char-panel-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.wx-char-panel-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    margin-bottom: 16px;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.wx-char-panel-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.wx-char-panel-affection {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #ff3b30;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.wx-char-panel-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.wx-char-card {
+    background: #f8f8f8;
+    border-radius: 20px;
+    padding: 16px;
+}
+
+.wx-char-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.wx-char-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ff9500;
+}
+
+.wx-char-card-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: rgba(255, 149, 0, 0.1);
+    color: #ff9500;
+    border-radius: 6px;
+}
+
+.wx-char-card-title.behavior {
+    color: #007aff;
+}
+
+.wx-char-card-tag.behavior {
+    background: rgba(0, 122, 255, 0.1);
+    color: #007aff;
+}
+
+.wx-char-card-title.voice {
+    color: #5856d6;
+}
+
+.wx-char-card-tag.voice {
+    background: rgba(88, 86, 214, 0.1);
+    color: #5856d6;
+}
+
+.wx-char-card-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* Relationship Panel Specifics */
+.wx-char-panel-scrollable {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.wx-char-panel-scrollable::-webkit-scrollbar {
+    display: none;
+}
+
+/* Premium Range Input */
+.wx-char-panel input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+}
+
+.wx-char-panel input[type=range]:focus {
+    outline: none;
+}
+
+.wx-char-panel input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: #eef0f2;
+    border-radius: 3px;
+}
+
+.wx-char-panel input[type=range]::-webkit-slider-thumb {
+    height: 28px;
+    width: 28px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -11px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.wx-char-panel input[type=range]:active::-webkit-slider-thumb {
+    transform: scale(0.95);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }

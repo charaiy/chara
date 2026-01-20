@@ -99,7 +99,6 @@ window.SettingsUI.renderSettingsApp = function () {
             <!-- App Section -->
             <div class="settings-group">
                 ${window.SettingsUI.createSettingsItem('wrench', '开发者', '#666666', false, '', 'developer-page')}
-                ${window.SettingsUI.createSettingsItem('robot', 'Chara AI', '#000000', false, '', 'chara-ai-page')}
             </div>
         </div>
     `;
@@ -727,6 +726,7 @@ window.SettingsUI.renderChatPageContent = function () {
             </div>
         </div>
         <div class="settings-content">
+            <div style="padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 15px;">加载配置</div>
             <div class="settings-group">
                 <div class="settings-item no-icon">
                     <div class="settings-label">聊天列表加载数</div>
@@ -735,6 +735,14 @@ window.SettingsUI.renderChatPageContent = function () {
                 <div class="settings-item no-icon">
                     <div class="settings-label">聊天内加载数</div>
                     <input type="number" class="settings-input" data-key="chat_internal_load_count" value="${internalLoadCount}">
+                </div>
+            </div>
+
+            <div style="padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 25px;">危险操作</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon" id="btn-clear-all-messages" style="cursor: pointer;">
+                    <div class="settings-label" style="color: #ff3b30;">清空所有聊天历史</div>
+                    <div class="settings-chevron">›</div>
                 </div>
             </div>
             
@@ -1084,6 +1092,46 @@ window.SettingsUI.renderNotificationPageContent = function () {
         </div>
     `;
 }
+
+/**
+ * 渲染开发者设置页面
+ */
+window.SettingsUI.renderDeveloperPage = function () {
+    const s = window.sysStore;
+    const isDark = s.get('dark_mode') !== 'false';
+    const showLogs = s.get('dev_show_logs') === 'true';
+
+    return `
+        ${window.SettingsUI.createHeaderHTML('开发者', 'developer-back', '保存', 'developer-save', isDark)}
+        <div class="settings-content">
+            <div style="padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 15px;">调试选项</div>
+            <div class="settings-group">
+                <div class="settings-item no-icon">
+                    <div class="settings-label">显示运行时日志</div>
+                    <div class="ios-switch ${showLogs ? 'on' : ''}" data-switch="dev_show_logs"><div class="switch-knob"></div></div>
+                </div>
+                <div class="settings-item no-icon" id="btn-view-system-info" style="cursor: pointer;">
+                    <div class="settings-label">查看系统详细信息</div>
+                    <div class="settings-chevron">›</div>
+                </div>
+            </div>
+
+            <div style="padding: 0 16px 8px; font-size: 13px; color: #8e8e93; text-transform: uppercase; margin-top: 25px;">系统日志</div>
+            <div class="settings-group" style="padding: 15px; background: ${isDark ? '#000' : '#f2f2f7'}; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: ${isDark ? '#0f0' : '#3a3a3c'}; min-height: 200px; overflow-y: auto; border: ${isDark ? 'none' : '1px solid rgba(0,0,0,0.05)'}; line-height: 1.5;">
+                <div id="dev-log-area">
+                    [SYSTEM] CharaOS Kernel v1.0.4 loaded.<br>
+                    [INFO] Memory: ${(JSON.stringify(localStorage).length / 1024).toFixed(2)} KB used.<br>
+                    [DEBUG] Registered 4 active modules.<br>
+                    > _
+                </div>
+            </div>
+            
+            <div style="height: 50px;"></div>
+        </div>
+    `;
+};
+
+
 /**
  * 渲染导出选项的操作表 (ActionSheet)
  */

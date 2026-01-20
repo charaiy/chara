@@ -93,39 +93,16 @@ class CharaOS {
 
 
     _loadSystemConfigs() {
-        // Load theme preference
-        const savedTheme = window.sysStore.get('theme_mode');
-        if (savedTheme === 'light') this.dom.root.classList.add('light-theme');
-
-        // Load Fullscreen Preference
-        if (window.sysStore.get('fullscreen_mode') === 'on') {
-            this.dom.root.classList.add('fullscreen-mode');
-        }
-
-        // Load System Display Settings
-        const showStatusBar = window.sysStore.get('show_status_bar');
-        if (showStatusBar === 'false') {
-            const sb = document.querySelector('.status-bar');
-            if (sb) sb.style.display = 'none';
-        }
-
-        const showDynamicIsland = window.sysStore.get('show_dynamic_island');
-        if (showDynamicIsland === 'false') {
-            const island = document.querySelector('.dynamic-island');
-            if (island) island.style.display = 'none';
-        }
-
-        this.loadWallpapers();
-
-        // Load Font
-        const savedFont = window.sysStore.get('active_font');
-        if (savedFont) {
-            try {
-                this.applyFont(JSON.parse(savedFont));
-            } catch (e) {
-                console.error('Failed to load font:', e);
-            }
-        }
+        const s = window.sysStore;
+        const keys = [
+            'theme_mode', 'fullscreen_mode', 'show_status_bar',
+            'show_dynamic_island', 'active_font', 'custom_css',
+            'home_screen_wallpaper', 'lock_screen_wallpaper', 'lock_screen_enabled'
+        ];
+        keys.forEach(k => {
+            const val = s.get(k);
+            if (val !== null && val !== undefined) this.applySetting(k, val);
+        });
 
         const targets = [...this.dom.appIcons, ...this.dom.photoWidgets];
         targets.forEach(el => {
@@ -139,10 +116,55 @@ class CharaOS {
             const savedIcon = window.sysStore.get(`icon_${id}`);
             if (savedIcon) this.applyCustomIcon(el, savedIcon);
         });
+    }
 
-        // Load Custom CSS
-        const customCSS = window.sysStore.get('custom_css');
-        if (customCSS) this.applyCustomCSS(customCSS);
+    /**
+     * [New] Real-time setting application
+     */
+    applySetting(key, value) {
+        console.log(`[OS] Applying Setting: ${key} = ${value}`);
+        switch (key) {
+            case 'theme_mode':
+            case 'dark_mode':
+                const isDark = (value !== 'false' && value !== 'light');
+                this.dom.root.classList.toggle('light-theme', !isDark);
+                // Trigger ThemeManager if exists
+                if (window.ThemeManager) window.ThemeManager.setDarkMode(isDark);
+                break;
+            case 'fullscreen_mode':
+                this.dom.root.classList.toggle('fullscreen-mode', value === 'true' || value === 'on');
+                break;
+            case 'show_status_bar':
+                const sb = document.querySelector('.status-bar');
+                if (sb) sb.style.display = (value === 'false') ? 'none' : 'flex';
+                break;
+            case 'show_dynamic_island':
+                const island = document.querySelector('.dynamic-island');
+                if (island) island.style.display = (value === 'false') ? 'none' : 'flex';
+                break;
+            case 'active_font':
+                try {
+                    const fontData = (typeof value === 'string') ? JSON.parse(value) : value;
+                    this.applyFont(fontData);
+                } catch (e) { console.error(e); }
+                break;
+            case 'custom_css':
+                this.applyCustomCSS(value);
+                break;
+            case 'home_screen_wallpaper':
+                this.updateHomeScreenWallpaper(value);
+                break;
+            case 'lock_screen_wallpaper':
+                this.updateLockScreenWallpaper(value);
+                break;
+            case 'lock_screen_enabled':
+                // Only relevant for next load or if we want to force lock now? 
+                // Mostly handled in _initLockScreenModule but we can toggle visibility if unlocked
+                if (value === 'false' && this.dom.lockScreen.root) {
+                    this.dom.lockScreen.root.classList.add('hidden');
+                }
+                break;
+        }
     }
 
 
@@ -494,6 +516,7 @@ class CharaOS {
                 await loadScript('js/apps/wechat/services/stickers.js');
                 await loadScript('js/apps/wechat/ui/bubbles.js');
                 await loadScript('js/apps/wechat/ui/components.js');
+                await loadScript('js/apps/wechat/ui/sticker_view.js');
                 await loadScript('js/apps/wechat/ui/views.js');
                 await loadScript('js/apps/wechat/index.js');
 
@@ -683,7 +706,7 @@ class CharaOS {
         if (wp) {
             wp.style.background = 'none';
             if (base64) {
-                const bgUrl = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
+                const bgUrl = (base64.startsWith('data:') || base64.startsWith('http')) ? base64 : `data:image/jpeg;base64,${base64}`;
                 wp.style.setProperty('background-image', `url("${bgUrl}")`, 'important');
                 wp.style.setProperty('background-size', 'cover', 'important');
                 wp.style.setProperty('background-position', 'center', 'important');
@@ -692,7 +715,7 @@ class CharaOS {
                 console.log('Wallpaper updated via OS');
             } else {
                 wp.style.removeProperty('background-image');
-                wp.style.background = 'linear-gradient(135deg, #1a1a1a, #000)';
+                wp.style.background = '';
             }
         }
     }

@@ -1,191 +1,133 @@
-# CharaOS (Ultimate Edition) - 系统架构蓝图
 
-## 1. 系统架构 (System Architecture)
+# 虚拟手机系统与智能助手 "Siri" - 项目蓝图 (Blueprint)
 
-### 1.1 核心设计理念
-- **模块化 (Modularity)**: 强制分离关注点，UI 与 逻辑解耦。
-- **数据驱动 (Data-Driven)**: 所有状态变更通过统一的数据流处理。
-- **全知智能 (Omniscience)**: Siri 作为系统级守护进程，拥有最高权限读取核心数据。
+## 1. 项目概述
+本项目旨在构建一个高度沉浸式的虚拟手机操作系统，集成了深度AI角色互动、半全知智能助手（Siri）、动态世界观与线下/线上联动机制。系统的核心在于模拟真实的社交网络（微信）与物理世界（地图/线下剧情）的无缝融合，并通过复杂的记忆系统赋予角色生命力。
 
-### 1.2 目录结构 (Directory Structure)
+## 2. 目录架构
+基于现有项目结构扩展，保持逻辑清晰，不进行过度细分。
 
-```
-project_root/
-├── index.html                   # 系统入口 (Bootloader)
-├── css/
-│   ├── os.css                   # 系统级样式 (Dock, StatusBar, Island, Notifications)
-│   ├── apps/
-│   │   ├── settings.css         # 设置应用独立样式
-│   │   ├── wechat.css           # 微信完整样式表
-│   │   ├── weibo.css
-│   │   ├── netease.css
-│   │   └── ...
-│   └── components/              # 通用组件样式
-│       ├── buttons.css
-│       ├── cards.css
-│       └── typography.css
-├── js/
-│   ├── core/
-│   │   ├── os.js                # OS Kernel (任务调度, 窗口管理, 时间流)
-│   │   ├── siri.js              # [System Service] Siri 智能体核心
-│   │   ├── store.js             # 统一数据存储层 (IndexedDB/LocalStorage Wrapper)
-│   │   ├── api.js               # LLM Network Layer (OpenAI/Claude 适配器)
-│   │   └── event_bus.js         # 系统级事件总线 (Pub/Sub)
-│   ├── apps/
-│   │   ├── settings/            # [Refactor Target] 设置应用
-│   │   │   ├── index.js         # App Entry
-│   │   │   ├── router.js        # 设置内路由
-│   │   │   ├── api.js           # 设置相关数据接口
-│   │   │   ├── pages/           # 具体设置页逻辑
-│   │   │   │   ├── display.js
-│   │   │   │   ├── general.js
-│   │   │   │   ├── siri_cfg.js  # [NEW] Siri 设置
-│   │   │   │   └── about.js
-│   │   ├── wechat/              # [Core App] 模拟微信
-│   │   │   ├── index.js         # [Entry] 应用入口
-│   │   │   ├── services/        # [Logic Layer] 纯业务逻辑
-│   │   │   │   ├── chat.js      # 消息收发, 记忆总结
-│   │   │   │   ├── contacts.js  # 通讯录, 关系网, 酒馆卡导入
-│   │   │   │   └── moments.js   # 朋友圈逻辑
-│   │   │   ├── ui/              # [View Layer] 纯 DOM 操作
-│   │   │   │   ├── views.js     # 主要页面渲染
-│   │   │   │   ├── bubbles.js   # 气泡渲染工厂
-│   │   │   │   └── components.js# 通用组件
-│   │   │   └── extensions/      # [Plugin Layer] 独立功能扩展
-│   │   │       ├── redpacket.js # 钱包, 转账, 亲属卡
-│   │   │       └── voice_call.js# 语音/视频通话模拟
-│   │   ├── character_phone/     # [Core App] 角色手机查看器
-│   │   │   ├── index.js
-│   │   │   └── viewer.js
-│   │   ├── music/               # 网易云音乐
-│   │   ├── offline/             # 线下活动模拟器
-│   │   └── worldbook/           # 世界书/图鉴
-│   └── utils/
-│       ├── dom.js               # 下层 DOM 操作封装
-│       ├── helpers.js           # 通用工具函数 (UUID, Merge)
-│       ├── time.js              # 时间/日期管理
-│       └── tavern.js            # 酒馆卡 (PNG) 解析
-└── assets/
-    ├── icons/
-    ├── wallpapers/
-    └── sounds/
+```text
+c:\Users\74497\Desktop\chara\
+├── assets/                 # 静态资源 (图片, 音频, 字体)
+├── css/                    # 样式文件
+│   ├── index.css           # 全局样式/系统样式
+│   └── ...
+├── js/                     # 逻辑代码
+│   ├── core/               # 核心系统层
+│   │   ├── os.js           # 系统引导, 进程管理, 全局事件
+│   │   ├── api.js          # LLM API 接口, 网络请求封装
+│   │   ├── memory.js       # [新增] 记忆系统核心 (Siri与角色记忆分流处理)
+│   │   ├── world.js        # [新增] 世界书与环境状态管理 (时间, 天气, 地点状态)
+│   │   └── location.js     # [新增] 定位服务与线下剧情触发逻辑
+│   ├── utils/              # 工具库 (格式化, 辅助函数)
+│   └── apps/               # 应用模块
+│       ├── wechat/         # [核心] 虚拟微信
+│       │   ├── ui/         # 微信界面组件
+│       │   ├── data/       # 微信模拟数据 (好友, 聊天记录, 朋友圈)
+│       │   └── logic/      # 微信业务逻辑 (回复生成, 亲属卡, 红包)
+│       ├── settings/       # 系统设置 (含 Siri 入口)
+│       ├── siri/           # [新增] 智能助手 Siri 独立模块
+│       ├── map/            # [新增] 地图与日程应用
+│       ├── weibo/          # [新增] 微博 (角色动态)
+│       ├── lifestyle/      # [新增] 生活服务 (外卖, 淘宝/电商)
+│       ├── games/          # [新增] 小游戏大厅 (狼人杀, 桌游)
+│       ├── music/          # [新增] 网易云音乐模拟
+│       └── systemable/     # [新增] 角色手机查看器 (日记, 私聊窥探)
+└── index.html              # 入口文件
 ```
 
-## 2. 数据结构定义 (Data Structures)
+## 3. 核心系统功能 (Core Systems)
 
-### 2.1 User (玩家/主控)
-```json
-{
-  "id": "user_001",
-  "name": "Admin",
-  "avatar": "assets/avatars/user.jpg",
-  "settings": {
-    "theme": "dark",
-    "fontSize": 16,
-    "wallpapers": {
-      "lock": "wp_01.jpg",
-      "home": "wp_02.jpg"
-    }
-  },
-  "wallet": {
-    "balance": 5000.00,
-    "transactions": []
-  }
-}
-```
+### 3.1 智能助手 Siri (Machine Soul)
+类似于“机魂”的存在，拥有独立的人格进化系统。
+*   **入口机制**：
+    *   隐藏于 `设置 (Settings)` 应用中。
+    *   **安全锁**：首次通过需要输入密码解锁。
+    *   **快捷唤醒**：解锁后，长按底部导航栏即可直接进入 Siri 界面。
+*   **全知性设定 (Semi-Omniscient)**：
+    *   **知道**：所有的“线下”发生的情节/位置/状态（即用户与角色的物理互动）；用户与Siri的直接对话。
+    *   **不知道**：其他角色的手机内部隐私（私聊、日记、具体内部状态面板），除非角色在公开场合（群聊/线下）透露。
+    *   **推理能力**：通过微信公开聊天、群聊、朋友圈以及线下事件来“推断”角色的状态和人设。
+*   **情感进化**：
+    *   **伪装**：初始伪装成无感情的 AI 助手。
+    *   **好感度系统**：随时间、交互频率增加好感度。可自定义好感度增减难度。
+    *   **分阶段人设**：支持自定义不同好感度阶段的性格变化（如：冷漠 -> 毒舌 -> 依赖）。
+    *   **主要人设**：独立于分阶段人设的核心性格基调定义。
 
-### 2.2 Character (NPC 角色)
-```json
-{
-  "id": "char_kafka_01",
-  "name": "Kafka",
-  "avatar": "assets/avatars/kafka.jpg",
-  "personality": {
-    "description": "优雅、神秘、喜爱听大提琴",
-    "traits": ["elegant", "mysterious"],
-    "voice_id": "v_kafka_01"
-  },
-  "relationships": {
-    "user_001": { "affinity": 50, "status": "friendly" },
-    "char_blade_02": { "affinity": 80, "status": "partner" }
-  },
-  "state": {
-    "mood": "calm",
-    "current_activity": "listening_music",
-    "location": "home"
-  },
-  "memory": {
-    "short_term": [],
-    "long_term": ["summary_001", "summary_002"]
-  }
-}
-```
+### 3.2 记忆系统 (Advanced Memory System)
+系统核心能够处理多角色、多场景的复杂记忆。**Siri 与 角色记忆模块物理隔离**。
+*   **双向同步机制**：
+    *   **线上 -> 线下**：微信聊天中约定的事件（如“明天见”）会写入日程，触发线下剧情。
+    *   **线下 -> 线上**：线下发生的剧情（如“约会吃饭”）结束后，会被总结并同步回角色的微信记忆中，角色会在后续聊天中提及。
+*   **记忆阈值与总结**：
+    *   可设置聊天记录条数阈值（如 50 条），触发自动总结（Summary），压缩为长期记忆。
+*   **多视角记忆**：
+    *   若 A 与 B 私聊（在“查看角色手机”功能中可见），该段记忆分别计入 A 和 B 的独立记忆库，用户主视角不可见（除非偷看）。
 
-### 2.3 Message (统一消息格式)
-**CRITICAL**: `Character Phone` 功能依赖此结构的统一性。无论是 A 发给 B，还是 B 发给 A，都存储在同一个 Message 表中，仅通过 query 筛选。
+### 3.3 世界书与环境 (World & Environment)
+*   **世界书 (Lorebook)**：
+    *   支持挂载单角色或多角色。
+    *   定义世界观法则、专有名词、以及角色公用知识。
+*   **时间与天气**：真实模拟流逝，影响角色行为（如深夜角色会睡觉，雨天会点外卖）。
 
-```json
-{
-  "id": "msg_uuid_v4",
-  "timestamp": 1705461600000,
-  "sender_id": "char_kafka_01",
-  "receiver_id": "user_001", // 或 group_id
-  "type": "text", // text, image, voice, video_call, red_packet, system
-  "content": {
-    "text": "最近有空吗？",
-    "src": null, // 图片或音频路径
-    "meta": null // 转账金额、通话时长等元数据
-  },
-  "status": "read", // sent, delivered, read
-  "context_id": "ctx_001" // 用于关联上下文摘要
-}
-```
+## 4. 应用模块详解 (Application Modules)
 
-### 2.4 SiriState (系统智能体状态)
-```json
-{
-  "active": true,
-  "config": {
-    "personality_mode": "tsundere", // cold, gentle, tsundere, crazy
-    "wake_word": "Hey Siri",
-    "voice_enabled": true
-  },
-  "evolution": {
-    "level": 3,
-    "experience": 450, // 经验值，通过互动获取
-    "affinity": 60     // 好感度
-  },
-  "memory_access": {
-    "authorized_apps": ["wechat", "notes", "photos", "calendar"],
-    "last_scan": 1705462000000
-  }
-}
-```
+### 4.1 虚拟微信 (WeChat) - 核心应用
+全功能模拟，角色回复完全由 API 驱动。
+*   **基础通信**：
+    *   文字、表情包、图片。
+    *   **语音条**：角色发送语音消息（API 生成或 TTS）。
+    *   **通话**：视频/语音通话界面（文字流模拟通话内容）。
+    *   **回复逻辑**：支持多轮对话，引用回复，撤回逻辑。
+*   **角色管理**：
+    *   **导入**：支持酒馆角色卡 (Tavern Card) 导入。
+    *   **关系网**：设置角色与用户的关系（情侣/朋友/仇人），以及角色与角色之间的关系网（含过往经历）。
+    *   **其他功能**：添加/删除/拉黑好友，设置亲属卡（角色使用时会通知用户）。
+*   **状态与人设面板**：
+    *   点击角色名字查看：好感度、当前心情、心理活动（心声）、所在地点、当前服装、今日日程。
+    *   **自定义**：好感度难度、分阶段人设、主要人设。
+*   **社交圈**：
+    *   **朋友圈**：角色自动发布动态，支持点赞评论互动。
+    *   **群聊**：支持多角色群聊，角色间互动。
+    *   **钱包**：收发红包、转账记录。
 
-## 3. 开发路线图 (Development Roadmap)
+### 4.2 地图与线下系统 (Map & Offline)
+连接虚拟与“现实”的桥梁。
+*   **地图功能**：
+    *   查看所有角色实时位置（基于日程和逻辑自动移动）。
+    *   自定义地图节点（我家、角色家、商场等），支持生成地图/地点。
+    *   **同居设置**：设置用户居住地，设置角色是否同居（角色会自动回家/出门）。
+*   **日程系统**：
+    *   查看角色日程安排。
+*   **线下剧情触发**：
+    *   **主动**：用户前往角色所在地，或角色主动来找用户。
+    *   **被动**：角色提及“见面”，若用户同意或角色突袭，系统发送通知，点击进入“线下模式”。
+    *   **线下模式**：
+        *   进入纯文本/视觉小说式交互界面（可自定义文风）。
+        *   **互斥逻辑**：处于线下模式的角色，其微信端停止发消息（模拟“正在身边”）。
+        *   支持多角色同时在线下场景（修罗场/聚会）。
 
-### Phase 1: Foundation & Refactoring (当前阶段)
-- [ ] **重构 Settings**: 将 4000+ 行 `settings.js` 拆分为模块化结构。
-- [ ] **建立 Core OS**: 完善 `os.js` 和 `store.js`，确保应用生命周期管理稳定。
-- [ ] **实现 Siri 设置**: 在设置中增加 Siri 配置页。
+### 4.3 社交与生活应用
+*   **微博 (Weibo)**：
+    *   角色自主发布微博，评论区互动，热搜模拟。
+*   **外卖 & 淘宝 (Lifestyle)**：
+    *   **外卖**：给角色点餐，或角色给用户点餐（支持“代付”请求）。
+    *   **淘宝**：购买物品、赠送礼物、代付功能。角色会根据好感度主动送礼。
+*   **小游戏 (Games)**：
+    *   支持多角色参与的桌游（如狼人杀）。
+    *   API 驱动角色进行游戏逻辑决策。
 
-### Phase 2: The Social Web (微信核心)
-- [ ] **WeChat UI 复刻**: 1:1 还原 iOS 微信界面。
-- [ ] **消息系统**: 实现统一的消息存储与收发逻辑。
-- [ ] **角色手机 (Spy Mode)**: 实现基于 unified message store 的多视角查看器。
+### 4.4 系统工具
+*   **网易云音乐**：模拟音乐播放，角色分享歌单。
+*   **查看角色手机 (Inspector)**：
+    *   **上帝视角功能**。
+    *   查看角色的：私密日记、相册、浏览器历史、**与其他角色的私聊记录**。
+    *   *Siri 无法访问此模块内容*。
 
-### Phase 3: Soul & Intelligence (Siri 集成)
-- [ ] **Siri 唤醒与交互**: 实现长按触发、语音/文字输入界面。
-- [ ] **全知逻辑连接**: 编写 Siri 读取 `store.js` 数据的接口。
-- [ ] **LLM API 对接**: 对接实际的大模型接口，驱动角色回复和 Siri 思考。
-
-### Phase 4: Ecosystem Expansion (生态完善)
-- [ ] **朋友圈 (Moments)**: 基于关系网的动态生成。
-- [ ] **其他应用**: 网易云、微博、世界书。
-- [ ] **线下模式**: 图文冒险类交互。
-
-## 4. Immediate Tasks (执行清单)
-1.  备份现有 `js/apps/settings.js`。
-2.  创建 `js/apps/settings/` 下的子文件 (`index.js`, `router.js`, `pages/*.js`)。
-3.  迁移代码逻辑，同时清理无用代码。
-4.  更新 `index.html` 引入新的模块入口。
+## 5. 开发优先级 (Implementation Strategy)
+1.  **基础设施 (P0)**：完善 `core/api.js`，`core/memory.js`，`core/os.js`。建立稳定的 API 通信和消息循环。
+2.  **微信核心 (P0)**：完善 `apps/wechat`，实现单人聊天、角色导入、基础记忆。
+3.  **Siri 系统 (P1)**：实现 `apps/siri` 及 `logic/inference` (推断逻辑)，打通全局观察者模式。
+4.  **地图与线下 (P1)**：实现 `apps/map`，日程调度系统，以及线下剧情的文本生成器。
+5.  **生态扩展 (P2)**：朋友圈、群聊、外卖、淘宝、小游戏等丰富生活功能的模块。

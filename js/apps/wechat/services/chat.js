@@ -16,7 +16,14 @@ window.WeChat.Services.Chat = {
     openSession(sessionId) {
         console.log('Open Session:', sessionId);
         this._activeSession = sessionId;
-        // UI 跳转逻辑通常由 View 层处理，此处仅更新状态
+    },
+
+    /**
+     * 触发一键智能回复 (对应 UI 上的语音按钮/小助手按钮)
+     */
+    triggerSmartReply() {
+        console.log('[ChatService] Triggering Smart Reply...');
+        this.triggerAIReply();
     },
 
     /**
@@ -42,10 +49,8 @@ window.WeChat.Services.Chat = {
         // 注意：index.js 可能也会尝试更新 UI，但为满足 Service 独立性要求，此处必须实现
         this.updateUI(msg);
 
-        // 4. 触发 AI 回复
-        // 排除自我对话或文件助手
+        // 4. 触发 AI 辅助逻辑 (如自动总结)，但不直接触发回复
         if (this._activeSession !== 'me' && this._activeSession !== 'file_helper') {
-            this.triggerAIReply();
             this.checkAutoSummary(this._activeSession);
         }
     },
@@ -58,14 +63,13 @@ window.WeChat.Services.Chat = {
         const targetId = this._activeSession;
         if (!targetId) return;
 
-        // UI 状态: 对方正在输入...
+        // UI 状态: 对方正在输入... (标题栏更新)
         this.setTypingState(true);
 
         try {
             // 1. 获取人设 (System Prompt)
             let character = window.sysStore.getCharacter(targetId);
 
-            // 紧急修复：如果 store 里竟然没有这个人（可能是Contacts加载慢了），我们现场手动查表
             if (!character) {
                 const contacts = window.WeChat?.Services?.Contacts?._contacts || [];
                 const found = contacts.find(c => c.id === targetId);
@@ -76,35 +80,68 @@ window.WeChat.Services.Chat = {
                 }
             }
 
-            // 优先使用 settings.persona, 其次 main_persona, 最后默认
             const persona = character?.settings?.persona || character?.main_persona || "你是一个乐于助人的 AI 助手。";
 
             // 2. 构建上下文 (Context)
-            // TODO: 未来在此处接入 Memory System (自动总结、向量检索、记忆簿)
             const contextMessages = this.buildContext(targetId, persona);
 
             // 3. 调用 API
-            // 兼容 Core.Api 或全局 API
             const Api = window.Core?.Api || window.API;
             if (!Api) throw new Error('Core API module not found');
 
-            const replyText = await Api.chat(contextMessages);
+            const fullReply = await Api.chat(contextMessages);
 
-            // 4. 接收回复 & 存入 Store
-            const aiMsg = window.sysStore.addMessage({
-                sender_id: targetId,
-                receiver_id: 'user',
-                content: replyText,
-                type: 'text'
-            });
+            // --- 状态更新解析逻辑 ---
+            let cleanReply = fullReply;
+            const statusMatch = fullReply.match(/<status_update>([\s\S]*?)<\/status_update>/);
+            if (statusMatch) {
+                try {
+                    const statusJson = JSON.parse(statusMatch[1].trim());
+                    cleanReply = fullReply.replace(statusMatch[0], '').trim();
+                    this._applyStatusUpdate(targetId, statusJson);
+                } catch (e) {
+                    console.warn('[ChatService] Failed to parse status update:', e);
+                }
+            }
+            // -----------------------
 
-            // UI 更新
-            this.updateUI(aiMsg);
+            // 4. 解析回复内容，按段落拆分多条消息
+            // 规则：按双换行符拆分，或者显著的段落标识
+            const messages = cleanReply.split(/\n\n+/).filter(m => m.trim());
+
+            for (let i = 0; i < messages.length; i++) {
+                const content = messages[i].trim();
+                if (!content) continue;
+
+                // 如果是后续消息，给一点点“正在输入”的停顿感
+                if (i > 0) {
+                    this.setTypingState(true);
+                    // 模拟输入延迟：根据字数或固定延迟
+                    const delay = Math.min(2000, 500 + content.length * 50);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+
+                // 存入 Store
+                const aiMsg = window.sysStore.addMessage({
+                    sender_id: targetId,
+                    receiver_id: 'user',
+                    content: content,
+                    type: 'text'
+                });
+
+                // UI 更新
+                this.updateUI(aiMsg);
+
+                // 每发完一条，暂时关闭输入状态，除非还有下一条
+                if (i < messages.length - 1) {
+                    this.setTypingState(false);
+                    // 段落之间的短暂间隔
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
 
         } catch (e) {
             console.error('[ChatService] AI Reply Failed:', e);
-
-            // 直接显示 API 返回的具体错误信息，方便调试
             let errorHint = e.message || '未知错误';
 
             const errorMsg = window.sysStore.addMessage({
@@ -142,7 +179,33 @@ window.WeChat.Services.Chat = {
         // 组装 System Prompt + History
         // 注入长期记忆 (Long-term Memories)
         const memories = char?.memories || [];
+        const status = char?.status || {};
         let enhancedPersona = persona;
+
+        // 注入状态信息和指令
+        enhancedPersona += `\n\n[当前角色状态]
+- 好感度: ${status.affection || '0.0'} (难度设定: ${status.relationship_difficulty || 'normal'})
+- 服装: ${status.outfit || '未知'}
+- 当前行为: ${status.behavior || '未知'}
+- 当前心声: ${status.inner_voice || '无'}
+
+[指令]
+你现在不仅是在对话，还需要在每次回复的末尾附带一个 <status_update> 标签，包含更新后的状态内容（JSON格式）。
+根据对话的发展即时更新：
+1. 好感度 (affection): 浮点数。根据对话氛围增减（困难上限+0.1，普通上限+0.5，简单上限+1.0）。
+2. 服装 (outfit): 字符串。如果对话中提到换装，请更新。
+3. 行为 (behavior): 字符串。描述你回复时的动作或神态。
+4. 心声 (inner_voice): 字符串。描述你内心的一句真实想法。
+
+示例格式：
+<status_update>
+{
+  "affection": 5.5,
+  "outfit": "白色连衣裙",
+  "behavior": "害羞地扭过头去",
+  "inner_voice": "他居然跟我表白了..."
+}
+</status_update>`;
 
         if (memories.length > 0) {
             const memoryText = memories.map(m => `- ${m.content}`).join('\n');
@@ -167,13 +230,45 @@ window.WeChat.Services.Chat = {
         const cnt = view.querySelector('.wx-chat-messages');
         if (!cnt) return;
 
+        // --- Time Stamp Logic for New Message ---
+        let timeHtml = '';
+        const currentTs = msg.timestamp || Date.now();
+
+        // Attempt to find previous message timestamp
+        let prevTime = 0;
+
+        // Strategy 1: Check Store (Most Reliable)
+        if (window.sysStore && window.sysStore.getMessagesBySession) {
+            const msgs = window.sysStore.getMessagesBySession(this._activeSession);
+            // current msg should be the last one, so we look at the one before it
+            if (msgs.length >= 2) {
+                prevTime = msgs[msgs.length - 2].timestamp;
+            }
+        }
+
+        // Strategy 2: Fallback to DOM (If Store logic fails or is async delayed)
+        if (prevTime === 0) {
+            // Try to find the last message row in DOM and infer time? 
+            // Difficult because DOM doesn't store raw timestamp.
+            // We'll rely on Strategy 1 mostly. If it fails (first msg), prevTime is 0.
+        }
+
+        if (currentTs - prevTime > 5 * 60 * 1000 || prevTime === 0) {
+            if (window.WeChat.Views && window.WeChat.Views._formatChatTime) {
+                const timeStr = window.WeChat.Views._formatChatTime(currentTs);
+                timeHtml = `<div class="wx-msg-time" onclick="window.WeChat.Views.toggleMsgTime(this, ${currentTs})">${timeStr}</div>`;
+            }
+        }
+        // ----------------------------------------
+
         // 适配 UI Bubble 格式
         const isMe = msg.sender_id === 'user' || msg.sender_id === 'me';
         let avatar = '';
 
-        if (!isMe && msg.sender_id !== 'system') {
+        if (isMe) {
+            avatar = (window.sysStore && window.sysStore.get('user_avatar')) || '';
+        } else if (msg.sender_id !== 'system') {
             const char = window.sysStore.getCharacter(msg.sender_id);
-            // Don't fallback to broken path here; let Bubbles handle it
             avatar = char?.avatar || '';
         }
 
@@ -183,34 +278,43 @@ window.WeChat.Services.Chat = {
             type: msg.type || 'text',
             content: msg.content,
             avatar: avatar,
-            time: new Date(msg.timestamp || Date.now()).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+            // Bubble renderer doesn't actually use 'time' field for display inside bubble in WeChat style, 
+            // but we pass it just in case.
+            time: ''
         };
 
-        // Append to DOM
-        cnt.innerHTML += window.WeChat.UI.Bubbles.render(bubbleData);
+        // Append to DOM (Time Row + Message Row)
+        cnt.insertAdjacentHTML('beforeend', timeHtml + window.WeChat.UI.Bubbles.render(bubbleData));
 
-        // Scroll to bottom
+        // Scroll to bottom smoothly
         setTimeout(() => {
-            view.scrollTop = view.scrollHeight;
+            view.scrollTo({
+                top: view.scrollHeight,
+                behavior: 'smooth'
+            });
         }, 50);
     },
 
     /**
      * 辅助: 设置输入框状态
      */
-    setTypingState(isTyping) {
+    setTypingState(isThinking) {
+        // 1. 同步顶部标题栏状态 (对方正在输入...)
+        if (window.WeChat.App && window.WeChat.App.setTypingState) {
+            window.WeChat.App.setTypingState(isThinking);
+        }
+
+        // 2. 同步输入框占位符
         const input = document.getElementById('wx-chat-input');
         if (!input) return;
 
-        if (isTyping) {
+        if (isThinking) {
             if (!input.dataset.originalPlaceholder) {
                 input.dataset.originalPlaceholder = input.placeholder;
             }
-            input.placeholder = '对方正在输入...';
-            // input.disabled = true; // 可选: 是否禁用输入
+            input.placeholder = ''; // 思考时输入框保持空白占位
         } else {
             input.placeholder = input.dataset.originalPlaceholder || '';
-            // input.disabled = false;
         }
     },
 
@@ -329,5 +433,59 @@ window.WeChat.Services.Chat = {
             type: 'text',
             timestamp: Date.now()
         });
+    },
+
+    /**
+     * 辅助: 应用状态更新
+     */
+    _applyStatusUpdate(sessionId, statusJson) {
+        const char = window.sysStore.getCharacter(sessionId);
+        if (!char) return;
+
+        const oldStatus = char.status || {};
+        const updates = {};
+
+        // 1. 处理好感度 (带有难度限制)
+        let newAffection = parseFloat(statusJson.affection);
+        if (!isNaN(newAffection)) {
+            const oldAff = parseFloat(oldStatus.affection || 0);
+            const diff = newAffection - oldAff;
+
+            // 限制单次变动上限 (根据难度)
+            const difficulty = oldStatus.relationship_difficulty || 'normal';
+            // 困难 0.1, 普通 0.5, 简单 1.0 (根据用户最新要求)
+            const cap = difficulty === 'hard' ? 0.1 : (difficulty === 'easy' ? 1.0 : 0.5);
+
+            if (diff > cap) newAffection = oldAff + cap;
+            else if (diff < -cap) newAffection = oldAff - cap;
+
+            statusJson.affection = newAffection.toFixed(1);
+        }
+
+        // 2. 合并状态
+        const newStatus = {
+            ...oldStatus,
+            ...statusJson
+        };
+        updates.status = newStatus;
+
+        // 3. 记录历史记录 (如果状态有变)
+        let history = char.status_history || [];
+        const latest = history[0];
+        if (JSON.stringify(newStatus) !== JSON.stringify(latest?.status)) {
+            history.unshift({
+                timestamp: Date.now(),
+                status: JSON.parse(JSON.stringify(newStatus))
+            });
+            updates.status_history = history.slice(0, 5);
+        }
+
+        // 4. 持久化并刷新 UI
+        window.sysStore.updateCharacter(sessionId, updates);
+
+        // 如果 App 正在运行且当前正是此会话的面板，触发一次 App Render
+        if (window.WeChat.App && window.WeChat.App.render) {
+            window.WeChat.App.render();
+        }
     }
 };

@@ -179,6 +179,37 @@ const Service = {
         } catch (e) { return null; }
     },
 
+    async testNovelAI(apiKey, model) {
+        try {
+            const url = 'https://api.novelai.net/ai/generate-image';
+            const body = {
+                input: "girl, masterpiece, best quality",
+                model: model || 'v4.5 curated',
+                action: "generate",
+                params: { width: 512, height: 768, scale: 5, sampler: "k_euler_ancestral", steps: 28, seed: Math.floor(Math.random() * 100000) }
+            };
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) return null;
+            return await res.blob();
+        } catch (e) { return null; }
+    },
+
+    async uploadToCatbox(file, userHash = "") {
+        const formData = new FormData();
+        formData.append('reqtype', 'fileupload');
+        formData.append('fileToUpload', file);
+        if (userHash) formData.append('userhash', userHash);
+        try {
+            const res = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: formData });
+            if (res.ok) return await res.text();
+            return null;
+        } catch (e) { return null; }
+    },
+
     playAudio(blobOrUrl, volume = 1) {
         const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
         const audio = new Audio(url);

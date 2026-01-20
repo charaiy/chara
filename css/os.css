@@ -184,6 +184,11 @@ body {
     --ios-bg: #ffffff;
 }
 
+#os-root.light-theme .wallpaper,
+#os-root.light-mode .wallpaper {
+    background: #ffffff;
+}
+
 /* --- Status Bar --- */
 .status-bar {
     position: absolute;

@@ -29,7 +29,7 @@ window.BackgroundActivityManager = (function () {
         console.log('[后台活动] 开始执行后台任务...');
 
         try {
-            // 调用 API - 执行心跳或检测
+            // 1. API 存活检测 (心跳)
             const response = await fetch(`${apiUrl.replace(/\/$/, '')}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -48,10 +48,61 @@ window.BackgroundActivityManager = (function () {
 
             if (response.ok) {
                 s.set('bg_last_run', Date.now().toString());
-                console.log('[后台活动] 任务执行成功');
+                console.log('[后台活动] API 心跳成功');
             } else {
-                console.error('[后台活动] API 调用失败:', response.status);
+                console.log('[后台活动] API 心跳失败:', response.status);
             }
+
+            // 2. 自动备份 (GitHub) - 如果开启
+            const backupEnabled = s.get('autobackup_enabled') === 'true';
+            if (backupEnabled) {
+                const lastBackup = parseInt(s.get('github_last_backup') || '0');
+                const interval = parseInt(s.get('autobackup_interval') || '30') * 60 * 1000;
+
+                if (Date.now() - lastBackup > interval) {
+                    console.log('[后台活动] 触发自动云端备份...');
+                    const cfg = {
+                        token: s.get('github_token'),
+                        user: s.get('github_user'),
+                        repo: s.get('github_repo'),
+                        filename: 'chara_backup.json',
+                        content: JSON.stringify(localStorage)
+                    };
+                    if (cfg.token && cfg.user && cfg.repo) {
+                        const ok = await window.SettingsState.Service.githubAction('upload', cfg);
+                        if (ok) {
+                            s.set('github_last_backup', Date.now().toString());
+                            console.log('[后台活动] 自动备份成功');
+                        }
+                    }
+                }
+            }
+
+            // 3. 处理每个角色的独立后台活动
+            const db = s.get('chara_db_characters', {});
+            for (const charId in db) {
+                const char = db[charId];
+                if (char?.settings?.bg_activity_enabled === true) {
+                    const threshold = parseInt(char.settings.bg_activity_threshold) || 30;
+                    const lastRun = char.settings.bg_last_run || 0;
+                    const now = Date.now();
+
+                    if (now - lastRun > threshold * 60 * 1000) {
+                        console.log(`[后台活动] 触发角色 ${char.name} (${charId}) 的独立活动`);
+                        // 更新最后运行时间
+                        char.settings.bg_last_run = now;
+                        s.updateCharacter(charId, { settings: char.settings });
+
+                        // 模拟活动：如果之前正在聊天，可能触发主动回复或发送一条问候/感慨
+                        // 这里我们可以调用一个服务来生成动作
+                        if (window.WeChat && window.WeChat.Services && window.WeChat.Services.Chat) {
+                            // 暂时只打印日志，实际可能需要调用 LLM 生成内容并发送
+                            // window.WeChat.Services.Chat.triggerCharacterIndependentActivity(charId);
+                        }
+                    }
+                }
+            }
+
         } catch (e) {
             console.error('[后台活动] 任务执行出错:', e);
         }

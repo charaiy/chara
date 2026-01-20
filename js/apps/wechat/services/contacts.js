@@ -17,6 +17,20 @@ window.WeChat.Services.Contacts = {
      * 获取所有联系人，按 A-Z 排序（简化版）
      */
     getContacts() {
+        // Sync with sysStore to get latest avatar/name
+        if (window.sysStore && window.sysStore.getCharacter) {
+            this._contacts = this._contacts.map(c => {
+                const char = window.sysStore.getCharacter(c.id);
+                if (char) {
+                    return {
+                        ...c,
+                        name: char.name || c.name,
+                        avatar: char.avatar || c.avatar
+                    };
+                }
+                return c;
+            });
+        }
         return this._contacts;
     },
 
@@ -86,12 +100,29 @@ window.WeChat.Services.Contacts = {
 
         if (window.sysStore && window.sysStore.updateCharacter) {
             fakeHumans.forEach(p => {
-                window.sysStore.updateCharacter(p.id, {
-                    id: p.id,
-                    name: p.name,
-                    avatar: p.avatar,
-                    main_persona: p.settings?.persona || "Assistant"
-                });
+                // Check if exists to preserve user edits (avatar, nickname, etc.)
+                const existing = window.sysStore.getCharacter(p.id);
+                if (existing) {
+                    // Update only if missing critical fields or merge safely?
+                    // For now, let's just NOT overwrite avatar if it exists
+                    window.sysStore.updateCharacter(p.id, {
+                        id: p.id,
+                        // If existing name is different (user renamed), keep it? 
+                        // Or just ensure we don't zero out the avatar.
+                        // Let's preserve everything user might have changed.
+                        name: existing.name || p.name,
+                        avatar: existing.avatar || p.avatar,
+                        main_persona: existing.main_persona || p.settings?.persona || "Assistant"
+                    });
+                } else {
+                    // New insert
+                    window.sysStore.updateCharacter(p.id, {
+                        id: p.id,
+                        name: p.name,
+                        avatar: p.avatar,
+                        main_persona: p.settings?.persona || "Assistant"
+                    });
+                }
             });
         }
 

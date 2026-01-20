@@ -64,15 +64,20 @@ window.WeChat.Services.Stickers = {
     getAll() {
         const stored = window.sysStore.get(this.getKey());
         let custom = [];
-        try { custom = stored ? JSON.parse(stored) : []; } catch (e) { console.error(e); }
-        const defaults = this.defaults;
+        try {
+            const parsed = stored ? JSON.parse(stored) : [];
+            custom = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            console.error('Stickers Load Error:', e);
+            custom = [];
+        }
+
+        const defaults = this.defaults || [];
 
         // Filter out excluded defaults
         const excluded = this.getExcluded ? this.getExcluded() : [];
         const allDefaults = defaults.filter(url => !excluded.includes(url));
 
-        return [...custom, ...allDefaults]; // Custom first, or Defaults first? Let's stick to previous order.
-        // Actually, logic above was Defaults + Custom. Let's keep consistency.
         return [...allDefaults, ...custom];
     },
 
@@ -122,7 +127,10 @@ window.WeChat.Services.Stickers = {
 
     getCustomOnly() {
         const stored = window.sysStore.get(this.getKey());
-        try { return stored ? JSON.parse(stored) : []; } catch (e) { return []; }
+        try {
+            const parsed = stored ? JSON.parse(stored) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
     },
 
     clearCustom() { window.sysStore.set(this.getKey(), '[]'); window.sysStore.set(this.getKey() + '_excluded', '[]'); }

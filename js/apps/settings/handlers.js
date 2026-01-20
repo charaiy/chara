@@ -50,10 +50,10 @@ const genericBind = (prefix) => (page) => {
     // 统一保存
     const saveBtn = page.querySelector(`#${prefix}-save`) || page.querySelector(`#${prefix}-save-btn`);
     if (saveBtn) saveBtn.onclick = () => {
-        page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value.trim())); // Trim values
+        page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value.trim()));
         page.querySelectorAll('.ios-switch').forEach(sw => {
             const k = sw.dataset.switch;
-            if (k) s.set(k, sw.classList.contains('on'));
+            if (k) s.set(k, sw.classList.contains('on') ? 'true' : 'false');
         });
         alert('设置已成功保存');
     };
@@ -62,7 +62,11 @@ const genericBind = (prefix) => (page) => {
     page.querySelectorAll('.ios-switch').forEach(sw => sw.onclick = () => {
         const isOn = sw.classList.toggle('on');
         const k = sw.dataset.switch;
-        if (k) s.set(k, isOn ? 'true' : 'false');
+        const val = isOn ? 'true' : 'false';
+        if (k) {
+            s.set(k, val);
+            if (window.os?.applySetting) window.os.applySetting(k, val);
+        }
 
         const targetId = sw.dataset.target;
         if (targetId) {
@@ -81,7 +85,8 @@ const PAGE_CONFIG = {
     'chat-page': { className: 'chat-page', render: 'renderChatPageContent', bind: 'openChatPage' },
     'font-page': { className: 'font-page-v5', render: 'renderFontPageDesignV5', bind: 'openFontPage' },
     'appearance-page': { className: 'appearance-page', render: 'renderAppearancePageContent', bind: 'openAppearancePage' },
-    'notification-page': { className: 'notification-page', render: 'renderNotificationPageContent', bind: 'openNotificationPage' }
+    'notification-page': { className: 'notification-page', render: 'renderNotificationPageContent', bind: 'openNotificationPage' },
+    'developer-page': { className: 'developer-page', render: 'renderDeveloperPage', bind: 'openDeveloperPage' }
 };
 
 /**
@@ -182,13 +187,29 @@ window.SettingsHandlers.openProfilePage = (page) => {
     // GitHub
     page.querySelector('#btn-backup-upload').onclick = async () => {
         const cfg = { token: s.get('github_token'), user: s.get('github_user'), repo: s.get('github_repo'), filename: 'chara_backup.json', content: JSON.stringify(localStorage) };
-        if (!cfg.token) return alert('请先配置 GitHub');
-        alert(await window.SettingsState.Service.githubAction('upload', cfg) ? '云端备份成功' : '上传失败');
+        if (!cfg.token || !cfg.user || !cfg.repo) return alert('请完整配置 GitHub 信息 (Token, 用户名, 仓库名)');
+        const btn = page.querySelector('#btn-backup-upload');
+        const oldText = btn.innerText;
+        btn.innerText = '正在上传...';
+        const ok = await window.SettingsState.Service.githubAction('upload', cfg);
+        btn.innerText = oldText;
+        alert(ok ? '云端备份成功' : '上传失败，请检查 Token 权限或网络');
     };
     page.querySelector('#btn-backup-download').onclick = async () => {
         const cfg = { token: s.get('github_token'), user: s.get('github_user'), repo: s.get('github_repo'), filename: 'chara_backup.json' };
+        if (!cfg.token || !cfg.user || !cfg.repo) return alert('请完整配置 GitHub 信息');
+        const btn = page.querySelector('#btn-backup-download');
+        const oldText = btn.innerText;
+        btn.innerText = '正在拉取...';
         const data = await window.SettingsState.Service.githubAction('download', cfg);
-        if (data && confirm('找到备份，确认恢复并重启？')) { Object.keys(data).forEach(k => localStorage.setItem(k, data[k])); location.reload(); }
+        btn.innerText = oldText;
+        if (data && confirm('成功拉取云端数据，是否立即恢复并重启？\n注意：这将覆盖所有现有本地聊天记录和设置。')) {
+            localStorage.clear();
+            Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
+            location.reload();
+        } else if (!data) {
+            alert('未找到备份文件或下载失败');
+        }
     };
 
     // 数据管理
@@ -260,12 +281,50 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
     };
 
     const extra = {
-        'btn-clean-redundant': () => alert('已完成冗余碎片扫描，清理 0B。'),
-        'btn-delete-worldbook': () => { if (confirm('删除所有世界书？')) { s.remove('chara_db_world'); alert('已清空'); } },
-        'btn-advanced-clean': () => { if (confirm('执行高级清理？')) alert('清理完毕'); },
-        'btn-check-repair': () => alert('核心数据校验正常'),
-        'btn-reset-appearance': () => { if (confirm('重置外观？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font'].forEach(k => s.remove(k)); location.reload(); } },
-        'btn-reset-all': () => { if (confirm('⚠️ 彻底抹除所有数据？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
+        'btn-clean-redundant': () => {
+            let count = 0, size = 0;
+            const keys = Object.keys(localStorage);
+            const standardKeys = [
+                'chara_db_messages', 'chara_db_characters', 'chara_db_world',
+                'main_api_key', 'main_api_url', 'main_model', 'bg_activity_enabled',
+                'user_name', 'user_avatar', 'dark_mode', 'show_status_bar',
+                'home_screen_wallpaper', 'lock_screen_wallpaper', 'active_font'
+            ];
+            keys.forEach(k => {
+                if (k.startsWith('chara_os_')) {
+                    const rawKey = k.replace('chara_os_', '');
+                    // 如果键很大且不在标准列表中，也不是角色相关的，则视为冗余
+                    if (!standardKeys.includes(rawKey) && !rawKey.startsWith('icon_') && !rawKey.startsWith('name_')) {
+                        count++;
+                        size += localStorage.getItem(k).length;
+                        localStorage.removeItem(k);
+                    }
+                }
+            });
+            alert(`清理完成！共移除 ${count} 个冗余碎片，释放约 ${(size / 1024).toFixed(2)} KB 空间。`);
+        },
+        'btn-advanced-clean': () => {
+            if (!confirm('高级清理将扫描并移除已失效的角色聊天记录，是否继续？')) return;
+            const msgs = s.get('chara_db_messages') || [];
+            const chars = s.get('chara_db_characters') || {};
+            const standardIds = ['file_helper', 'chara_assistant', 'pay', 'system', 'user', 'me', 'my'];
+            const filteredMsgs = msgs.filter(m => {
+                const target = m.sender_id === 'user' ? m.receiver_id : m.sender_id;
+                return chars[target] || standardIds.includes(target);
+            });
+            const removedCount = msgs.length - filteredMsgs.length;
+            s.set('chara_db_messages', filteredMsgs);
+            alert(`清理完毕。移除了 ${removedCount} 条孤立的消息纪录。`);
+        },
+        'btn-check-repair': () => {
+            s.init(); // 触发初始化检测
+            const keys = ['chara_db_messages', 'chara_db_characters', 'chara_db_world'];
+            const results = keys.map(k => `${k}: ${s.get(k) ? '✔' : '✘'}`);
+            alert('核心数据校验结果：\n' + results.join('\n') + '\n\n系统修复已执行完毕。');
+        },
+        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_world'); alert('已清空'); } },
+        'btn-reset-appearance': () => { if (confirm('确认重置所有外观设置（壁纸、字体、自定义CSS）？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font', 'show_status_bar', 'show_dynamic_island'].forEach(k => s.remove(k)); location.reload(); } },
+        'btn-reset-all': () => { if (confirm('⚠️ 警告：彻底抹除所有本地数据（包括聊天记录、API Key、已保存的角色）？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
     };
     Object.keys(extra).forEach(id => { const el = page.querySelector('#' + id); if (el) el.onclick = extra[id]; });
 };
@@ -361,7 +420,9 @@ window.SettingsHandlers.openAppearancePage = (page) => {
         const el = page.querySelector('#' + id);
         if (el) el.onclick = () => {
             const on = el.classList.toggle('on');
-            s.set(key, on ? 'true' : 'false');
+            const val = on ? 'true' : 'false';
+            s.set(key, val);
+            if (window.os?.applySetting) window.os.applySetting(key, val);
         };
     };
     bindSwitch('toggle-status-bar', 'show_status_bar');
@@ -381,6 +442,7 @@ window.SettingsHandlers.openAppearancePage = (page) => {
             resetBtn.onclick = (e) => {
                 e.stopPropagation();
                 s.remove(`${type}_screen_wallpaper`);
+                if (window.os?.applySetting) window.os.applySetting(`${type}_screen_wallpaper`, null);
                 preview.style.backgroundImage = '';
                 preview.innerHTML = `<div style="font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; pointer-events: none;">点击设置<br>${type === 'lock' ? '锁屏' : '主屏'}壁纸</div>`;
             };
@@ -396,12 +458,14 @@ window.SettingsHandlers.openAppearancePage = (page) => {
                 if (!f) return;
                 const url = await handleImageUpload(f, true);
                 s.set(`${type}_screen_wallpaper`, url);
+                if (window.os?.applySetting) window.os.applySetting(`${type}_screen_wallpaper`, url);
                 preview.style.backgroundImage = `url('${url}')`;
                 preview.innerHTML = `<div style="position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; background: #8e8e93; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; font-weight: bold; border: 2px solid #000; z-index: 10; cursor: pointer;" class="wp-reset">×</div>`;
                 // Rebind reset newly created
                 preview.querySelector('.wp-reset').onclick = (ex) => {
                     ex.stopPropagation();
                     s.remove(`${type}_screen_wallpaper`);
+                    if (window.os?.applySetting) window.os.applySetting(`${type}_screen_wallpaper`, null);
                     preview.style.backgroundImage = '';
                     preview.innerHTML = `<div style="font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; pointer-events: none;">点击设置<br>${type === 'lock' ? '锁屏' : '主屏'}壁纸</div>`;
                 };
@@ -413,8 +477,15 @@ window.SettingsHandlers.openAppearancePage = (page) => {
     // CSS & Presets
     const cssInput = page.querySelector('#custom-css-input');
     if (cssInput) {
-        cssInput.onchange = () => s.set('custom_css', cssInput.value);
-        page.querySelector('#reset-css').onclick = () => { cssInput.value = ''; s.remove('custom_css'); };
+        cssInput.oninput = () => {
+            s.set('custom_css', cssInput.value);
+            if (window.os?.applySetting) window.os.applySetting('custom_css', cssInput.value);
+        };
+        page.querySelector('#reset-css').onclick = () => {
+            cssInput.value = '';
+            s.remove('custom_css');
+            if (window.os?.applySetting) window.os.applySetting('custom_css', null);
+        };
     }
 
     // Import/Export Config
@@ -450,6 +521,63 @@ window.SettingsHandlers.openAppearancePage = (page) => {
         };
         i.click();
     };
+
+    // 预设管理：外观方案
+    const bindPresets = (rowId, displayId, saveBtnId, storeKey) => {
+        const row = page.querySelector('#' + rowId);
+        const display = page.querySelector('#' + displayId);
+        const saveBtn = page.querySelector('#' + saveBtnId);
+
+        if (row) row.onclick = () => {
+            const ps = JSON.parse(s.get(storeKey) || '{}');
+            const ks = Object.keys(ps);
+            if (!ks.length) return alert('尚无预设');
+            const modal = document.createElement('div');
+            modal.innerHTML = window.SettingsUI.renderSelectionModal({ title: '加载预设', items: ks.map(k => ({ id: k, label: k })), isDark: s.get('dark_mode') !== 'false', canDelete: true });
+            document.getElementById('os-root').appendChild(modal.firstElementChild);
+            const m = document.querySelector('.modal-mask');
+            m.querySelectorAll('.modal-selection-item').forEach(it => {
+                it.onclick = () => {
+                    const data = ps[it.dataset.id];
+                    Object.keys(data).forEach(k => { s.set(k, data[k]); if (window.os?.applySetting) window.os.applySetting(k, data[k]); });
+                    if (display) display.innerText = it.dataset.id;
+                    m.remove();
+                    alert('预设已应用');
+                };
+            });
+            m.querySelectorAll('.modal-item-delete').forEach(it => {
+                it.onclick = (ex) => {
+                    ex.stopPropagation();
+                    const id = it.dataset.id;
+                    if (confirm(`删除预设 "${id}"?`)) {
+                        delete ps[id];
+                        s.set(storeKey, JSON.stringify(ps));
+                        it.closest('.modal-selection-item').remove();
+                    }
+                };
+            });
+            m.querySelector('.modal-close').onclick = () => m.remove();
+        };
+
+        if (saveBtn) saveBtn.onclick = () => {
+            const name = prompt('保存当前方案为:');
+            if (!name) return;
+            const ps = JSON.parse(s.get(storeKey) || '{}');
+            const data = {};
+            if (storeKey === 'appearance_presets') {
+                ['lock_screen_wallpaper', 'home_screen_wallpaper', 'show_status_bar', 'show_dynamic_island', 'active_font'].forEach(k => data[k] = s.get(k));
+            } else if (storeKey === 'css_presets') {
+                data['custom_css'] = s.get('custom_css');
+            }
+            ps[name] = data;
+            s.set(storeKey, JSON.stringify(ps));
+            if (display) display.innerText = name;
+            alert('已保存');
+        };
+    };
+
+    bindPresets('appearance-preset-row', 'appearance-preset-display', 'btn-save-appearance-preset', 'appearance_presets');
+    bindPresets('css-preset-row', 'css-preset-display', 'btn-save-css-preset', 'css_presets');
 };
 
 
@@ -707,8 +835,22 @@ window.SettingsHandlers.openCellularPage = (page) => {
 
     page.querySelector('#cellular-save').onclick = () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
-        page.querySelectorAll('.ios-switch').forEach(sw => { if (sw.dataset.switch) s.set(sw.dataset.switch, sw.classList.contains('on') ? 'true' : 'false'); });
-        alert('图像配置已保存');
+        page.querySelectorAll('.ios-switch').forEach(sw => { if (sw.dataset.switch) s.set(sw.dataset.switch, sw.classList.contains('on')); });
+        alert('图像中心配置已保存');
+    };
+
+    page.querySelector('#btn-novelai-test').onclick = async () => {
+        const key = s.get('novelai_key');
+        if (!key) return alert('请先配置 NovelAI API Key');
+        const btn = page.querySelector('#btn-novelai-test');
+        btn.innerText = '正在生成测试图...';
+        const blob = await window.SettingsState.Service.testNovelAI(key, s.get('novelai_model'));
+        btn.innerText = '测试图像生成';
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            const win = window.open();
+            win.document.write(`<img src="${url}" style="max-width:100%;">`);
+        } else alert('生成失败，请检查 Key 或模型设置');
     };
 
     page.querySelectorAll('.ios-switch').forEach(sw => sw.onclick = () => sw.classList.toggle('on'));
@@ -743,10 +885,39 @@ window.SettingsHandlers.openHotspotPage = (page) => {
     };
 };
 window.SettingsHandlers.openChatPage = (page) => {
+    const s = window.sysStore;
     genericBind('chat')(page);
     page.querySelector('#chat-save-btn').onclick = () => {
-        page.querySelectorAll('[data-key]').forEach(i => window.sysStore.set(i.dataset.key, i.value));
+        page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
         alert('聊天设置已更新');
     };
+    page.querySelector('#btn-clear-all-messages').onclick = () => {
+        if (confirm('⚠️ 确定要清空所有角色的聊天历史吗？此操作不可撤销。')) {
+            s.set('chara_db_messages', []);
+            alert('消息记录已全部清空');
+        }
+    };
 };
+
+/**
+ * 开发者设置处理器
+ */
+window.SettingsHandlers.openDeveloperPage = (page) => {
+    const s = window.sysStore;
+    genericBind('developer')(page);
+
+    page.querySelector('#btn-view-system-info').onclick = () => {
+        const info = {
+            os_version: '1.0.4 Platinum',
+            user_agent: navigator.userAgent,
+            storage_usage: (JSON.stringify(localStorage).length / 1024).toFixed(2) + ' KB',
+            timestamp: new Date().toISOString()
+        };
+        alert('系统详细信息:\n' + JSON.stringify(info, null, 2));
+    };
+
+    // 可以在这里添加更多调试逻辑，比如清除缓存等
+};
+
+
 

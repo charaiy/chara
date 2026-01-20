@@ -25,6 +25,7 @@ const State = {
     root: null,
     activeSessionId: null,
     chatTitle: '',
+    isTyping: false,
     prevTab: 0,
     addFriendMenuOpen: false,
 
@@ -38,7 +39,27 @@ const State = {
         threshold: 50,
         autoPrompt: '', // Empty means use default
         manualPrompt: ''
-    }
+    },
+
+    // Sticker Panel States
+    stickerTab: 'heart', // 'link', 'emoji', 'heart'
+    selectionMode: false,
+    selectedStickers: new Set(),
+
+    // Bubble Menu States
+    bubbleMenuOpen: false,
+    bubbleMenuId: null,
+    bubbleMenuPos: { x: 0, y: 0 },
+
+    // Message Selection States
+    msgSelectionMode: false,
+    selectedMsgIds: new Set(),
+    characterPanelOpen: false,
+    relationshipPanelOpen: false,
+    statusHistoryPanelOpen: false,
+
+    // Pending edits for relationship management
+    pendingRelationship: null
 };
 
 window.WeChat = window.WeChat || {};
@@ -53,6 +74,9 @@ window.WeChat.App = {
         State.currentTab = 0;
         State.activeSessionId = null;
         State.prevTab = 0;
+        State.stickerTab = 'heart';
+        State.selectionMode = false;
+        State.selectedStickers = new Set();
 
         this.injectForceStyles();
 
@@ -71,58 +95,13 @@ window.WeChat.App = {
         this.render();
     },
 
+
+
     injectForceStyles() {
-        const styleId = 'wx-force-styles';
-        if (document.getElementById(styleId)) return;
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            .wx-scroller, .wx-view-container { padding-top: 0 !important; }
-            .wx-tabbar, .wx-tabbar-fixed { z-index: 9999 !important; bottom: 0 !important; }
-            .wechat-app { height: 100% !important; overflow: hidden !important; position: absolute; inset: 0; }
-            :root { --wx-override-bg: #111111; --wx-override-nav-bg: #111111; --wx-override-text: #ffffff; }
-            html body #os-root.light-mode { --wx-override-bg: #ededed; --wx-override-nav-bg: #ededed; --wx-override-text: #000000; }
-            .wechat-app, .wx-view-container { background-color: var(--wx-override-bg) !important; color: var(--wx-override-text) !important; }
-            .wx-navbar-override { background-color: var(--wx-override-nav-bg) !important; color: var(--wx-override-text) !important; }
-            
-            /* Add Friend Dropdown Menu */
-            .wx-add-menu {
-                position: absolute;
-                top: 86px;
-                right: 8px;
-                width: 160px;
-                background: #4c4c4c;
-                border-radius: 8px;
-                z-index: 10002;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                display: none;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            .wx-add-menu.active { display: flex; animation: wxFadeIn 0.2s ease; }
-            .wx-add-menu-item {
-                display: flex;
-                align-items: center;
-                padding: 12px 16px;
-                color: white;
-                font-size: 16px;
-                cursor: pointer;
-            }
-            .wx-add-menu-item:active { background: rgba(255,255,255,0.1); }
-            .wx-add-menu-icon { margin-right: 12px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
-            .wx-add-menu-arrow {
-                position: absolute;
-                top: -10px;
-                right: 16px;
-                width: 0;
-                height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-bottom: 10px solid #4c4c4c;
-            }
-            @keyframes wxFadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        `;
-        document.head.appendChild(style);
+        // [Refactor] Styles moved to css/apps/wechat.css
+        // This function is deprecated and kept empty (or removed) to avoid errors if called externally 
+        // (though we removed the call in init).
+        this.loadStyles();
     },
 
     loadStyles() {
@@ -141,9 +120,12 @@ window.WeChat.App = {
         const isWhitePage = (State.currentTab === 'user_profile');
         const isGrayPage = (State.currentTab === 'chat_info' || State.currentTab === 'friend_settings' || State.currentTab === 'persona_settings');
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
+        const isSelectionMode = State.msgSelectionMode;
 
         let bgOverride = '';
-        if (isMeTab || isWhitePage) {
+        if (isSelectionMode) {
+            bgOverride = 'background-color: var(--wx-bg) !important; border-bottom: 0.5px solid var(--wx-border) !important;';
+        } else if (isMeTab || isWhitePage) {
             bgOverride = 'background-color: var(--wx-cell-bg) !important; border-bottom: none !important; box-shadow: none !important;';
         } else if (isGrayPage) {
             // Dark Mode: use dark bg; Light Mode: use #EDEDED
@@ -162,9 +144,9 @@ window.WeChat.App = {
             ? `<div onclick="window.WeChat.goBack()" style="position:absolute; left:0; top:48px; width:60px; height:44px; display:flex; align-items:center; padding-left:16px; box-sizing:border-box; z-index:10001; cursor: pointer;">
                  <svg width="12" height="20" viewBox="0 0 12 20"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M11 4L4 10l7 6"/></svg>
                </div>`
-            : '';
+            : (isSelectionMode ? `<div onclick="window.WeChat.App.exitMsgSelectionMode()" style="position:absolute; left:16px; top:48px; height:44px; display:flex; align-items:center; font-size:16px; color:var(--wx-text); cursor:pointer;">取消</div>` : '');
 
-        const exitBtn = !showBack
+        const exitBtn = (!showBack && !isSelectionMode)
             ? `<div onclick="if(window.os) window.os.closeActiveApp();" 
                     title="返回桌面"
                     style="position:absolute; left:0; top:48px; width:80px; height:44px; z-index:2147483647; background: transparent; cursor: pointer;">
@@ -242,9 +224,11 @@ window.WeChat.App = {
             <div class="wx-navbar-override" style="${navStyle}" onclick="if(event.target === this) window.WeChat.App.closeAddFriendMenu()">
                 ${exitBtn}
                 ${backBtn}
-                <div style="font-size:15px; font-weight:500;">${title}</div>
-                ${rightBtn}
-                ${menuHtml}
+                <div id="wx-nav-title" 
+                     onclick="${State.currentTab === 'chat_session' ? 'window.WeChat.App.openCharacterPanel()' : ''}"
+                     style="font-size:15px; font-weight:500; cursor: ${State.currentTab === 'chat_session' ? 'pointer' : 'default'};">${isSelectionMode ? `已选择 ${State.selectedMsgIds.size} 条消息` : ((State.isTyping && State.currentTab === 'chat_session') ? '对方正在输入...' : title)}</div>
+                ${isSelectionMode ? `<div style="position:absolute; right:16px; top:48px; height:44px; display:flex; align-items:center; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>` : rightBtn}
+                ${isSelectionMode ? '' : menuHtml}
             </div>
         `;
     },
@@ -259,7 +243,12 @@ window.WeChat.App = {
         }
 
         try {
-            const { Views, Components } = window.WeChat;
+            const Views = window.WeChat.Views;
+            const Components = window.WeChat.Components;
+            if (!Views || !Components) {
+                console.warn('WeChat Views or Components not ready, skipping render');
+                return;
+            }
             let contentHtml = '', navTitle = '微信', rightIcon = 'add', showBack = false;
 
             if (State.currentTab === 'chat_session') {
@@ -302,6 +291,11 @@ window.WeChat.App = {
                 contentHtml = Views.renderAddFriend();
                 rightIcon = null;
                 showBack = true;
+            } else if (State.currentTab === 'my_profile_settings') {
+                navTitle = '我的资料';
+                contentHtml = Views.renderMyProfileSettings();
+                rightIcon = null;
+                showBack = true;
             } else {
                 switch (State.currentTab) {
                     case 0: navTitle = '微信(12)'; contentHtml = Views.renderChatList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.openAddFriend()'; break;
@@ -312,18 +306,43 @@ window.WeChat.App = {
             }
 
             const showTabBar = (typeof State.currentTab === 'number');
+            const selectionModeClass = State.msgSelectionMode ? 'wx-msg-selection-active' : '';
 
             State.root.innerHTML = `
-                <div class="wechat-app">
-                    ${this.renderNavBarOverride({ title: navTitle, showBack, rightIcon })}
-                    ${contentHtml}
-                    ${showTabBar ? Components.renderTabBar(State.currentTab) : ''}
-                    ${this.renderModals()}
-                </div>
-            `;
+                    <div class="wechat-app ${selectionModeClass}">
+                        ${this.renderNavBarOverride({ title: navTitle, showBack, rightIcon })}
+                        ${contentHtml}
+                        ${showTabBar ? Components.renderTabBar(State.currentTab) : ''}
+                        ${State.msgSelectionMode ? this.renderMsgSelectionFooter() : ''}
+                        ${this.renderModals()}
+                    </div>
+                `;
+            // --- Auto Scroll for Chat Session ---
+            if (State.currentTab === 'chat_session') {
+                setTimeout(() => {
+                    const view = document.getElementById('wx-view-session');
+                    if (view) view.scrollTop = view.scrollHeight;
+                }, 50);
+            }
         } catch (e) {
             console.error(e);
         }
+    },
+
+    openMyProfileSettings() {
+        State.prevTab = State.currentTab;
+        State.currentTab = 'my_profile_settings';
+        this.render();
+    },
+
+    saveMyProfileSettings(data) {
+        if (window.sysStore && window.sysStore.set) {
+            window.sysStore.set('user_realname', data.realName);
+            window.sysStore.set('user_gender', data.gender);
+            window.sysStore.set('user_persona', data.persona);
+        }
+        alert('保存成功');
+        this.goBack();
     },
 
     openPersonaSettings(userId) {
@@ -432,7 +451,8 @@ window.WeChat.App = {
     toggleExtraPanel() { this._togglePanel('wx-extra-panel'); },
     toggleStickerPanel() {
         if (this._togglePanel('wx-sticker-panel')) {
-            this.renderStickerGrid();
+            // Small delay to ensure display:flex is applied and elements are searchable
+            setTimeout(() => this.renderStickerGrid(), 50);
         }
     },
 
@@ -446,6 +466,13 @@ window.WeChat.App = {
                 setTimeout(() => { el.style.display = 'none'; }, 200);
             }
         });
+    },
+
+    getSelectionState() {
+        return {
+            selectionMode: State.selectionMode,
+            selectedStickers: State.selectedStickers
+        };
     },
 
     // --- Sticker Panel Logic ---
@@ -466,108 +493,29 @@ window.WeChat.App = {
         if (State.stickerTab === 'link') tabs[0].classList.add('active');
         if (State.stickerTab === 'emoji') tabs[1].classList.add('active');
         if (State.stickerTab === 'heart') tabs[2].classList.add('active');
-        // 'album' triggers click immediately, stays on previous tab
 
-        // 2. Render Content Area
+        // 2. Render Content Area via View
         const container = document.getElementById('wx-sticker-content-container');
-        if (!container) return; // Should exist in views.js
+        if (container && window.WeChat.Views && window.WeChat.Views.Stickers) {
+            window.WeChat.Views.Stickers.renderPanelContent(container, State.stickerTab);
+        }
 
-        if (State.stickerTab === 'link') {
-            // Render Link Upload Page
-            container.innerHTML = `
-                <div style="height:100%; display:flex; flex-direction:column; padding:20px; box-sizing:border-box;">
-                    <div style="color:var(--wx-text-sec); font-size:14px; margin-bottom:12px;">粘贴图片/表情链接:</div>
-                    <textarea id="wx-sticker-url-large-input" style="
-                        width:100%; height:120px; 
-                        background:var(--wx-cell-bg); border:1px solid var(--wx-border); 
-                        border-radius:8px; padding:12px; box-sizing:border-box;
-                        color:var(--wx-text); font-size:15px; resize:none; outline:none;
-                    " placeholder="https://example.com/image.jpg"></textarea>
-                    
-                    <div style="display:flex; gap:16px; margin-top:20px;">
-                        <button onclick="window.WeChat.App.switchStickerTab('heart')" style="
-                            flex:1; height:44px; border-radius:8px; border:none; 
-                            background:var(--wx-cell-bg); color:var(--wx-text); font-size:16px; font-weight:500; cursor:pointer;
-                        ">取消</button>
-                        <button onclick="window.WeChat.App.confirmUrlUploadLarge()" style="
-                            flex:1; height:44px; border-radius:8px; border:none; 
-                            background:var(--wx-green); color:white; font-size:16px; font-weight:500; cursor:pointer;
-                        ">添加表情</button>
-                    </div>
-                </div>
-            `;
-        } else if (State.stickerTab === 'emoji') {
-            // Render Classic Emojis via Unicode
-            const emojis = ["😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😆", "😉", "😊", "😋", "😎", "😍", "😘", "🥰", "😗", "😙", "😚", "🙂", "🤗", "🤩", "🤔", "🤨", "😐", "😑", "😶", "🙄", "😏", "😣", "😥", "😮", "🤐", "😯", "😪", "😫", "😴", "😌", "😛", "😜", "😝", "🤤", "😒", "😓", "😔", "😕", "🙃", "🤑", "😲", "☹️", "🙁", "😖", "😞", "😟", "😤", "😢", "😭", "😦", "😧", "😨", "😩", "🤯", "😬", "😰", "😱", "🥵", "🥶", "😳", "🤪", "😵", "😡", "😠", "🤬", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "😇", "🤠", "🤡", "🥳", "🥴", "🥺", "🤥", "🤫", "🤭", "🧐", "🤓", "😈", "👿", "👹", "👺", "💀", "👻", "👽", "🤖", "💩"];
-
-            const emojiGrid = emojis.map(e => `
-                <div class="wx-sticker-cell" style="font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                     onclick="window.WeChat.App.insertEmoji('${e}')">
-                    ${e}
-                </div>
-            `).join('');
-
-            container.innerHTML = `
-                <div class="wx-sticker-title">经典表情</div>
-                <div class="wx-sticker-grid-layout" style="overflow-y:visible;">${emojiGrid}</div>
-            `;
-        } else {
-            // Render Heart (Grid) Page
-            // Initial skeleton
-            container.innerHTML = `
-                <div class="wx-sticker-title">添加的单个表情</div>
-                <div id="wx-sticker-grid" class="wx-sticker-grid-layout"></div>
-            `;
-            this.renderStickerGridItems();
+        // 3. Post-render updates
+        if (State.stickerTab === 'heart' && State.selectionMode) {
+            this.updateActionBar();
         }
     },
 
     renderStickerGridItems() {
-        const grid = document.getElementById('wx-sticker-grid');
-        if (!grid || !window.WeChat.Services.Stickers) return;
-
-        const stickers = window.WeChat.Services.Stickers.getAll();
-
-        // 1. Restore Album Upload (Pos 1) - Dashed Plus
-        const addBtn = `
-            <div class="wx-sticker-cell static-icon wx-sticker-add-btn" onclick="document.getElementById('wx-sticker-upload-input').click()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px; height:28px;">
-                    <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <input type="file" id="wx-sticker-upload-input" multiple accept="image/*" style="display:none" onchange="window.WeChat.App.handleStickerFileSelect(this)" />
-        `;
-
-        // Ensure Set exists
-        if (!State.selectedStickers) State.selectedStickers = new Set();
-
-        // 2. Sticker List with Checkboxes
-        const stickerItems = stickers.map(url => {
-            const isSelected = State.selectedStickers.has(url);
-            return `
-            <div class="wx-sticker-cell ${isSelected ? 'selected' : ''}" 
-                 onmousedown="window.WeChat.App.handleStickerPressStart(event, '${url}')"
-                 ontouchstart="window.WeChat.App.handleStickerPressStart(event, '${url}')"
-                 onmouseup="window.WeChat.App.handleStickerPressEnd(event, '${url}')"
-                 ontouchend="window.WeChat.App.handleStickerPressEnd(event, '${url}')"
-                 onclick="window.WeChat.App.handleStickerClick('${url}')">
-                
-                <div class="wx-sticker-check-btn"></div>
-                <img src="${url}" loading="lazy" style="pointer-events:none;" />
-            </div>
-            `;
-        }).join('');
-
-        grid.innerHTML = addBtn + stickerItems;
-
-        // Apply Selection Mode Styles
+        if (window.WeChat.Views && window.WeChat.Views.Stickers) {
+            window.WeChat.Views.Stickers.renderGridItems();
+        }
         if (State.selectionMode) {
-            grid.classList.add('selection-mode');
             this.updateActionBar();
-        } else {
-            grid.classList.remove('selection-mode');
         }
     },
+
+
 
     updateActionBar() {
         const bar = document.getElementById('wx-sticker-action-bar');
@@ -633,18 +581,8 @@ window.WeChat.App = {
 
         window.WeChat.Services.Chat.sendMessage(url, 'image');
 
-        if (window.WeChat.UI && window.WeChat.UI.Bubbles) {
-            const view = document.getElementById('wx-view-session');
-            if (view) {
-                const cnt = view.querySelector('.wx-chat-messages');
-                if (cnt) {
-                    cnt.innerHTML += window.WeChat.UI.Bubbles.render({
-                        id: Date.now(), type: 'image', content: url, sender: 'me', avatar: ''
-                    });
-                    view.scrollTop = view.scrollHeight;
-                }
-            }
-        }
+        // [Refactor] UI update is now handled centrally by Chat Service (updateUI)
+        // This prevents duplicate messages and ensures timestamp logic is applied.
     },
 
     // --- State Management ---
@@ -780,8 +718,8 @@ window.WeChat.App = {
         if (url) {
             if (window.sysStore) {
                 window.sysStore.updateCharacter(sessionId, { chat_background: url });
-                alert('背景设置成功');
                 this.render();
+                alert('背景设置成功');
             }
         }
     },
@@ -789,8 +727,8 @@ window.WeChat.App = {
     removeChatBackground(sessionId) {
         if (window.sysStore) {
             window.sysStore.updateCharacter(sessionId, { chat_background: null });
-            alert('背景已移除');
             this.render();
+            alert('背景已移除');
         }
     },
 
@@ -829,6 +767,31 @@ window.WeChat.App = {
         }
     },
 
+    toggleIndependentBgActivity(sessionId, isEnabled) {
+        if (window.sysStore && window.sysStore.updateCharacter) {
+            const char = window.sysStore.getCharacter(sessionId);
+            const settings = char?.settings || {};
+            settings.bg_activity_enabled = isEnabled;
+            // Ensure threshold exists
+            if (isEnabled && settings.bg_activity_threshold === undefined) {
+                settings.bg_activity_threshold = 30;
+            }
+            window.sysStore.updateCharacter(sessionId, { settings: settings });
+            this.render();
+        }
+    },
+
+    setIndependentBgThreshold(sessionId, value) {
+        const minutes = parseInt(value);
+        if (isNaN(minutes) || minutes < 1) return;
+        if (window.sysStore && window.sysStore.updateCharacter) {
+            const char = window.sysStore.getCharacter(sessionId);
+            const settings = char?.settings || {};
+            settings.bg_activity_threshold = minutes;
+            window.sysStore.updateCharacter(sessionId, { settings: settings });
+        }
+    },
+
     deleteFriend(userId) {
         if (confirm('确定删除该联系人吗？此操作将删除联系人信息及所有聊天记录。')) {
             if (window.WeChat.Services && window.WeChat.Services.Contacts) {
@@ -838,6 +801,19 @@ window.WeChat.App = {
                     State.currentTab = 1; // Go back to Contacts
                     this.render();
                 }
+            }
+        }
+    },
+
+    setTypingState(isTyping) {
+        if (State.isTyping !== isTyping) {
+            State.isTyping = isTyping;
+            // 直接更新 DOM 避免全局重绘造成的闪烁 (Prevent global re-render flicker)
+            const titleEl = document.getElementById('wx-nav-title');
+            if (titleEl && State.currentTab === 'chat_session') {
+                titleEl.textContent = isTyping ? '对方正在输入...' : (State.chatTitle || '微信');
+            } else {
+                this.render();
             }
         }
     },
@@ -864,11 +840,14 @@ window.WeChat.App = {
         State.currentTab = 'memory_management';
 
         // Robust ID Handling
-        if (sessionId && sessionId !== 'undefined' && sessionId !== 'null') {
+        if (sessionId && sessionId !== 'undefined' && sessionId !== 'null' && typeof sessionId === 'string') {
             State.activeSessionId = sessionId;
         } else if (!State.activeSessionId && window.sysStore) {
-            // Fallback to stored session
+            // Fallback to stored session if none active
             State.activeSessionId = window.sysStore.get('wx_last_session');
+        } else if (!State.activeSessionId) {
+            console.error('No active session ID for memory management');
+            return; // Can't open without ID
         }
 
         console.log('Opening Memory Management for:', State.activeSessionId);
@@ -926,6 +905,49 @@ window.WeChat.App = {
         }
     },
 
+    // --- Avatar Upload Logic ---
+    triggerAvatarUpload(targetUserId = null) {
+        State.avatarTargetId = targetUserId;
+        let input = document.getElementById('wx-avatar-upload-input');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'file';
+            input.id = 'wx-avatar-upload-input';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            input.onchange = (e) => this.handleAvatarFileSelect(e.target);
+            document.body.appendChild(input);
+        }
+        input.click();
+    },
+
+    handleAvatarFileSelect(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = e.target.result;
+            if (window.sysStore) {
+                if (State.avatarTargetId) {
+                    // Update Character Avatar
+                    if (window.sysStore.updateCharacter) {
+                        window.sysStore.updateCharacter(State.avatarTargetId, { avatar: result });
+                    }
+                } else {
+                    // Update User (Me) Avatar
+                    if (window.sysStore.set) {
+                        window.sysStore.set('user_avatar', result);
+                    }
+                }
+                this.render();
+            }
+            State.avatarTargetId = null; // Reset
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+    },
+
     openSummaryManagement() {
         State.summaryModalOpen = true;
         this.render();
@@ -946,6 +968,9 @@ window.WeChat.App = {
         State.summaryModalOpen = false;
         State.rangeModalOpen = false;
         State.refineModalOpen = false;
+        State.characterPanelOpen = false;
+        State.relationshipPanelOpen = false;
+        State.statusHistoryPanelOpen = false;
         this.render();
     },
 
@@ -1000,9 +1025,21 @@ window.WeChat.App = {
     },
 
     renderModals() {
-        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen) return '';
+        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen && !State.bubbleMenuOpen && !State.characterPanelOpen && !State.relationshipPanelOpen && !State.statusHistoryPanelOpen) return '';
 
         const char = window.sysStore.getCharacter(State.activeSessionId);
+
+        if (State.characterPanelOpen) {
+            return window.WeChat.Views.renderCharacterPanel(State.activeSessionId);
+        }
+
+        if (State.relationshipPanelOpen) {
+            return window.WeChat.Views.renderRelationshipPanel(State.activeSessionId);
+        }
+
+        if (State.statusHistoryPanelOpen) {
+            return window.WeChat.Views.renderStatusHistoryPanel(State.activeSessionId);
+        }
 
         // Modal 1: Add/Edit Memory
         if (State.memoryModalOpen) {
@@ -1161,6 +1198,21 @@ window.WeChat.App = {
             `;
         }
 
+        // Modal 5: Message Bubble Menu
+        if (State.bubbleMenuOpen) {
+            const pos = State.bubbleMenuPos;
+            const flippedClass = pos.isFlipped ? 'flipped' : '';
+            return `
+                <div class="wx-menu-mask active" onclick="window.WeChat.App.closeMsgMenu()"></div>
+                <div class="wx-bubble-menu active ${flippedClass}" style="left: ${pos.x}px; top: ${pos.y}px;">
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.regenerateMsg('${State.bubbleMenuId}')">重回</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.quoteMsg('${State.bubbleMenuId}')">引用</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多选</div>
+                    <div class="wx-bubble-menu-item delete" onclick="window.WeChat.App.deleteMsg('${State.bubbleMenuId}')">删除</div>
+                </div>
+            `;
+        }
+
         return '';
     },
 
@@ -1189,6 +1241,196 @@ window.WeChat.App = {
         const input = document.getElementById('wx-chat-input');
         if (input) input.value = '';
     },
+    openCharacterPanel() {
+        State.relationshipPanelOpen = false;
+        State.characterPanelOpen = true;
+        this.render();
+    },
+    closeCharacterPanel() {
+        State.characterPanelOpen = false;
+        this.render();
+    },
+    openRelationshipPanel() {
+        const char = window.sysStore.getCharacter(State.activeSessionId) || {};
+        const status = char.status || {};
+
+        // Initialize pending state with current data
+        State.pendingRelationship = {
+            affection: parseFloat(status.affection || 0),
+            difficulty: status.relationship_difficulty || 'normal', // hard, normal, easy
+            they_to_me: {
+                relation: status.relationship_they_to_me?.relation || '',
+                opinion: status.relationship_they_to_me?.opinion || ''
+            },
+            me_to_they: {
+                relation: status.relationship_me_to_they?.relation || '',
+                opinion: status.relationship_me_to_they?.opinion || ''
+            },
+            ladder_persona: [...(status.ladder_persona || [])]
+        };
+
+        State.characterPanelOpen = false;
+        State.relationshipPanelOpen = true;
+        this.render();
+    },
+    updatePendingRelationship(field, value, subfield = null) {
+        if (!State.pendingRelationship) return;
+        if (subfield) {
+            State.pendingRelationship[field][subfield] = value;
+        } else {
+            State.pendingRelationship[field] = value;
+        }
+        this.render();
+    },
+    addLadderPersona() {
+        if (!State.pendingRelationship) return;
+        State.pendingRelationship.ladder_persona.push({
+            affection_threshold: 10,
+            content: '新的人设阶梯...'
+        });
+        this.render();
+    },
+    removeLadderPersona(index) {
+        if (!State.pendingRelationship) return;
+        State.pendingRelationship.ladder_persona.splice(index, 1);
+        this.render();
+    },
+    updateLadderPersona(index, field, value) {
+        if (!State.pendingRelationship) return;
+        State.pendingRelationship.ladder_persona[index][field] = value;
+        this.render();
+    },
+    async generateLadderPersona() {
+        if (!State.pendingRelationship) return;
+        const rel = State.pendingRelationship;
+
+        // Validation: Must have relationship info filled
+        if (!rel.they_to_me.relation || !rel.they_to_me.opinion || !rel.me_to_they.relation || !rel.me_to_they.opinion) {
+            alert('请先填写完整的“关系看法”后再使用生成功能');
+            return;
+        }
+
+        const sessionId = State.activeSessionId;
+        const char = window.sysStore.getCharacter(sessionId);
+        const mainPersona = char?.main_persona || "未知人设";
+
+        // Show loading state (simple alert for now or just wait)
+        console.log('[AI Generation] Starting Ladder Persona Generation...');
+
+        const prompt = `你是一个角色构建专家。请根据以下角色的[主要人设]和[关系背景]，生成5个阶段的“阶梯人设”。
+阶梯人设是指随着好感度增长，角色表现出的性格倾向、行为变化或态度转变。
+
+[主要人设]
+${mainPersona}
+
+[关系背景]
+- TA对我 (角色对用户): 关系是[${rel.they_to_me.relation}]，看法是[${rel.they_to_me.opinion}]
+- 我对TA (用户对角色): 关系是[${rel.me_to_they.relation}]，看法是[${rel.me_to_they.opinion}]
+
+[要求]
+1. 严格符合主要人设，逻辑自洽。
+2. 生成5个阶段，好感变动区间为 0-100。
+3. 请只输出 JSON 数组格式，不要包含任何多余的文字叙述。
+4. 格式示例：[{"affection_threshold": 10, "content": "初识：表现得比较客气..."}, ...]
+
+请开始生成 JSON 数组：`;
+
+        const Api = window.Core?.Api || window.API;
+        if (!Api) return;
+
+        try {
+            const response = await Api.chat([{ role: 'user', content: prompt }]);
+            const match = response.match(/\[[\s\S]*\]/);
+            if (match) {
+                const stages = JSON.parse(match[0]);
+                if (Array.isArray(stages)) {
+                    State.pendingRelationship.ladder_persona = stages.slice(0, 5);
+                    this.render();
+                }
+            }
+        } catch (e) {
+            console.error('[AI Generation] Failed:', e);
+            alert('生成失败: ' + e.message);
+        }
+    },
+    async saveRelationshipChanges() {
+        const sessionId = State.activeSessionId;
+        if (!sessionId || !State.pendingRelationship) return;
+
+        const char = window.sysStore.getCharacter(sessionId);
+        const newStatus = {
+            ...(char?.status || {}),
+            affection: State.pendingRelationship.affection.toFixed(1),
+            relationship_difficulty: State.pendingRelationship.difficulty,
+            relationship_they_to_me: State.pendingRelationship.they_to_me,
+            relationship_me_to_they: State.pendingRelationship.me_to_they,
+            ladder_persona: State.pendingRelationship.ladder_persona
+        };
+
+        const updates = { status: newStatus };
+
+        // Record to history if changed since last entry
+        let history = char?.status_history || [];
+        const latest = history[0];
+        if (JSON.stringify(newStatus) !== JSON.stringify(latest?.status)) {
+            history.unshift({
+                timestamp: Date.now(),
+                status: JSON.parse(JSON.stringify(newStatus))
+            });
+            updates.status_history = history.slice(0, 5);
+        }
+
+        window.sysStore.updateCharacter(sessionId, updates);
+
+        State.pendingRelationship = null;
+        State.relationshipPanelOpen = false;
+        State.characterPanelOpen = true; // Return to character panel
+        this.render();
+    },
+    closeRelationshipPanel() {
+        State.pendingRelationship = null;
+        State.relationshipPanelOpen = false;
+        this.render();
+    },
+    openStatusHistoryPanel() {
+        // Record current status to history before opening
+        const sessionId = State.activeSessionId;
+        const char = window.sysStore.getCharacter(sessionId);
+        if (char && char.status) {
+            let history = char.status_history || [];
+
+            // Check if current status is already the latest in history (to avoid duplicates)
+            const latest = history[0];
+            const currentStr = JSON.stringify(char.status);
+            const latestStr = latest ? JSON.stringify(latest.status) : '';
+
+            if (currentStr !== latestStr) {
+                history.unshift({
+                    timestamp: Date.now(),
+                    status: JSON.parse(currentStr) // Deep copy
+                });
+                // Limit to 5 records
+                history = history.slice(0, 5);
+                window.sysStore.updateCharacter(sessionId, { status_history: history });
+            }
+        }
+
+        State.characterPanelOpen = false;
+        State.statusHistoryPanelOpen = true;
+        this.render();
+    },
+    closeStatusHistoryPanel() {
+        State.statusHistoryPanelOpen = false;
+        this.render();
+    },
+    deleteStatusHistoryRecord(sessionId, timestamp) {
+        const char = window.sysStore.getCharacter(sessionId);
+        if (!char || !char.status_history) return;
+
+        const history = char.status_history.filter(record => record.timestamp !== timestamp);
+        window.sysStore.updateCharacter(sessionId, { status_history: history });
+        this.render();
+    },
     goBack() {
         if (State.currentTab === 'chat_session') {
             State.currentTab = (typeof State.prevTab === 'number') ? State.prevTab : 0;
@@ -1200,24 +1442,243 @@ window.WeChat.App = {
             State.currentTab = 'chat_info';
             this.render();
         } else if (State.currentTab === 'user_profile') {
-            // Intelligent Back: Return to previous tab if valid, else Chat Info
-            if (State.prevTab !== undefined && State.prevTab !== null) {
-                State.currentTab = State.prevTab;
+            // Intelligent Back: Return to previous tab if valid
+            // CAUTION: If prevTab is 'user_profile' (recursive), break out to contact list
+            if (State.prevTab !== undefined && State.prevTab !== null && State.prevTab !== 'user_profile') {
+                // Special case: If we came from Chat Info, go back there
+                if (State.prevTab === 'chat_info') {
+                    State.currentTab = 'chat_info';
+                } else {
+                    State.currentTab = State.prevTab;
+                }
             } else {
-                State.currentTab = 'chat_info';
+                State.currentTab = 1; // Default fallback to Contacts
             }
             this.render();
         } else if (State.currentTab === 'friend_settings') {
             State.currentTab = 'user_profile';
             this.render();
         } else if (State.currentTab === 'persona_settings' || State.currentTab === 'add_friend') {
-            State.currentTab = (typeof State.prevTab === 'number') ? State.prevTab : 1; // Default to Contacts
+            State.currentTab = (typeof State.prevTab === 'number') ? State.prevTab : 1;
+            this.render();
+        } else if (State.currentTab === 'my_profile_settings') {
+            State.currentTab = State.prevTab || 3;
             this.render();
         } else {
-            if (window.os) window.os.closeActiveApp();
+            // If we are in a sub-page (string ID) but no specific handler matches, go Home
+            if (typeof State.currentTab === 'string') {
+                console.warn('Recovering from unknown sub-page to Home');
+                State.currentTab = 0;
+                this.render();
+            } else {
+                // Numeric tabs (0, 1, 2, 3) -> Exit App
+                if (window.os) window.os.closeActiveApp();
+            }
         }
     },
-    closeApp() { if (window.os) window.os.closeActiveApp(); }
+    closeApp() { if (window.os) window.os.closeActiveApp(); },
+
+    // --- Message Context Menu Handlers ---
+    handleMsgPressStart(e, msgId) {
+        // [Interaction] Prevent system menu and handle selection mode
+        if (State.selectionMode || State.msgSelectionMode) return;
+
+        // [Optimized] Rely on oncontextmenu="return false" instead of early preventDefault
+        // This ensures mouse/touch events flow correctly in all browsers
+        e.stopPropagation();
+
+        if (this._msgPressTimer) clearTimeout(this._msgPressTimer);
+
+        this._msgPressTimer = setTimeout(() => {
+            this._msgLongPressed = true;
+            const touch = (e.touches && e.touches[0]) ? e.touches[0] : e;
+            this.showMsgMenu(msgId, touch.clientX, touch.clientY);
+        }, 400);
+    },
+
+    handleMsgPressEnd() {
+        if (this._msgPressTimer) {
+            clearTimeout(this._msgPressTimer);
+            this._msgPressTimer = null;
+        }
+        // Small delay to allow click event to detect longpress if needed
+        setTimeout(() => { this._msgLongPressed = false; }, 200);
+    },
+
+    showMsgMenu(msgId, x, y) {
+        const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            let menuX = rect.left + rect.width / 2;
+            let menuY = rect.top;
+
+            // [Safety] If the bubble is too close to the top (near navbar 92px), 
+            // show the menu BELOW the bubble instead.
+            // [Safety] If the bubble is too close to the top, show the menu BELOW the bubble.
+            const isTooTop = rect.top < (92 + 150); // Navbar(92) + Buffer for menu height(150)
+
+            if (isTooTop) {
+                menuY = rect.bottom + 10; // Shift down slightly below bubble
+            } else {
+                menuY = rect.top - 10; // Shift up slightly above bubble
+            }
+
+            State.bubbleMenuPos = { x: menuX, y: menuY, isFlipped: isTooTop };
+        } else {
+            State.bubbleMenuPos = { x, y, isFlipped: false };
+        }
+
+        State.bubbleMenuOpen = true;
+        State.bubbleMenuId = msgId;
+        this.render();
+        if (navigator.vibrate) navigator.vibrate(50);
+    },
+
+    closeMsgMenu() {
+        State.bubbleMenuOpen = false;
+        this.render();
+    },
+
+    deleteMsg(msgId) {
+        if (window.sysStore && window.sysStore.deleteMessage) {
+            window.sysStore.deleteMessage(msgId);
+            this.render();
+        }
+        this.closeMsgMenu();
+    },
+
+    regenerateMsg(msgId) {
+        if (!window.sysStore) return;
+        const messages = window.sysStore.getMessagesBySession(State.activeSessionId);
+        const index = messages.findIndex(m => m.id === msgId);
+        if (index === -1) return;
+
+        // Find the "Origin" of this round: 
+        // If we long-press AI message, we want to go back to the user message that caused it.
+        // If we long-press Our message, we want to redo from that message.
+        let rollbackIndex = index;
+        const targetMsg = messages[index];
+        const isMe = (m) => m.sender_id === 'user' || m.sender_id === 'me' || m.sender_id === 'my';
+
+        if (!isMe(targetMsg)) {
+            // It's AI message, find the User message before it
+            for (let i = index; i >= 0; i--) {
+                if (isMe(messages[i])) {
+                    rollbackIndex = i;
+                    break;
+                }
+            }
+        }
+
+        const originUserMsg = messages[rollbackIndex];
+        // SAFETY: Only proceed if we found a user message to redo from
+        if (!originUserMsg || !isMe(originUserMsg)) {
+            console.warn('No user message found to regenerate from');
+            this.closeMsgMenu();
+            return;
+        }
+
+        const toDeleteIds = messages.slice(rollbackIndex).map(m => m.id);
+
+        // Delete messages in store
+        toDeleteIds.forEach(id => window.sysStore.deleteMessage(id));
+
+        // Close Menu First
+        this.closeMsgMenu();
+
+        // Put user content back and trigger sending + AI reply
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            // 1. Re-send the user message
+            window.WeChat.Services.Chat.sendMessage(originUserMsg.content);
+
+            // 2. IMPORTANT: Trigger the AI to reply to this "new" send
+            // Add a small delay for store sync/UI update
+            setTimeout(() => {
+                window.WeChat.Services.Chat.triggerAIReply();
+            }, 300);
+        }
+
+        this.render();
+    },
+
+    quoteMsg(msgId) {
+        const msg = window.sysStore.getMessageById(msgId);
+        if (msg) {
+            const input = document.getElementById('wx-chat-input');
+            if (input) {
+                // Prepend quote
+                const escaped = msg.content.length > 50 ? msg.content.substring(0, 47) + '...' : msg.content;
+                input.value = `「${escaped}」\n----------------\n` + input.value;
+                input.focus();
+            }
+        }
+        this.closeMsgMenu();
+    },
+
+    multiSelectMsg() {
+        State.msgSelectionMode = true;
+        State.selectedMsgIds = new Set();
+        if (State.bubbleMenuId) {
+            State.selectedMsgIds.add(State.bubbleMenuId);
+        }
+        this.closeMsgMenu();
+        this.render();
+    },
+
+    exitMsgSelectionMode() {
+        State.msgSelectionMode = false;
+        State.selectedMsgIds = new Set();
+        this.render();
+    },
+
+    toggleMsgSelection(msgId) {
+        if (!State.msgSelectionMode) return;
+        if (State.selectedMsgIds.has(msgId)) {
+            State.selectedMsgIds.delete(msgId);
+        } else {
+            State.selectedMsgIds.add(msgId);
+        }
+        this.render();
+    },
+
+    deleteSelectedMessages() {
+        if (State.selectedMsgIds.size === 0) return;
+        if (confirm(`确定删除选中的 ${State.selectedMsgIds.size} 条消息吗？`)) {
+            if (window.sysStore && window.sysStore.deleteMessage) {
+                State.selectedMsgIds.forEach(id => window.sysStore.deleteMessage(id));
+            }
+            this.exitMsgSelectionMode();
+        }
+    },
+
+    renderMsgSelectionFooter() {
+        return `
+            <div class="wx-msg-selection-footer">
+                <div class="wx-selection-footer-item" onclick="alert('转发功能开发中...')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 17 5 5 5-5"/><path d="M20 2v9a4 4 0 0 1-4 4H4"/><path d="m7 19-3-4 3-4"/></svg>
+                </div>
+                <div class="wx-selection-footer-item" onclick="alert('收藏功能开发中...')">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <div class="wx-selection-footer-item" onclick="window.WeChat.App.deleteSelectedMessages()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </div>
+                <div class="wx-selection-footer-item" onclick="alert('更多功能开发中...')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M11 4v16"/></svg>
+                </div>
+            </div>
+        `;
+    },
+
+    // --- Public Getters for View ---
+    getSelectionState() {
+        return {
+            selectionMode: State.selectionMode,
+            selectedStickers: State.selectedStickers,
+            msgSelectionMode: State.msgSelectionMode,
+            selectedMsgIds: State.selectedMsgIds
+        };
+    }
 };
 
 window.WeChat.switchTab = (idx) => window.WeChat.App.switchTab(idx);

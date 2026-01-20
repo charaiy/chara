@@ -24,6 +24,10 @@ window.WeChat.UI.Bubbles = {
             `;
         }
 
+        const selectionState = (window.WeChat.App && window.WeChat.App.getSelectionState) ? window.WeChat.App.getSelectionState() : { msgSelectionMode: false, selectedMsgIds: new Set() };
+        const isSelectionMode = selectionState.msgSelectionMode;
+        const isSelected = selectionState.selectedMsgIds && selectionState.selectedMsgIds.has(msg.id);
+
         const isMe = msg.sender === 'me';
         // Use provided avatar -> fallback to Default Base64 -> Empty string (let error handler catch)
         const avatar = msg.avatar || this.DEFAULT_AVATAR;
@@ -31,13 +35,26 @@ window.WeChat.UI.Bubbles = {
         // 气泡样式类
         const bubbleClass = isMe ? 'wx-bubble-me' : 'wx-bubble-other';
         const wrapperClass = isMe ? 'wx-msg-row-me' : 'wx-msg-row-other';
+        const selectionClass = isSelectionMode ? 'wx-msg-row-selection' : '';
 
         return `
-            <div class="wx-msg-row ${wrapperClass}">
+            <div class="wx-msg-row ${wrapperClass} ${selectionClass}" onclick="window.WeChat.App.toggleMsgSelection('${msg.id}')">
+                ${isSelectionMode ? `
+                    <div class="wx-msg-checkbox ${isSelected ? 'checked' : ''}">
+                         <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    </div>
+                ` : ''}
                 <img src="${avatar}" class="wx-msg-avatar" onerror="this.src='${this.DEFAULT_AVATAR}'">
                 <div class="wx-msg-content">
                     <!-- 名称 (仅群聊显示，这里简化不显示) -->
-                    <div class="wx-bubble ${bubbleClass}">
+                    <div class="wx-bubble ${bubbleClass}" 
+                         data-msg-id="${msg.id}"
+                         onmousedown="window.WeChat.App.handleMsgPressStart(event, '${msg.id}')"
+                         onmouseup="window.WeChat.App.handleMsgPressEnd(event, '${msg.id}')"
+                         onmouseleave="window.WeChat.App.handleMsgPressEnd(event, '${msg.id}')"
+                         ontouchstart="window.WeChat.App.handleMsgPressStart(event, '${msg.id}')"
+                         ontouchend="window.WeChat.App.handleMsgPressEnd(event, '${msg.id}')"
+                         oncontextmenu="return false;">
                         ${this._renderContent(msg)}
                     </div>
                 </div>
