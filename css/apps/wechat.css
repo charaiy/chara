@@ -2614,6 +2614,7 @@ html body #os-root.light-mode .wx-msg-selection-footer {
 /* Premium Range Input */
 .wx-char-panel input[type=range] {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     background: transparent;
 }
@@ -2637,6 +2638,7 @@ html body #os-root.light-mode .wx-msg-selection-footer {
     background: #ffffff;
     cursor: pointer;
     -webkit-appearance: none;
+    appearance: none;
     margin-top: -11px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.05);
