@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CharaOS</title>
     <link rel="stylesheet" href="css/os.css">
+    <link rel="stylesheet" href="css/os_toast.css">
     <link rel="stylesheet" href="css/apps/settings.css">
     <link rel="stylesheet" href="css/apps/wechat.css">
+    <link rel="stylesheet" href="css/apps/worldbook.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
@@ -145,11 +147,11 @@
                         </div>
                         <div class="app-icon item" data-id="app-appearance">
                             <div class="icon"> <img src="" alt="" class="icon-img"> </div>
-                            <div class="name">外观设置</div>
+                            <div class="name">微博</div>
                         </div>
                         <div class="app-icon item" data-id="app-renderer">
                             <div class="icon"> <img src="" alt="" class="icon-img"> </div>
-                            <div class="name">渲染器</div>
+                            <div class="name">地图</div>
                         </div>
                     </div>
                 </div>
@@ -288,32 +290,35 @@
     </script>
 
     <!-- JS Modules -->
-    <script src="js/utils/helpers.js?v=3"></script>
-    <script src="js/utils/dom.js?v=3"></script>
-    <script src="js/utils/time.js?v=3"></script>
-    <script src="js/utils/tavern.js?v=3"></script>
-    <script src="js/core/store.js?v=3"></script>
-    <script src="js/core/api.js?v=3"></script>
+    <script src="js/utils/helpers.js?v=5"></script>
+    <script src="js/utils/dom.js?v=5"></script>
+    <script src="js/utils/time.js?v=5"></script>
+    <script src="js/utils/tavern.js?v=5"></script>
+    <script src="js/core/store.js?v=5"></script>
+    <script src="js/core/api.js?v=5"></script>
+    <script src="js/core/memory.js?v=5"></script>
     <!-- Settings App Modules (Non-ESM) -->
-    <script src="js/apps/settings/state.js?v=3"></script>
-    <script src="js/apps/settings/ui_render.js?v=3"></script>
-    <script src="js/apps/settings/handlers.js?v=3"></script>
-    <script src="js/apps/settings/managers.js?v=3"></script>
+    <script src="js/apps/settings/state.js?v=5"></script>
+    <script src="js/apps/settings/ui_render.js?v=5"></script>
+    <script src="js/apps/settings/handlers.js?v=5"></script>
+    <script src="js/apps/settings/managers.js?v=5"></script>
 
-    <script src="js/apps/settings/index.js?v=3"></script>
+    <script src="js/apps/settings/index.js?v=5"></script>
 
     <!-- WeChat App Modules -->
-    <script src="js/apps/wechat/services/contacts.js"></script>
-    <script src="js/apps/wechat/services/chat.js"></script>
-    <script src="js/apps/wechat/ui/components.js"></script>
-    <script src="js/apps/wechat/ui/bubbles.js"></script>
-    <script src="js/apps/wechat/ui/views.js"></script>
-    <script src="js/apps/wechat/extensions/redpacket.js"></script>
-    <script src="js/apps/wechat/services/stickers.js"></script>
-    <script src="js/apps/wechat/ui/sticker_view.js"></script>
-    <script src="js/apps/wechat/index.js"></script>
-
-    <script src="js/core/os.js?v=3"></script>
+    <script src="js/apps/wechat/services/contacts.js?v=5"></script>
+    <script src="js/apps/wechat/services/notifications.js?v=5"></script>
+    <script src="js/apps/wechat/services/prompts.js?v=5"></script>
+    <script src="js/apps/wechat/services/chat.js?v=5"></script>
+    <script src="js/apps/wechat/ui/components.js?v=5"></script>
+    <script src="js/apps/wechat/ui/bubbles.js?v=5"></script>
+    <script src="js/apps/wechat/ui/views.js?v=5"></script>
+    <script src="js/apps/wechat/extensions/redpacket.js?v=5"></script>
+    <script src="js/apps/wechat/services/stickers.js?v=5"></script>
+    <script src="js/apps/wechat/ui/sticker_view.js?v=5"></script>
+    <script src="js/apps/wechat/index.js?v=5"></script>
+    <script src="js/apps/worldbook/index.js?v=5"></script>
+    <script src="js/core/os.js?v=5"></script>
 </body>
 
 </html>

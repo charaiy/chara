@@ -136,16 +136,43 @@ window.WeChat.Components = {
             }
         };
 
+        // 获取通知系统数据
+        const notifService = window.WeChat?.Services?.Notifications;
+        const totalUnread = notifService && notifService.getTotalUnreadCount
+            ? notifService.getTotalUnreadCount()
+            : 0;
+
+        // 未读数显示文本
+        let unreadBadge = '';
+        if (totalUnread > 0) {
+            const displayText = totalUnread <= 99 ? totalUnread.toString() : '···';
+            unreadBadge = `<div class="wx-badge">${displayText}</div>`;
+        }
+
+        // 发现页红点（可选）
+        const discoverDot = window.sysStore && window.sysStore.get('discover_has_new') === 'true'
+            ? `<div class="wx-badge-dot"></div>`
+            : '';
+
         const list = tabs.map((tab, index) => {
             const isActive = index === activeIndex;
+
+            // Tab 0 (微信)：显示未读数
+            // Tab 2 (发现)：显示红点
+            let badge = '';
+            if (index === 0 && unreadBadge) {
+                badge = unreadBadge;
+            } else if (index === 2 && discoverDot) {
+                badge = discoverDot;
+            }
+
             return `
                 <div class="wx-tab-item ${isActive ? 'active' : ''}" onclick="window.WeChat.switchTab(${index})">
                     <div class="wx-tab-icon">
                         ${renderIcon(tab.icon, isActive)}
                     </div>
                     <div class="wx-tab-label">${tab.label}</div>
-                    ${index === 0 ? `<div class="wx-badge">12</div>` : ''} <!-- 模拟未读 -->
-                    ${index === 2 ? `<div class="wx-badge-dot"></div>` : ''} <!-- 模拟朋友圈红点 -->
+                    ${badge}
                 </div>
             `;
         }).join('');

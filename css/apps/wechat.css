@@ -2646,3 +2646,97 @@ html body #os-root.light-mode .wx-msg-selection-footer {
     transform: scale(0.95);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
+
+/* ==========================================================================
+   Page Transition Animation - 消除页面切换闪屏
+   ========================================================================== */
+
+/* 页面内容淡入动画 */
+@keyframes wxFadeIn {
+    from {
+        opacity: 0.7;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* 为视图容器应用淡入效果 */
+.wx-view-container,
+.wx-scroller {
+    animation: wxFadeIn 0.15s ease-out;
+}
+
+/* 保持导航栏和标签栏稳定，不参与动画 */
+.wx-navbar-override,
+.wx-tabbar {
+    animation: none !important;
+}
+
+/* wechat-app 背景色过渡 */
+.wechat-app {
+    transition: background-color 0.15s ease-out;
+}
+
+/* --- World Book Selection UI --- */
+.wx-wb-select-section {
+    margin-bottom: 20px;
+}
+
+.wx-wb-select-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--wx-text-sec);
+    text-transform: none;
+}
+
+.wx-wb-select-body {
+    background-color: var(--wx-cell-bg);
+}
+
+.wx-wb-select-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 0.5px solid var(--wx-border);
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.wx-wb-select-item:active {
+    background-color: var(--wx-cell-active);
+}
+
+.wx-wb-select-item:last-child {
+    border-bottom: none;
+}
+
+.wx-wb-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1.5px solid #c6c6c8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.wx-wb-checkbox.checked {
+    background-color: #07c160;
+    border-color: #07c160;
+}
+
+.wx-wb-checkbox svg {
+    display: none;
+}
+
+.wx-wb-checkbox.checked svg {
+    display: block;
+}
+
+/* Light Mode Overrides for Checkbox */
+html body #os-root.light-mode .wx-wb-checkbox {
+    border-color: rgba(0, 0, 0, 0.1);
+}

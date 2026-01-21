@@ -16,32 +16,52 @@ window.WeChat.Services.Contacts = {
     /**
      * 获取所有联系人，按 A-Z 排序（简化版）
      */
+    /**
+     * 获取所有联系人，按 A-Z 排序（动态同步版）
+     */
     getContacts() {
-        // Sync with sysStore to get latest avatar/name
-        if (window.sysStore && window.sysStore.getCharacter) {
-            this._contacts = this._contacts.map(c => {
-                const char = window.sysStore.getCharacter(c.id);
-                if (char) {
-                    return {
-                        ...c,
-                        name: char.name || c.name,
-                        avatar: char.avatar || c.avatar
-                    };
+        const systemContacts = this._contacts.filter(c => c.type === 'system' || c.type === 'bot');
+        const dbCharacters = [];
+
+        if (window.sysStore && window.sysStore.get) {
+            const db = window.sysStore.get('chara_db_characters', {});
+            Object.values(db).forEach(char => {
+                // 排除已经被包含在 systemContacts 里的（如果有 id 冲突）
+                if (!systemContacts.find(sc => sc.id === char.id)) {
+                    dbCharacters.push({
+                        id: char.id,
+                        name: char.remark || char.name || 'Unknown',
+                        realName: char.name,
+                        // 如果没有头像，给个默认占位
+                        avatar: char.avatar || 'assets/images/avatar_placeholder.png',
+                        section: (char.remark || char.name || '#').charAt(0).toUpperCase(),
+                        type: 'user', // Default type
+                        ...char
+                    });
                 }
-                return c;
             });
         }
-        return this._contacts;
+
+        // 合并系统联系人和数据库角色
+        const all = [...systemContacts, ...dbCharacters];
+
+        // 排序 (with null safety for file:// compatibility)
+        return all.filter(c => c && c.id).sort((a, b) => {
+            const secA = a.section || '#';
+            const secB = b.section || '#';
+            const idA = a.id || '';
+            const idB = b.id || '';
+            if (secA === secB) return idA.localeCompare(idB);
+            if (secA === '#') return 1;
+            if (secB === '#') return -1;
+            return secA.localeCompare(secB);
+        });
     },
 
     addContact(contact) {
-        if (!this._contacts.find(c => c.id === contact.id)) {
-            this._contacts.push(contact);
-            this._contacts.sort((a, b) => (a.section || 'Z').localeCompare(b.section || 'Z'));
-            this.persistContact(contact);
-            return true;
-        }
-        return false;
+        // 保存到 Store
+        this.persistContact(contact);
+        return true;
     },
 
     removeContact(id) {
@@ -126,13 +146,9 @@ window.WeChat.Services.Contacts = {
             });
         }
 
-        fakeHumans.forEach(p => {
-            if (!this._contacts.find(c => c.id === p.id)) {
-                this._contacts.push(p);
-            }
-        });
-
-        this._contacts.sort((a, b) => (a.section || 'Z').localeCompare(b.section || 'Z'));
+        // [Optimization] No need to push to this._contacts anymore, 
+        // as getContacts() now dynamically reads from sysStore.
+        // The persistContact logic above has already saved them to the DB.
     }
 };
 

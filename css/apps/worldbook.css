@@ -1,0 +1,569 @@
+/**
+ * World Book Application - iOS 17 Premium Styling
+ * 修复背景透明和主题切换问题
+ */
+
+/* ========== 主题变量定义 ========== */
+
+/* 深色模式 (默认) - 直接应用到 .wb-app */
+#os-root .wb-app {
+    --wb-bg: #000000;
+    --wb-header-bg: rgba(28, 28, 30, 0.94);
+    --wb-card-bg: #1C1C1E;
+    --wb-active-bg: #2C2C2E;
+    --wb-text: #FFFFFF;
+    --wb-text-sec: #8E8E93;
+    --wb-border: rgba(84, 84, 88, 0.65);
+    --wb-accent: #0A84FF;
+}
+
+/* 浅色模式 - 同时支持 .light-theme 和 .light-mode */
+#os-root.light-theme .wb-app,
+#os-root.light-mode .wb-app {
+    --wb-bg: #F2F2F7;
+    --wb-header-bg: rgba(249, 249, 249, 0.94);
+    --wb-card-bg: #FFFFFF;
+    --wb-active-bg: #E5E5EA;
+    --wb-text: #000000;
+    --wb-text-sec: #8E8E93;
+    --wb-border: rgba(60, 60, 67, 0.18);
+    --wb-accent: #007AFF;
+}
+
+/* ========== 窗口容器样式（覆盖全局 .app-window）========== */
+#app-worldbook-window {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: #000000 !important;
+    z-index: 600 !important;
+}
+
+/* 隐藏状态 - 确保 .hidden 类正确生效 */
+#app-worldbook-window.hidden {
+    display: none !important;
+}
+
+#os-root.light-theme #app-worldbook-window,
+#os-root.light-mode #app-worldbook-window {
+    background-color: #F2F2F7 !important;
+}
+
+/* ========== 主容器 ========== */
+/* 使用 :not(.hidden) 确保隐藏状态不会被覆盖 */
+/* 注意：不要设置 position，定位由外层 #app-worldbook-window 控制 */
+#os-root .wb-app:not(.hidden) {
+    background-color: var(--wb-bg) !important;
+    color: var(--wb-text) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* ========== 导航栏/标题栏 ========== */
+#os-root .wb-header {
+    height: 92px !important;
+    padding-top: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    background-color: var(--wb-bg) !important;
+    /* 使用实心背景色 */
+    border-bottom: 0.5px solid var(--wb-border) !important;
+    flex-shrink: 0 !important;
+    z-index: 100 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+}
+
+/* 导航栏内容区域 - 使用毛玻璃效果 */
+#os-root .wb-header::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 44px !important;
+    background-color: var(--wb-header-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    z-index: -1 !important;
+}
+
+#os-root .wb-header-btn {
+    color: var(--wb-accent) !important;
+    font-size: 17px !important;
+    font-weight: 400 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    transition: opacity 0.2s !important;
+}
+
+#os-root .wb-header-btn:active {
+    opacity: 0.3 !important;
+}
+
+#os-root .wb-title {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    color: var(--wb-text) !important;
+}
+
+/* ========== 内容区域 ========== */
+#os-root .wb-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 20px 16px !important;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom)) !important;
+    background-color: var(--wb-bg) !important;
+}
+
+/* ========== 分组/卡片 ========== */
+#os-root .wb-section {
+    margin-bottom: 24px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    background-color: var(--wb-card-bg) !important;
+    border: 0.5px solid var(--wb-border) !important;
+}
+
+#os-root .wb-section-header {
+    padding: 14px 16px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    background-color: var(--wb-card-bg) !important;
+    transition: background-color 0.2s !important;
+}
+
+#os-root .wb-section-header:active {
+    background-color: var(--wb-active-bg) !important;
+}
+
+#os-root .wb-section-header .count {
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    color: var(--wb-text-sec) !important;
+}
+
+#os-root .wb-section-body {
+    border-top: 0.5px solid var(--wb-border) !important;
+}
+
+/* ========== 条目项 ========== */
+#os-root .wb-entry-item {
+    padding: 16px !important;
+    background-color: var(--wb-card-bg) !important;
+    border-bottom: 0.5px solid var(--wb-border) !important;
+    transition: background-color 0.2s !important;
+    display: flex !important;
+}
+
+#os-root .wb-entry-item:last-child {
+    border-bottom: none !important;
+}
+
+#os-root .wb-entry-item:active {
+    background-color: var(--wb-active-bg) !important;
+}
+
+#os-root .wb-entry-title {
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    margin-bottom: 4px !important;
+    color: var(--wb-text) !important;
+}
+
+#os-root .wb-entry-preview {
+    font-size: 13px !important;
+    color: var(--wb-text-sec) !important;
+    line-height: 1.4 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+}
+
+/* ========== 编辑视图 ========== */
+#os-root .wb-edit-view {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: var(--wb-bg) !important;
+    z-index: 200 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#os-root .wb-form-group {
+    margin-bottom: 24px !important;
+}
+
+#os-root .wb-label {
+    font-size: 13px !important;
+    color: var(--wb-text-sec) !important;
+    margin-bottom: 8px !important;
+    padding-left: 16px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+#os-root .wb-input-container {
+    background-color: var(--wb-card-bg) !important;
+    border-top: 0.5px solid var(--wb-border) !important;
+    border-bottom: 0.5px solid var(--wb-border) !important;
+}
+
+#os-root .wb-input,
+#os-root .wb-textarea {
+    width: 100% !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    color: var(--wb-text) !important;
+    background: transparent !important;
+    outline: none !important;
+    font-family: inherit !important;
+    box-sizing: border-box !important;
+}
+
+#os-root .wb-textarea {
+    min-height: 150px !important;
+    resize: none !important;
+    line-height: 1.5 !important;
+}
+
+/* ========== 开关控件 ========== */
+#os-root .wb-toggle-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 16px !important;
+    background-color: var(--wb-card-bg) !important;
+    border-top: 0.5px solid var(--wb-border) !important;
+    border-bottom: 0.5px solid var(--wb-border) !important;
+    margin-bottom: 24px !important;
+    color: var(--wb-text) !important;
+}
+
+#os-root .wb-app .switch {
+    position: relative !important;
+    display: inline-block !important;
+    width: 51px !important;
+    height: 31px !important;
+}
+
+#os-root .wb-app .switch input {
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+#os-root .wb-app .slider {
+    position: absolute !important;
+    cursor: pointer !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-color: var(--wb-border) !important;
+    transition: .4s !important;
+    border-radius: 34px !important;
+}
+
+#os-root .wb-app .slider:before {
+    position: absolute !important;
+    content: "" !important;
+    height: 27px !important;
+    width: 27px !important;
+    left: 2px !important;
+    bottom: 2px !important;
+    background-color: white !important;
+    transition: .4s !important;
+    border-radius: 50% !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+#os-root .wb-app input:checked+.slider {
+    background-color: #34c759 !important;
+}
+
+#os-root .wb-app input:checked+.slider:before {
+    transform: translateX(20px) !important;
+}
+
+/* ========== 按钮样式 ========== */
+#os-root .wb-btn-danger,
+#os-root .wb-btn-primary,
+#os-root .wb-btn-text {
+    text-align: center !important;
+    padding: 14px !important;
+    font-size: 17px !important;
+    border-top: 0.5px solid var(--wb-border) !important;
+    border-bottom: 0.5px solid var(--wb-border) !important;
+    cursor: pointer !important;
+    font-weight: 400 !important;
+    background-color: var(--wb-card-bg) !important;
+    transition: background-color 0.2s !important;
+}
+
+#os-root .wb-btn-danger {
+    color: #ff3b30 !important;
+}
+
+#os-root .wb-btn-primary {
+    color: var(--wb-accent) !important;
+}
+
+#os-root .wb-btn-text {
+    color: var(--wb-text) !important;
+}
+
+#os-root .wb-btn-danger:active,
+#os-root .wb-btn-primary:active,
+#os-root .wb-btn-text:active {
+    background-color: var(--wb-active-bg) !important;
+}
+
+/* ========== 编辑模式多选 ========== */
+#os-root .wb-entry-item.selectable {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+}
+
+#os-root .wb-checkbox-container {
+    padding-right: 12px !important;
+}
+
+#os-root .wb-checkbox {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 50% !important;
+    border: 1.5px solid var(--wb-border) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s !important;
+    background-color: transparent !important;
+}
+
+#os-root .wb-checkbox.selected {
+    background-color: var(--wb-accent) !important;
+    border-color: var(--wb-accent) !important;
+}
+
+#os-root .wb-checkbox svg {
+    display: none !important;
+}
+
+#os-root .wb-checkbox.selected svg {
+    display: block !important;
+}
+
+/* ========== 分组操作按钮 ========== */
+#os-root .wb-section-btn {
+    font-size: 14px !important;
+    color: var(--wb-accent) !important;
+    margin-left: 12px !important;
+    cursor: pointer !important;
+}
+
+#os-root .wb-section-btn:active {
+    opacity: 0.5 !important;
+}
+
+/* ========== 底部操作栏 ========== */
+#os-root .wb-footer {
+    height: 84px !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    background-color: var(--wb-header-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 0.5px solid var(--wb-border) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    z-index: 100 !important;
+}
+
+#os-root .wb-footer-btn {
+    color: var(--wb-accent) !important;
+    font-size: 11px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+}
+
+#os-root .wb-section-icon-btn {
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    background-color: rgba(120, 120, 128, 0.12) !important;
+    margin-left: 12px !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+
+#os-root .wb-section-icon-btn:active {
+    background-color: rgba(120, 120, 128, 0.24) !important;
+    transform: scale(0.9);
+}
+
+#os-root .wb-section-icon-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+#os-root .wb-footer-btn svg {
+    width: 24px !important;
+}
+
+/* ========== 弹窗样式 (Modal) ========== */
+#os-root .wb-modal-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999 !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    opacity: 0;
+    animation: wbFadeIn 0.2s forwards;
+}
+
+@keyframes wbFadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+#os-root .wb-modal {
+    width: 270px !important;
+    background-color: var(--wb-card-bg) !important;
+    /* Fallback */
+    background-color: rgba(30, 30, 30, 0.85) !important;
+    /* Dark mode default */
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4) !important;
+    transform: scale(1.1);
+    opacity: 0;
+    animation: wbPopIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+}
+
+#os-root.light-mode .wb-modal,
+#os-root.light-theme .wb-modal {
+    background-color: rgba(245, 245, 245, 0.85) !important;
+}
+
+@keyframes wbPopIn {
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+#os-root .wb-modal-header {
+    padding: 20px 16px 8px 16px !important;
+    text-align: center !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    color: var(--wb-text) !important;
+}
+
+#os-root .wb-modal-body {
+    padding: 0 16px 20px 16px !important;
+    text-align: center !important;
+}
+
+#os-root .wb-modal-input {
+    width: 100% !important;
+    padding: 6px 8px !important;
+    border: 0.5px solid var(--wb-border) !important;
+    border-radius: 5px !important;
+    font-size: 14px !important;
+    background-color: var(--wb-bg) !important;
+    color: var(--wb-text) !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+    margin-top: 4px !important;
+}
+
+#os-root.light-mode .wb-modal-input {
+    background-color: #ffffff !important;
+    border-color: #dedede !important;
+}
+
+#os-root .wb-modal-footer {
+    display: flex !important;
+    border-top: 0.5px solid var(--wb-border) !important;
+    height: 44px !important;
+}
+
+#os-root .wb-modal-btn {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 17px !important;
+    cursor: pointer !important;
+    background: transparent !important;
+    transition: background-color 0.2s !important;
+    user-select: none !important;
+}
+
+#os-root .wb-modal-btn:active {
+    background-color: var(--wb-active-bg) !important;
+}
+
+#os-root .wb-modal-btn.cancel {
+    color: #0A84FF !important;
+    /* Dark mode blue */
+    border-right: 0.5px solid var(--wb-border) !important;
+    font-weight: 400 !important;
+}
+
+#os-root.light-mode .wb-modal-btn.cancel,
+#os-root.light-theme .wb-modal-btn.cancel {
+    color: #007AFF !important;
+}
+
+#os-root .wb-modal-btn.confirm {
+    color: #0A84FF !important;
+    font-weight: 600 !important;
+}
+
+#os-root.light-mode .wb-modal-btn.confirm,
+#os-root.light-theme .wb-modal-btn.confirm {
+    color: #007AFF !important;
+}

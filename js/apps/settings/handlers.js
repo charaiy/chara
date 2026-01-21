@@ -55,7 +55,7 @@ const genericBind = (prefix) => (page) => {
             const k = sw.dataset.switch;
             if (k) s.set(k, sw.classList.contains('on') ? 'true' : 'false');
         });
-        alert('设置已成功保存');
+        if (window.os && window.os.showToast) window.os.showToast('设置已保存');
     };
 
     // 统一开关
@@ -193,7 +193,7 @@ window.SettingsHandlers.openProfilePage = (page) => {
         btn.innerText = '正在上传...';
         const ok = await window.SettingsState.Service.githubAction('upload', cfg);
         btn.innerText = oldText;
-        alert(ok ? '云端备份成功' : '上传失败，请检查 Token 权限或网络');
+        if (window.os) window.os.showToast(ok ? '云端备份成功' : '上传失败，检查 Token', ok ? 'success' : 'error');
     };
     page.querySelector('#btn-backup-download').onclick = async () => {
         const cfg = { token: s.get('github_token'), user: s.get('github_user'), repo: s.get('github_repo'), filename: 'chara_backup.json' };
@@ -249,10 +249,10 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
 
         btn.innerText = oldText;
         if (count > 0) {
-            alert(`压缩任务已完成！扫描了 ${count} 张本地图片并执行了重置。`);
-            location.reload();
+            if (window.os) window.os.showToast(`压缩完成，处理 ${count} 张图片`);
+            setTimeout(() => location.reload(), 1500);
         } else {
-            alert('未检测到需要压缩的本地图片数据。\n提示：云端托管的图片（ImgBB等）不在此处压缩。');
+            if (window.os) window.os.showToast('未检测到需压缩图片', 'info');
         }
     };
     // 导出数据
@@ -274,8 +274,13 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
         input.onchange = (e) => {
             const f = e.target.files[0]; if (!f) return;
             const rd = new FileReader(); rd.onload = (ev) => {
-                try { const d = JSON.parse(ev.target.result); Object.keys(d).forEach(k => localStorage.setItem(k, d[k])); alert('导入成功'); location.reload(); }
-                catch (err) { alert('非法文件格式'); }
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    Object.keys(d).forEach(k => localStorage.setItem(k, d[k]));
+                    if (window.os) window.os.showToast('导入成功');
+                    setTimeout(() => location.reload(), 1000);
+                }
+                catch (err) { if (window.os) window.os.showToast('非法文件格式', 'error'); }
             }; rd.readAsText(f);
         }; input.click();
     };
@@ -301,7 +306,7 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
                     }
                 }
             });
-            alert(`清理完成！共移除 ${count} 个冗余碎片，释放约 ${(size / 1024).toFixed(2)} KB 空间。`);
+            if (window.os) window.os.showToast(`清理完成: ${count} 碎片`);
         },
         'btn-advanced-clean': () => {
             if (!confirm('高级清理将扫描并移除已失效的角色聊天记录，是否继续？')) return;
@@ -314,15 +319,13 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
             });
             const removedCount = msgs.length - filteredMsgs.length;
             s.set('chara_db_messages', filteredMsgs);
-            alert(`清理完毕。移除了 ${removedCount} 条孤立的消息纪录。`);
+            if (window.os) window.os.showToast(`清理 ${removedCount} 条孤立消息`);
         },
         'btn-check-repair': () => {
             s.init(); // 触发初始化检测
-            const keys = ['chara_db_messages', 'chara_db_characters', 'chara_db_world'];
-            const results = keys.map(k => `${k}: ${s.get(k) ? '✔' : '✘'}`);
-            alert('核心数据校验结果：\n' + results.join('\n') + '\n\n系统修复已执行完毕。');
+            if (window.os) window.os.showToast('核心数据已修复', 'success');
         },
-        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_world'); alert('已清空'); } },
+        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_world'); if (window.os) window.os.showToast('已清空'); } },
         'btn-reset-appearance': () => { if (confirm('确认重置所有外观设置（壁纸、字体、自定义CSS）？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font', 'show_status_bar', 'show_dynamic_island'].forEach(k => s.remove(k)); location.reload(); } },
         'btn-reset-all': () => { if (confirm('⚠️ 警告：彻底抹除所有本地数据（包括聊天记录、API Key、已保存的角色）？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
     };
@@ -394,7 +397,7 @@ window.SettingsHandlers.openWifiPage = (page) => {
         const name = page.querySelector('#new-preset-name').value.trim(); if (!name) return alert('请输入预设名');
         const ps = JSON.parse(s.get('api_presets') || '{}');
         const data = {}; page.querySelectorAll('[data-key]').forEach(i => data[i.dataset.key] = i.value);
-        ps[name] = data; s.set('api_presets', JSON.stringify(ps)); alert('预设 "' + name + '" 已保存');
+        ps[name] = data; s.set('api_presets', JSON.stringify(ps)); if (window.os) window.os.showToast('预设已保存');
     };
 
     page.querySelector('#btn-del-preset').onclick = () => {
@@ -403,7 +406,7 @@ window.SettingsHandlers.openWifiPage = (page) => {
         const ps = JSON.parse(s.get('api_presets') || '{}'); delete ps[name];
         s.set('api_presets', JSON.stringify(ps));
         page.querySelector('#preset-display').innerText = "选择预设...";
-        alert('已删除');
+        if (window.os) window.os.showToast('已删除');
     };
 };
 
@@ -513,9 +516,9 @@ window.SettingsHandlers.openAppearancePage = (page) => {
                     if (d.home) s.set('home_screen_wallpaper', d.home);
                     if (d.statusBar) s.set('show_status_bar', d.statusBar);
                     if (d.island) s.set('show_dynamic_island', d.island);
-                    alert('外观配置已导入，请刷新页面生效。');
-                    location.reload();
-                } catch (err) { alert('配置无效'); }
+                    if (window.os) window.os.showToast('外观配置已导入');
+                    setTimeout(() => location.reload(), 1000);
+                } catch (err) { if (window.os) window.os.showToast('配置无效', 'error'); }
             };
             r.readAsText(f);
         };
@@ -542,7 +545,7 @@ window.SettingsHandlers.openAppearancePage = (page) => {
                     Object.keys(data).forEach(k => { s.set(k, data[k]); if (window.os?.applySetting) window.os.applySetting(k, data[k]); });
                     if (display) display.innerText = it.dataset.id;
                     m.remove();
-                    alert('预设已应用');
+                    if (window.os) window.os.showToast('预设已应用');
                 };
             });
             m.querySelectorAll('.modal-item-delete').forEach(it => {
@@ -572,7 +575,7 @@ window.SettingsHandlers.openAppearancePage = (page) => {
             ps[name] = data;
             s.set(storeKey, JSON.stringify(ps));
             if (display) display.innerText = name;
-            alert('已保存');
+            if (window.os) window.os.showToast('已保存');
         };
     };
 
@@ -655,7 +658,7 @@ window.SettingsHandlers.openFontPage = (page) => {
         const ps = JSON.parse(s.get('custom_fonts') || '[]');
         ps.push({ name, value: urlI.value });
         s.set('custom_fonts', JSON.stringify(ps));
-        alert('已存入预设库');
+        if (window.os) window.os.showToast('已存入预设库');
     };
 
     page.querySelector('#btn-delete-preset').onclick = () => {
@@ -666,7 +669,7 @@ window.SettingsHandlers.openFontPage = (page) => {
         s.set('custom_fonts', JSON.stringify(newPs));
         display.innerText = "系统默认 (System)";
         urlI.value = "";
-        alert('已删除');
+        if (window.os) window.os.showToast('已删除');
     };
 
     page.querySelectorAll('.btn-apply-font-trigger').forEach(btn => btn.onclick = () => {
@@ -674,7 +677,7 @@ window.SettingsHandlers.openFontPage = (page) => {
         const data = { type: 'custom', value: urlI.value, name: display.innerText };
         s.set('active_font', JSON.stringify(data));
         window.os?.applyFont?.(data);
-        alert('字体配置已全局生效');
+        if (window.os) window.os.showToast('字体配置已生效');
     });
 
     page.querySelector('#btn-reset-font').onclick = () => {
@@ -738,8 +741,8 @@ window.SettingsHandlers.openNotificationPage = (page) => {
         const list = JSON.parse(s.get('custom_notification_sounds') || '[]');
         list.push({ name: f.name, value: dataUrl });
         s.set('custom_notification_sounds', JSON.stringify(list));
-        alert('上传成功');
-        location.reload();
+        if (window.os) window.os.showToast('上传成功');
+        setTimeout(() => location.reload(), 1000);
     };
 
 
@@ -780,7 +783,7 @@ window.SettingsHandlers.openBluetoothPage = (page) => {
 
     page.querySelector('#bluetooth-save').onclick = () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
-        alert('语音配置已保存');
+        if (window.os) window.os.showToast('语音配置已保存');
     };
 
     page.querySelector('#btn-test-voice').onclick = async () => {
@@ -797,7 +800,7 @@ window.SettingsHandlers.openBluetoothPage = (page) => {
         if (type === 'domestic' && !cfg.groupId) return alert('国内接口需要 Group ID');
 
         const blob = await window.SettingsState.Service.testVoice(cfg);
-        if (blob) window.SettingsState.Service.playAudio(blob); else alert('合成失败，请检查配置或网络');
+        if (blob) window.SettingsState.Service.playAudio(blob); else { if (window.os) window.os.showToast('合成失败', 'error'); }
     };
     updateVisibility(); // Initial call to set visibility
 };

@@ -161,10 +161,22 @@ window.WeChat.Views = {
                 const msgs = window.sysStore.getMessagesBySession(id);
                 const lastMsg = msgs[msgs.length - 1];
 
+                // 获取通知信息
+                const notifService = window.WeChat.Services.Notifications;
+                let previewText = '';
+
+                if (lastMsg) {
+                    if (notifService && notifService.getPreviewText) {
+                        previewText = notifService.getPreviewText(id);
+                    } else {
+                        previewText = lastMsg.type === 'image' ? '[图片]' : lastMsg.content;
+                    }
+                }
+
                 return {
                     id: id,
                     name: char?.name || id,
-                    lastMsg: lastMsg ? (lastMsg.type === 'image' ? '[图片]' : lastMsg.content) : '',
+                    lastMsg: previewText,
                     time: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
                     avatar: char?.avatar || ''
                 };
@@ -180,8 +192,14 @@ window.WeChat.Views = {
         }
 
         let listHtml = chats.map(chat => {
+            // 获取未读标记
+            const notifService = window.WeChat.Services.Notifications;
+            const badgeHtml = notifService && notifService.renderUnreadBadge
+                ? notifService.renderUnreadBadge(chat.id)
+                : '';
+
             return `
-            <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.openChat('${chat.id}')" style="height: 64px; padding: 8px 12px;">
+            <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.openChat('${chat.id}')" style="height: 64px; padding: 8px 12px; position: relative;">
                 <div style="position: relative; margin-right: 10px;">
                     <img src="${chat.avatar || 'assets/images/avatar_placeholder.png'}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" style="width: 44px; height: 44px; border-radius: 6px; background: #eee;">
                 </div>
@@ -190,13 +208,15 @@ window.WeChat.Views = {
                         <span style="font-size: 15px; font-weight: 500; color: var(--wx-text);">${chat.name}</span>
                         <span style="font-size: 9px; color: var(--wx-text-sec);">${chat.time}</span>
                     </div>
-                    <div style="font-size: 12px; color: var(--wx-text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    <div style="font-size: 12px; color: var(--wx-text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 30px;">
                         ${chat.lastMsg}
                     </div>
                 </div>
+                ${badgeHtml}
             </div>
             `;
         }).join('');
+
 
         const searchBar = `
         <div style="padding: 8px 10px; background-color: var(--wx-bg);">
@@ -249,7 +269,11 @@ window.WeChat.Views = {
                 </div>
 
                 <div class="wx-cell-group">
-                    ${this._renderSwitchCell('注入最新状态', true)}
+                    ${(() => {
+                const char = window.sysStore?.getCharacter(sessionId);
+                const isSoulOn = char?.settings?.soul_injection_enabled !== false; // 默认开启
+                return this._renderSwitchCell('注入最新状态', isSoulOn, `window.WeChat.App.toggleSoulInjection('${sessionId}', !${isSoulOn})`);
+            })()}
                     ${(() => {
                 const char = window.sysStore?.getCharacter(sessionId);
                 const isBgOn = char?.settings?.bg_activity_enabled === true;
@@ -276,7 +300,17 @@ window.WeChat.Views = {
                     onClick: `window.WeChat.App.setContextMemoryLimit('${sessionId}')`
                 });
             })()}
-                    ${this._renderCell({ text: '关联世界书', showArrow: true, extra: '<span style="font-size:15px; color:var(--wx-text-sec); margin-right:4px;">无</span>' })}
+                    ${(() => {
+                const char = window.sysStore?.getCharacter(sessionId);
+                const linkedIds = char?.settings?.world_book_ids || [];
+                const count = linkedIds.length;
+                return this._renderCell({
+                    text: '关联世界书',
+                    showArrow: true,
+                    extra: `<span style="font-size:15px; color:var(--wx-text-sec); margin-right:4px;">${count > 0 ? `已关联 ${count} 条` : '无'}</span>`,
+                    onClick: `window.WeChat.App.openWorldBookSelection('${sessionId}')`
+                });
+            })()}
                 </div>
 
                 <div class="wx-cell-group">
@@ -701,7 +735,7 @@ window.WeChat.Views = {
             iconColor: c.type === 'system' ? '#fa9d3b' : '#eee',
             iconType: 'user_avatar',
             showArrow: false,
-            onClick: `window.WeChat.App.openUserProfile('${c.id}', '${c.name}')`,
+            onClick: `window.WeChat.App.openUserProfile('${this.escapeQuote(c.id)}', '${this.escapeQuote(c.name)}')`,
             avatar: c.avatar
         })).join('');
 
@@ -812,10 +846,24 @@ window.WeChat.Views = {
         return this._renderCell({ text, iconColor: color, iconType: type, showArrow: false });
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
+    escapeQuote(str) {
+        if (!str) return '';
+        return String(str).replace(/'/g, "\\'");
+    },
+
     _renderCell({ text, iconColor, iconType, showArrow, extra = '', onClick = '', avatar = '' }) {
         let iconHtml = '';
         if (iconType === 'user_avatar') {
-            // Handle User Avatar separately
             const src = avatar || 'assets/images/avatar_placeholder.png';
             iconHtml = `<img src="${src}" style="width:36px; height:36px; border-radius:4px; margin-right:12px; flex-shrink:0; background:${iconColor};" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">`;
         } else if (iconType) {
@@ -825,11 +873,15 @@ window.WeChat.Views = {
                 case 'moments': svgContent = '<circle cx="12" cy="12" r="8" stroke="white" stroke-width="2" fill="none"/>'; break;
                 case 'settings': svgContent = '<circle cx="12" cy="12" r="4" stroke="white" stroke-width="2"/>'; break;
                 case 'scan': svgContent = '<path d="M4 4h4v2H4v4H2V4h2zm14 0h2v6h-2V6h-4V4h4zm0 16h-4v-2h4v-4h2v6h-2zM4 20h4v2H4h-2v-6h2v4z" fill="white"/>'; break;
-                case 'listen': svgContent = '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="white"/>'; break; // Placeholder
+                case 'listen': svgContent = '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="white"/>'; break;
+                case 'contact_add': svgContent = '<path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="white"/>'; break;
+                case 'group': svgContent = '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="white"/>'; break;
+                case 'tag': svgContent = '<path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" fill="white"/>'; break;
+                case 'offical': svgContent = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" fill="white"/>'; break;
                 default: svgContent = '<rect x="6" y="6" width="12" height="12" fill="white"/>';
             }
-            const iconStyle = `display:flex; align-items:center; justify-content:center; background-color:${iconColor}; width:24px; height:24px; border-radius:4px; margin-right:16px; flex-shrink:0;`;
-            iconHtml = `<div style="${iconStyle}"><svg viewBox="0 0 24 24" style="width:16px; height:16px">${svgContent}</svg></div>`;
+            const iconStyle = `display:flex; align-items:center; justify-content:center; background-color:${iconColor}; width:36px; height:36px; border-radius:4px; margin-right:12px; flex-shrink:0;`;
+            iconHtml = `<div style="${iconStyle}"><svg viewBox="0 0 24 24" style="width:20px; height:20px">${svgContent}</svg></div>`;
         }
 
         const arrowHtml = showArrow ?
@@ -842,7 +894,7 @@ window.WeChat.Views = {
         return `
             <div class="wx-cell wx-hairline-bottom" onclick="${onClick}" style="${onClick ? 'cursor:pointer;' : ''}">
                 ${iconHtml}
-                <div class="wx-cell-content">${text}</div>
+                <div class="wx-cell-content" style="font-size:16px;">${this.escapeHtml(text)}</div>
                 ${extra}
                 ${arrowHtml}
             </div>
@@ -988,19 +1040,20 @@ window.WeChat.Views = {
         };
 
         const ladderHtml = rel.ladder_persona.map((lp, idx) => `
-            <div style="background: #f8f9fa; border-radius: 16px; padding: 15px; margin-bottom: 12px; border: 1px solid #eee; position: relative;">
-                <div style="display: flex; align-items: center; margin-bottom: 10px; gap: 10px;">
-                    <span style="font-size: 13px; color: #666;">解锁阈值</span>
+            <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; position: relative;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px; gap: 8px;">
+                    <span style="font-size: 11px; color: #999;">解锁阈值</span>
                     <input type="number" value="${lp.affection_threshold}" 
-                        style="width: 60px; height: 32px; background: #fff; border: 1px solid #ddd; border-radius: 8px; text-align: center; font-size: 14px;"
-                        onchange="window.WeChat.App.updateLadderPersona(${idx}, 'affection_threshold', parseFloat(this.value))">
+                        style="width: 50px; height: 28px; background: #fff; border: 1px solid #eee; border-radius: 6px; text-align: center; font-size: 13px; outline: none;"
+                        oninput="window.WeChat.App.updateLadderPersona(${idx}, 'affection_threshold', parseFloat(this.value), true)">
                     <div style="flex: 1;"></div>
-                    <div style="cursor: pointer; padding: 4px; color: #ff3b30;" onclick="window.WeChat.App.removeLadderPersona(${idx})">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <div style="cursor: pointer; padding: 4px; color: #ff3b30; opacity: 0.6;" onclick="window.WeChat.App.removeLadderPersona(${idx})">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </div>
                 </div>
-                <textarea style="width: 100%; min-height: 60px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 10px; box-sizing: border-box; font-size: 14px; resize: none;"
-                    onchange="window.WeChat.App.updateLadderPersona(${idx}, 'content', this.value)">${lp.content}</textarea>
+                <textarea style="width: 100%; min-height: 50px; background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 8px; box-sizing: border-box; font-size: 13px; outline: none; resize: none; line-height: 1.4; color: #333;"
+                    placeholder="输入该好感阶段下的角色表现..."
+                    oninput="window.WeChat.App.updateLadderPersona(${idx}, 'content', this.value, true)">${lp.content}</textarea>
             </div>
         `).join('');
 
@@ -1008,11 +1061,11 @@ window.WeChat.Views = {
             <div class="wx-char-panel-overlay active" onclick="if(event.target===this) window.WeChat.App.closeRelationshipPanel()">
                 <div class="wx-char-panel" onclick="event.stopPropagation()" style="padding: 0;">
                     <!-- Header -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 10px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px 8px 24px;">
                         <div style="cursor: pointer; padding: 4px; margin-left: -4px;" onclick="window.WeChat.App.openCharacterPanel()">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         </div>
-                        <div style="font-size: 18px; font-weight: 700; color: #333;">关系管理</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #333;">关系管理</div>
                         <div style="width: 24px;"></div>
                     </div>
 
@@ -1020,102 +1073,102 @@ window.WeChat.Views = {
                     <div class="wx-char-panel-scrollable" style="flex: 1; overflow-y: auto; padding: 0 24px 24px 24px;">
                         
                         <!-- 好感度数值 -->
-                        <div style="margin-top: 20px;">
-                            <div style="font-size: 13px; color: #999; margin-bottom: 12px;">好感度数值</div>
-                            <div style="background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <span style="font-size: 16px; font-weight: 600;">当前好感度</span>
-                                    <span style="font-size: 18px; font-weight: 700; color: #007aff;">${affection.toFixed(1)}</span>
+                        <div style="margin-top: 15px;">
+                            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">好感度数值</div>
+                            <div style="background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <span style="font-size: 14px; font-weight: 600;">当前好感度</span>
+                                    <span style="font-size: 16px; font-weight: 700; color: #007aff;">${affection.toFixed(1)}</span>
                                 </div>
                                 <input type="range" min="0" max="100" step="0.1" value="${affection}" 
-                                    style="width: 100%; -webkit-appearance: none; height: 4px; background: #e0e0e0; border-radius: 2px; outline: none; margin-bottom: 5px;"
+                                    style="width: 100%; height: 4px; -webkit-appearance: none; background: #e0e0e0; border-radius: 2px; outline: none; margin-bottom: 5px; cursor: pointer;"
                                     oninput="window.WeChat.App.updatePendingRelationship('affection', parseFloat(this.value))">
                             </div>
                         </div>
 
                         <!-- 攻略难度设定 -->
-                        <div style="margin-top: 24px;">
-                            <div style="font-size: 13px; color: #999; margin-bottom: 12px;">攻略难度设定</div>
-                            <div style="background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
-                                <div style="display: flex; background: #f5f6f8; border-radius: 12px; padding: 4px; margin-bottom: 16px;">
+                        <div style="margin-top: 20px;">
+                            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">攻略难度设定</div>
+                            <div style="background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                                <div style="display: flex; background: #f5f6f8; border-radius: 10px; padding: 3px; margin-bottom: 12px;">
                                     <div class="wx-rel-diff-btn ${difficulty === 'hard' ? 'active' : ''}" 
                                         onclick="window.WeChat.App.updatePendingRelationship('difficulty', 'hard')"
-                                        style="flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: ${difficulty === 'hard' ? '700' : '400'}; color: ${difficulty === 'hard' ? '#007aff' : '#888'}; background: ${difficulty === 'hard' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'hard' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'}; cursor: pointer;">困难</div>
+                                        style="flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: ${difficulty === 'hard' ? '700' : '400'}; color: ${difficulty === 'hard' ? '#007aff' : '#888'}; background: ${difficulty === 'hard' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'hard' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'}; cursor: pointer;">困难</div>
                                     <div class="wx-rel-diff-btn ${difficulty === 'normal' ? 'active' : ''}" 
                                         onclick="window.WeChat.App.updatePendingRelationship('difficulty', 'normal')"
-                                        style="flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: ${difficulty === 'normal' ? '700' : '400'}; color: ${difficulty === 'normal' ? '#007aff' : '#888'}; background: ${difficulty === 'normal' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'normal' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'}; cursor: pointer;">普通</div>
+                                        style="flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: ${difficulty === 'normal' ? '700' : '400'}; color: ${difficulty === 'normal' ? '#007aff' : '#888'}; background: ${difficulty === 'normal' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'normal' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'}; cursor: pointer;">普通</div>
                                     <div class="wx-rel-diff-btn ${difficulty === 'easy' ? 'active' : ''}" 
                                         onclick="window.WeChat.App.updatePendingRelationship('difficulty', 'easy')"
-                                        style="flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: ${difficulty === 'easy' ? '700' : '400'}; color: ${difficulty === 'easy' ? '#007aff' : '#888'}; background: ${difficulty === 'easy' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'easy' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'}; cursor: pointer;">容易</div>
+                                        style="flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: ${difficulty === 'easy' ? '700' : '400'}; color: ${difficulty === 'easy' ? '#007aff' : '#888'}; background: ${difficulty === 'easy' ? '#fff' : 'transparent'}; box-shadow: ${difficulty === 'easy' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'}; cursor: pointer;">容易</div>
                                 </div>
-                                <div style="font-size: 12px; color: #999; text-align: center; line-height: 1.4;">
+                                <div style="font-size: 11px; color: #999; text-align: center; line-height: 1.4;">
                                     ${diffText[difficulty]}
                                 </div>
                             </div>
                         </div>
 
                         <!-- 关系看法 -->
-                        <div style="margin-top: 24px;">
-                            <div style="font-size: 13px; color: #999; margin-bottom: 12px;">关系看法</div>
-                            <div style="background: #fff; border-radius: 20px; padding: 24px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
-                                <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 15px;">TA对我</div>
-                                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <div style="margin-top: 20px;">
+                            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">关系看法</div>
+                            <div style="background: #fff; border-radius: 16px; padding: 20px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                                <div style="font-size: 14px; font-weight: 700; color: #333; margin-bottom: 12px;">TA对我</div>
+                                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
                                     <div style="flex: 1;">
-                                        <div style="font-size: 12px; color: #999; margin-bottom: 8px;">关系</div>
+                                        <div style="font-size: 11px; color: #bbb; margin-bottom: 6px;">关系</div>
                                         <input type="text" value="${rel.they_to_me.relation}" placeholder="如：好朋友"
-                                            style="width: 100%; height: 44px; background: #f5f6f8; border: none; border-radius: 14px; padding: 0 12px; box-sizing: border-box; font-size: 14px;"
-                                            onchange="window.WeChat.App.updatePendingRelationship('they_to_me', this.value, 'relation')">
+                                            style="width: 100%; height: 38px; background: #f5f6f8; border: none; border-radius: 10px; padding: 0 10px; box-sizing: border-box; font-size: 13px;"
+                                            oninput="window.WeChat.App.updatePendingRelationship('they_to_me', this.value, 'relation', true)">
                                     </div>
                                     <div style="flex: 2;">
-                                        <div style="font-size: 12px; color: #999; margin-bottom: 8px;">看法/秘密</div>
+                                        <div style="font-size: 11px; color: #bbb; margin-bottom: 6px;">看法/秘密</div>
                                         <input type="text" value="${rel.they_to_me.opinion}" placeholder="TA眼中的我..."
-                                            style="width: 100%; height: 44px; background: #f5f6f8; border: none; border-radius: 14px; padding: 0 12px; box-sizing: border-box; font-size: 14px;"
-                                            onchange="window.WeChat.App.updatePendingRelationship('they_to_me', this.value, 'opinion')">
+                                            style="width: 100%; height: 38px; background: #f5f6f8; border: none; border-radius: 10px; padding: 0 10px; box-sizing: border-box; font-size: 13px;"
+                                            oninput="window.WeChat.App.updatePendingRelationship('they_to_me', this.value, 'opinion', true)">
                                     </div>
                                 </div>
-                                <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 15px;">我对TA</div>
-                                <div style="display: flex; gap: 12px;">
+                                <div style="font-size: 14px; font-weight: 700; color: #333; margin-bottom: 12px;">我对TA</div>
+                                <div style="display: flex; gap: 10px;">
                                     <div style="flex: 1;">
-                                        <div style="font-size: 12px; color: #999; margin-bottom: 8px;">关系</div>
+                                        <div style="font-size: 11px; color: #bbb; margin-bottom: 6px;">关系</div>
                                         <input type="text" value="${rel.me_to_they.relation}" placeholder="如：暗恋对象"
-                                            style="width: 100%; height: 44px; background: #f5f6f8; border: none; border-radius: 14px; padding: 0 12px; box-sizing: border-box; font-size: 14px;"
-                                            onchange="window.WeChat.App.updatePendingRelationship('me_to_they', this.value, 'relation')">
+                                            style="width: 100%; height: 38px; background: #f5f6f8; border: none; border-radius: 10px; padding: 0 10px; box-sizing: border-box; font-size: 13px;"
+                                            oninput="window.WeChat.App.updatePendingRelationship('me_to_they', this.value, 'relation', true)">
                                     </div>
                                     <div style="flex: 2;">
-                                        <div style="font-size: 12px; color: #999; margin-bottom: 8px;">看法/印象</div>
+                                        <div style="font-size: 11px; color: #bbb; margin-bottom: 6px;">看法/印象</div>
                                         <input type="text" value="${rel.me_to_they.opinion}" placeholder="我眼中的TA..."
-                                            style="width: 100%; height: 44px; background: #f5f6f8; border: none; border-radius: 14px; padding: 0 12px; box-sizing: border-box; font-size: 14px;"
-                                            onchange="window.WeChat.App.updatePendingRelationship('me_to_they', this.value, 'opinion')">
+                                            style="width: 100%; height: 38px; background: #f5f6f8; border: none; border-radius: 10px; padding: 0 10px; box-sizing: border-box; font-size: 13px;"
+                                            oninput="window.WeChat.App.updatePendingRelationship('me_to_they', this.value, 'opinion', true)">
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- 阶梯人设 -->
-                        <div style="margin-top: 24px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <div style="font-size: 13px; color: #999;">阶梯人设 (随好感度变化)</div>
-                                <div onclick="window.WeChat.App.generateLadderPersona()" style="cursor: pointer; color: #007aff; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><circle cx="15.5" cy="15.5" r="1.5"></circle><circle cx="15.5" cy="8.5" r="1.5"></circle><circle cx="8.5" cy="15.5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle></svg>
+                        <div style="margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-size: 12px; color: #999;">阶梯人设 (随好感度变化)</div>
+                                <div onclick="window.WeChat.App.generateLadderPersona()" style="cursor: pointer; color: #007aff; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><circle cx="15.5" cy="15.5" r="1.5"></circle><circle cx="15.5" cy="8.5" r="1.5"></circle><circle cx="8.5" cy="15.5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle></svg>
                                     AI 生成
                                 </div>
                             </div>
                             <div id="wx-ladder-list">
                                 ${ladderHtml}
                             </div>
-                            <div onclick="window.WeChat.App.addLadderPersona()" style="border: 1px dashed #007aff; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: center; color: #007aff; font-weight: 600; cursor: pointer; margin-top: 12px;">
-                                <span style="font-size: 20px; margin-right: 4px; line-height: 20px;">+</span> 添加人设阶段
+                            <div onclick="window.WeChat.App.addLadderPersona()" style="border: 1.5px dashed #007aff55; border-radius: 14px; padding: 12px; display: flex; align-items: center; justify-content: center; color: #007aff; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                                <span style="font-size: 18px; margin-right: 4px; line-height: 18px;">+</span> 添加人设阶段
                             </div>
                         </div>
 
                     </div>
 
                     <!-- Footer Buttons -->
-                    <div style="display: flex; gap: 12px; padding: 20px 24px 24px 24px; background: #fff; border-bottom-left-radius: 32px; border-bottom-right-radius: 32px; box-shadow: 0 -4px 12px rgba(0,0,0,0.02);">
-                        <div onclick="window.WeChat.App.closeRelationshipPanel()" style="flex: 1; height: 50px; background: #e9eaec; color: #666; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    <div style="display: flex; gap: 12px; padding: 16px 24px 24px 24px; background: #fff; border-bottom-left-radius: 32px; border-bottom-right-radius: 32px;">
+                        <div onclick="window.WeChat.App.closeRelationshipPanel()" style="flex: 1; height: 46px; background: #f2f2f2; color: #666; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; cursor: pointer;">
                             取消
                         </div>
-                        <div onclick="window.WeChat.App.saveRelationshipChanges()" style="flex: 1.3; height: 50px; background: #fff0f3; color: #ff6b81; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer;">
+                        <div onclick="window.WeChat.App.saveRelationshipChanges()" style="flex: 1.4; height: 46px; background: #fff0f3; color: #ff6b81; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; cursor: pointer;">
                             保存更改
                         </div>
                     </div>
@@ -1191,6 +1244,76 @@ window.WeChat.Views = {
                         </div>
                     </div>
                 </div>
+            </div>
+        `;
+    },
+
+    /**
+     * World Book Selection Page
+     */
+    renderWorldBookSelection(sessionId) {
+        const char = window.sysStore.getCharacter(sessionId);
+        const selectedIds = char?.settings?.world_book_ids || [];
+
+        // Fetch all world book entries
+        const entries = window.sysStore.get('chara_db_worldbook', []);
+        const chars = window.sysStore.get('chara_db_characters', {});
+
+        // Group entries (same logic as WorldBookApp)
+        const groups = {};
+        entries.forEach(e => {
+            const gid = e.groupId || 'global';
+            if (!groups[gid]) {
+                let name = (gid === 'global') ? '全局/通用' : (chars[gid]?.name || '未知角色');
+                groups[gid] = { name, entries: [] };
+            }
+            groups[gid].entries.push(e);
+        });
+
+        // Generate HTML
+        const sortedCids = Object.keys(groups).sort((a, b) => {
+            if (a === 'global') return -1;
+            if (b === 'global') return 1;
+            return groups[a].name.localeCompare(groups[b].name);
+        });
+
+        const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
+        const pageBg = isDark ? '#000' : '#EDEDED';
+
+        let sectionsHtml = sortedCids.map(cid => {
+            const group = groups[cid];
+            const itemsHtml = group.entries.map(e => {
+                const checked = selectedIds.includes(e.id);
+                return `
+                    <div class="wx-wb-select-item" onclick="window.WeChat.App.toggleWorldBookSelection('${e.id}')">
+                         <div style="flex:1;">
+                            <div style="font-size:16px; color:var(--wx-text); font-weight:500;">${e.name}</div>
+                            <div style="font-size:13px; color:var(--wx-text-sec); margin-top:2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${e.content || '无内容'}</div>
+                         </div>
+                         <div class="wx-wb-checkbox ${checked ? 'checked' : ''}">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                         </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="wx-wb-select-section">
+                    <div class="wx-wb-select-header">
+                        ${group.name} (${group.entries.length})
+                    </div>
+                    <div class="wx-wb-select-body">
+                        ${itemsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="wx-scroller" id="wx-view-worldbook-select" style="background-color: ${pageBg};">
+                <div class="wx-nav-spacer"></div>
+                ${sectionsHtml || '<div style="padding:100px 20px; text-align:center; color:#999;">暂无世界书条目</div>'}
+                <div style="height: 60px;"></div>
             </div>
         `;
     }

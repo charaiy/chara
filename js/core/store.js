@@ -157,6 +157,15 @@ class Store {
     }
 
     /**
+     * 获取所有角色数组
+     * @returns {Array} 角色数组
+     */
+    getAllCharacters() {
+        const db = this.get('chara_db_characters', {});
+        return Object.values(db);
+    }
+
+    /**
      * 更新角色状态（深度合并）
      */
     updateCharacter(id, data) {
@@ -192,6 +201,40 @@ class Store {
                 (m.sender_id === targetId && isMe(m.receiver_id)))
         );
         this.set('chara_db_messages', messages);
+    }
+
+    /**
+     * 重置角色状态（清空记忆、状态面板等，但在通讯录保留）
+     * @param {string} id 角色 ID
+     */
+    resetCharacterState(id) {
+        const db = this.get('chara_db_characters', {});
+        const char = db[id];
+        if (char) {
+            // Keep identity fields (id, name, avatar, persona settings)
+            // Reset dynamic fields (memories, status, mood, etc.)
+            db[id] = {
+                id: char.id,
+                name: char.name,
+                real_name: char.real_name,
+                remark: char.remark,
+                nickname: char.nickname,
+                avatar: char.avatar,
+                main_persona: char.main_persona,
+                section: char.section,
+                type: char.type,
+                settings: char.settings, // Keep user preferences? Or reset? Usually keep general settings.
+
+                // Clear these:
+                memories: [],
+                status: {},
+                status_history: [], // User requested to clear history too
+                // Any other dynamic fields?
+            };
+            this.set('chara_db_characters', db);
+            return true;
+        }
+        return false;
     }
 }
 

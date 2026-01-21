@@ -107,7 +107,8 @@ window.WeChat.Views.Stickers = {
         `;
 
         // 2. Sticker List with Checkboxes
-        const stickerItems = stickers.map(url => {
+        const stickerItems = stickers.map(item => {
+            const url = item.url; // Extract URL from object
             // Check if selected
             const isSelected = selectedStickers && selectedStickers.has(url);
             return `

@@ -22,7 +22,55 @@ class CharaOS {
         this._initLockScreenModule();
         this._loadSystemConfigs();
 
+        // Initialize Toast Container
+        this._initToastModule();
+
         console.log('CharaOS Initialized (Refactored)');
+    }
+
+    _initToastModule() {
+        if (!document.getElementById('os-toast-container')) {
+            const container = document.createElement('div');
+            container.id = 'os-toast-container';
+            document.body.appendChild(container); // Append to body to ensure it's on top
+        }
+    }
+
+    /**
+     * 显示全局 Toast 提示
+     * @param {string} message - 消息内容
+     * @param {string} type - 类型: 'success' | 'error' | 'info'
+     * @param {number} duration - 持续时间 (ms)
+     */
+    showToast(message, type = 'success', duration = 2000) {
+        // Remove existing toast if any (to prevent stacking too many)
+        const oldToast = document.querySelector('.os-toast');
+        if (oldToast) oldToast.remove();
+
+        const toast = document.createElement('div');
+        toast.className = `os-toast ${type}`;
+
+        let icon = '';
+        if (type === 'success') icon = '✓';
+        else if (type === 'error') icon = '✕';
+        else icon = 'ℹ';
+
+        toast.innerHTML = `
+            <span class="os-toast-icon">${icon}</span>
+            <span class="os-toast-text">${message}</span>
+        `;
+
+        const osRoot = document.getElementById('os-root') || document.body;
+        osRoot.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => toast.classList.add('show'));
+
+        // Remove
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
     }
 
     initDOM() {
@@ -489,79 +537,156 @@ class CharaOS {
             this.openSettings();
         } else if (appName === 'app-wechat' || appName === '微信') {
             this.openWeChat();
+        } else if (appName === 'app-worldbook' || appName === '世界书') {
+            this.openWorldBook();
         }
     }
 
-    async openWeChat() {
-        if (!window.WeChat || !window.WeChat.App) {
-            console.log('Loading WeChat scripts sequentially...');
+    async openWorldBook() {
+        let app = document.getElementById('app-worldbook-window');
+        if (window.WorldBookApp && window.WorldBookApp.init) {
+            if (!app) {
+                this._initWorldBookDOM();
+                app = document.getElementById('app-worldbook-window');
+            } else {
+                app.classList.remove('hidden');
+                app.classList.add('active');
+                if (window.WorldBookApp.render) window.WorldBookApp.render();
+            }
+            this.activeApp = app;
+            this.toggleHomeBarAction(true);
+            return;
+        }
 
-            const loadScript = (src) => {
-                // [Cache Busting Update - Fix Black Dot]
-                return new Promise((resolve, reject) => {
-                    // Force Cache Busting
-                    const script = document.createElement('script');
-                    script.type = 'text/javascript'; // Ensure MIME type
-                    script.src = src + '?v=' + Date.now();
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error(`Failed to load ${src}`));
-                    document.head.appendChild(script);
-                });
+        console.log('Loading WorldBook...');
+        try {
+            const script = document.createElement('script');
+            script.src = 'js/apps/worldbook/index.js?v=' + Date.now();
+            script.onload = () => {
+                this._initWorldBookDOM();
             };
-
-            try {
-                // Dependency Order: Services -> Components -> Views -> App Index
-                await loadScript('js/apps/wechat/services/contacts.js');
-                await loadScript('js/apps/wechat/services/chat.js');
-                await loadScript('js/apps/wechat/services/stickers.js');
-                await loadScript('js/apps/wechat/ui/bubbles.js');
-                await loadScript('js/apps/wechat/ui/components.js');
-                await loadScript('js/apps/wechat/ui/sticker_view.js');
-                await loadScript('js/apps/wechat/ui/views.js');
-                await loadScript('js/apps/wechat/index.js');
-
-                console.log('WeChat all scripts loaded.');
-            } catch (e) {
-                console.error('Failed to load WeChat:', e);
-                alert('无法加载微信模块(Script Error)。\n' + e.message);
-                return;
-            }
+            document.head.appendChild(script);
+        } catch (e) {
+            console.error(e);
+            alert('无法加载世界书模块');
         }
+    }
 
-        let app = document.getElementById('app-wechat-window');
+    _initWorldBookDOM() {
+        let app = document.getElementById('app-worldbook-window');
         if (!app) {
-            // Create container
             app = document.createElement('div');
-            app.id = 'app-wechat-window';
-            app.className = 'app-window hidden'; // Use common app-window class
-
-            // Add specific style for WeChat window if needed or reuse os.css global styles
-            // The wechat.css defines #app-wechat, which is the inner content
+            app.id = 'app-worldbook-window';
+            app.className = 'app-window hidden wb-app';
             document.getElementById('os-root').appendChild(app);
-
-            // Init WeChat
-            try {
-                // Support both structures: window.WeChat.App.init (Standard) or window.WeChat.init (Legacy/Simple)
-                if (window.WeChat.App && window.WeChat.App.init) {
-                    window.WeChat.App.init(app);
-                } else if (window.WeChat.init) {
-                    window.WeChat.init(app);
-                } else {
-                    throw new Error("WeChat init method not found");
-                }
-            } catch (e) {
-                console.error("WeChat Init Failed:", e);
-                return;
-            }
+            window.WorldBookApp.init(app);
         }
-
         requestAnimationFrame(() => {
             app.classList.remove('hidden');
             app.classList.add('active');
         });
+        this.activeApp = app;
+        this.toggleHomeBarAction(true);
+    }
+
+    async openWeChat() {
+        console.log('[OS] Opening WeChat...');
+        console.log('[OS] WeChat Object:', window.WeChat);
+        console.log('[OS] WeChat.App:', window.WeChat?.App);
+
+        // 检查微信模块是否加载
+        if (!window.WeChat || !window.WeChat.App || !window.WeChat.App.init) {
+            console.error('[OS] WeChat module not loaded!');
+            alert('微信模块未正确加载，请刷新页面重试。');
+            return;
+        }
+
+        console.log('[OS] WeChat module is loaded. Initializing...');
+
+        // 检查现有应用窗口
+        let app = document.getElementById('app-wechat-window');
+
+        if (!app) {
+            // 创建新窗口
+            console.log('[OS] Creating new WeChat window...');
+            this._initWeChatDOM();
+        } else {
+            // 窗口已存在，重新显示
+            console.log('[OS] WeChat window exists, bringing to front...');
+            app.classList.remove('hidden');
+
+            // 强制重绘
+            requestAnimationFrame(() => {
+                app.classList.add('active');
+
+                // 重新渲染内容
+                if (window.WeChat.App.render) {
+                    console.log('[OS] Re-rendering WeChat...');
+                    window.WeChat.App.render();
+                }
+            });
+
+            this.activeApp = app;
+            this.toggleHomeBarAction(true);
+        }
+    }
+
+    _initWeChatDOM() {
+        console.log('[OS] _initWeChatDOM called');
+
+        let app = document.getElementById('app-wechat-window');
+        if (!app) {
+            console.log('[OS] Creating app window element...');
+            app = document.createElement('div');
+            app.id = 'app-wechat-window';
+            app.className = 'app-window hidden';
+
+            const osRoot = document.getElementById('os-root');
+            if (!osRoot) {
+                console.error('[OS] os-root element not found!');
+                alert('系统错误：找不到根元素');
+                return;
+            }
+            osRoot.appendChild(app);
+            console.log('[OS] App window created and appended to DOM');
+
+            try {
+                if (!window.WeChat) {
+                    throw new Error("window.WeChat 对象不存在");
+                }
+                if (!window.WeChat.App) {
+                    throw new Error("window.WeChat.App 对象不存在");
+                }
+                if (!window.WeChat.App.init) {
+                    throw new Error("window.WeChat.App.init 方法不存在");
+                }
+
+                console.log('[OS] Calling WeChat.App.init...');
+                window.WeChat.App.init(app);
+                console.log('[OS] WeChat.App.init completed');
+            } catch (e) {
+                console.error("[OS] WeChat Init Failed:", e);
+                alert('微信初始化失败：' + e.message + '\n请刷新页面重试。');
+                if (app && app.parentNode) {
+                    app.parentNode.removeChild(app);
+                }
+                return;
+            }
+        } else {
+            console.log('[OS] App window already exists, reusing...');
+        }
+
+        // 使用 requestAnimationFrame 确保DOM已经准备好
+        requestAnimationFrame(() => {
+            console.log('[OS] Animating app window...');
+            app.classList.remove('hidden');
+            app.classList.add('active');
+            console.log('[OS] App window should now be visible');
+        });
 
         this.activeApp = app;
         this.toggleHomeBarAction(true);
+        console.log('[OS] _initWeChatDOM completed successfully');
     }
 
     openSettings() {
@@ -614,9 +739,12 @@ class CharaOS {
     closeActiveApp() {
         if (this.activeApp) {
             this.activeApp.classList.remove('active');
+            const appToClose = this.activeApp; // 保存引用，防止 setTimeout 内部引用丢失
             setTimeout(() => {
-                // Optional: remove from DOM to save memory, or keep it
-                // this.activeApp.remove(); 
+                // 添加 hidden class 以确保窗口正确隐藏
+                if (appToClose) {
+                    appToClose.classList.add('hidden');
+                }
                 this.activeApp = null;
             }, 400);
         }
