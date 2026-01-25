@@ -33,6 +33,7 @@ window.WeChat.Views = {
                     type: m.type,
                     content: m.content,
                     sender: isMe ? 'me' : 'other',
+                    senderId: m.sender_id,
                     avatar: avatar,
                     time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                 });
@@ -56,7 +57,7 @@ window.WeChat.Views = {
         return `
             <div class="wx-view-container" id="wx-view-session" style="${bgStyle}" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer"></div>
-                <div class="wx-chat-messages" style="padding: 16px 0 80px 0;">
+                <div class="wx-chat-messages" style="padding: 16px 0 20px 0;">
                     ${listHtml}
                 </div>
             </div>
@@ -124,13 +125,13 @@ window.WeChat.Views = {
                 <!-- Extra Panel -->
                 <div id="wx-extra-panel" class="wx-extra-panel" style="display:none;">
                     <div class="wx-extra-grid">
-                        <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div><span>照片</span></div>
-                        <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></div><span>拍摄</span></div>
+                        <div class="wx-extra-item" onclick="window.WeChat.App.triggerPhotoUpload()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div><span>照片</span></div>
+                        <div class="wx-extra-item" onclick="window.WeChat.App.triggerCamera()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></div><span>拍摄</span></div>
                         <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div><span>视频通话</span></div>
-                        <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div><span>位置</span></div>
+                        <div class="wx-extra-item" onclick="window.WeChat.App.triggerLocation()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div><span>位置</span></div>
                         <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 10c-3.3 0-6-2.7-6-6h12c0 3.3-2.7 6-6 6z"/></svg></div><span>红包</span></div>
                         <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.65-.5-.65C10.96 2.54 10.05 2 9 2c-1.66 0-3 1.34-3 3 0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36 2.38 3.24L16.99 11 14.92 8H20v6z"/></svg></div><span>礼物</span></div>
-                        <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg></div><span>转账</span></div>
+                        <div class="wx-extra-item" onclick="window.WeChat.App.triggerTransfer()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg></div><span>转账</span></div>
                         <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><span>语音输入</span></div>
                     </div>
                     <!-- Pagination Dots -->
@@ -161,26 +162,25 @@ window.WeChat.Views = {
                 const msgs = window.sysStore.getMessagesBySession(id);
                 const lastMsg = msgs[msgs.length - 1];
 
-                // 获取通知信息
+                // 获取预览文案与更新时间
                 const notifService = window.WeChat.Services.Notifications;
                 let previewText = '';
-
                 if (lastMsg) {
-                    if (notifService && notifService.getPreviewText) {
-                        previewText = notifService.getPreviewText(id);
-                    } else {
-                        previewText = lastMsg.type === 'image' ? '[图片]' : lastMsg.content;
-                    }
+                    previewText = notifService?.getPreviewText ? notifService.getPreviewText(id) : (lastMsg.type === 'text' ? lastMsg.content : '[消息]');
                 }
 
                 return {
                     id: id,
                     name: char?.name || id,
                     lastMsg: previewText,
-                    time: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+                    lastTimestamp: lastMsg ? lastMsg.timestamp : 0,
+                    time: lastMsg ? window.WeChat.Views._formatChatTime(lastMsg.timestamp) : '',
                     avatar: char?.avatar || ''
                 };
-            }).filter(c => c.lastMsg); // Only show active chats
+            }).filter(c => c.lastMsg);
+
+            // [Sorting Logic] New messages (highest timestamp) jump to the top
+            chats.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
         }
 
         // Default if no messages
@@ -200,8 +200,9 @@ window.WeChat.Views = {
 
             return `
             <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.openChat('${chat.id}')" style="height: 64px; padding: 8px 12px; position: relative;">
-                <div style="position: relative; margin-right: 10px;">
-                    <img src="${chat.avatar || 'assets/images/avatar_placeholder.png'}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" style="width: 44px; height: 44px; border-radius: 6px; background: #eee;">
+                <div style="position: relative; margin-right: 10px; width: 44px; height: 44px; flex-shrink: 0;">
+                    <img src="${chat.avatar || 'assets/images/avatar_placeholder.png'}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" style="width: 44px; height: 44px; border-radius: 6px; background: #eee; object-fit: cover;">
+                    ${badgeHtml}
                 </div>
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
@@ -212,7 +213,6 @@ window.WeChat.Views = {
                         ${chat.lastMsg}
                     </div>
                 </div>
-                ${badgeHtml}
             </div>
             `;
         }).join('');
@@ -257,7 +257,7 @@ window.WeChat.Views = {
                 <div style="background: var(--wx-cell-bg); padding: 16px 20px 24px 20px; display: flex; flex-wrap: wrap; gap: 24px; margin-top: 0;">
                      <!-- Member: Peer (Clickable) -->
                      <div onclick="window.WeChat.App.openUserProfile('${sessionId}', '${realName}')" style="display: flex; flex-direction: column; align-items: center; width: 56px; cursor: pointer;">
-                        <img src="${avatar}" style="width: 56px; height: 56px; border-radius: 6px; margin-bottom: 6px; background: #eee;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
+                        <img src="${avatar}" style="width: 56px; height: 56px; border-radius: 6px; margin-bottom: 6px; background: #eee; object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
                         <span style="font-size: 11px; color: var(--wx-text-sec); width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${realName}</span>
                      </div>
                      <!-- Add Button -->
@@ -269,11 +269,6 @@ window.WeChat.Views = {
                 </div>
 
                 <div class="wx-cell-group">
-                    ${(() => {
-                const char = window.sysStore?.getCharacter(sessionId);
-                const isSoulOn = char?.settings?.soul_injection_enabled !== false; // 默认开启
-                return this._renderSwitchCell('注入最新状态', isSoulOn, `window.WeChat.App.toggleSoulInjection('${sessionId}', !${isSoulOn})`);
-            })()}
                     ${(() => {
                 const char = window.sysStore?.getCharacter(sessionId);
                 const isBgOn = char?.settings?.bg_activity_enabled === true;
@@ -352,7 +347,7 @@ window.WeChat.Views = {
             return `
                 <div style="background: ${cardBg}; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                     <div style="display: flex; align-items: flex-start; margin-bottom: 10px;">
-                        <img src="${avatar}" style="width: 36px; height: 36px; border-radius: 4px; margin-right: 10px; background: #eee;">
+                        <img src="${avatar}" style="width: 36px; height: 36px; border-radius: 4px; margin-right: 10px; background: #eee; object-fit: cover;">
                         <div style="flex: 1;">
                             <div style="font-size: 15px; font-weight: 500; color: var(--wx-text); margin-bottom: 2px;">${name}</div>
                             <div style="font-size: 12px; color: var(--wx-text-sec);">${dateStr}</div>
@@ -415,7 +410,7 @@ window.WeChat.Views = {
                 
                 <!-- Profile Header -->
                 <div style="background: var(--wx-cell-bg); padding: 24px 24px 24px 24px; display: flex; align-items: flex-start; margin-bottom: 0;">
-                    <img src="${user.avatar}" onclick="window.WeChat.App.triggerAvatarUpload('${userId}')" style="width: 60px; height: 60px; border-radius: 6px; margin-right: 16px; background: #eee; cursor: pointer;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
+                    <img src="${user.avatar}" onclick="window.WeChat.App.triggerAvatarUpload('${userId}')" style="width: 60px; height: 60px; border-radius: 6px; margin-right: 16px; background: #eee; object-fit: cover; cursor: pointer;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
                     <div style="flex: 1; min-width: 0; padding-top: 2px;">
                         <div style="font-size: 20px; font-weight: 500; color: var(--wx-text); margin-bottom: 6px; display: flex; align-items: center; line-height: 1.1;">
                             ${user.name}
@@ -730,14 +725,45 @@ window.WeChat.Views = {
             ? window.WeChat.Services.Contacts.getContacts()
             : [];
 
-        let listHtml = contacts.map(c => this._renderCell({
-            text: c.name,
-            iconColor: c.type === 'system' ? '#fa9d3b' : '#eee',
-            iconType: 'user_avatar',
-            showArrow: false,
-            onClick: `window.WeChat.App.openUserProfile('${this.escapeQuote(c.id)}', '${this.escapeQuote(c.name)}')`,
-            avatar: c.avatar
-        })).join('');
+        // Sort contacts by section (A-Z, #)
+        contacts.sort((a, b) => {
+            // Force non-alpha initial chars to '#'
+            let sectionA = (a.section && /^[A-Za-z]$/.test(a.section)) ? a.section.toUpperCase() : '#';
+            let sectionB = (b.section && /^[A-Za-z]$/.test(b.section)) ? b.section.toUpperCase() : '#';
+
+            if (sectionA === sectionB) return a.name.localeCompare(b.name);
+            if (sectionA === '#') return 1;
+            if (sectionB === '#') return -1;
+            return sectionA.localeCompare(sectionB);
+        });
+
+        let listHtml = '';
+        let lastSection = null;
+
+        contacts.forEach(c => {
+            // Force render logic to also adhere to this
+            const rawSection = c.section || '#';
+            const section = /^[A-Za-z]$/.test(rawSection) ? rawSection.toUpperCase() : '#';
+
+            if (section !== lastSection) {
+                // Render Section Header
+                listHtml += `
+                    <div style="padding: 8px 16px; font-size: 11px; color: var(--wx-text-sec);">
+                        ${section}
+                    </div>
+                `;
+                lastSection = section;
+            }
+
+            listHtml += this._renderCell({
+                text: c.name,
+                iconColor: c.type === 'system' ? '#fa9d3b' : '#eee',
+                iconType: 'user_avatar',
+                showArrow: false,
+                onClick: `window.WeChat.App.openUserProfile('${this.escapeQuote(c.id)}', '${this.escapeQuote(c.name)}')`,
+                avatar: c.avatar
+            });
+        });
 
         return `
             <div class="wx-view-container" id="wx-view-contacts" onclick="window.WeChat.App.closeAllPanels()">
@@ -747,9 +773,6 @@ window.WeChat.Views = {
                     ${this._renderSimpleCell('群聊', '#07c160', 'group')}
                     ${this._renderSimpleCell('标签', '#2782d7', 'tag')}
                     ${this._renderSimpleCell('公众号', '#2782d7', 'offical')}
-                    <div style="padding: 10px 16px; display: flex; align-items: center; border-bottom: 0.5px solid var(--wx-border);">
-                         <span style="font-size:11px; color:var(--wx-text-sec);">我的企业及企业联系人</span>
-                    </div>
                     ${listHtml}
                </div>
             </div>
@@ -790,7 +813,7 @@ window.WeChat.Views = {
             <div class="wx-scroller" id="wx-view-me">
                 <div class="wx-nav-spacer"></div>
                 <div class="wx-profile-header">
-                    <img src="${userAvatar}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" class="wx-avatar" onclick="window.WeChat.App.triggerAvatarUpload()" style="cursor: pointer;" />
+                    <img src="${userAvatar}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='" class="wx-avatar" onclick="window.WeChat.App.triggerAvatarUpload()" style="cursor: pointer; object-fit: cover;" />
                     <div class="wx-profile-info">
                         <div class="wx-profile-name">User</div>
                         <div class="wx-profile-id">
@@ -865,7 +888,7 @@ window.WeChat.Views = {
         let iconHtml = '';
         if (iconType === 'user_avatar') {
             const src = avatar || 'assets/images/avatar_placeholder.png';
-            iconHtml = `<img src="${src}" style="width:36px; height:36px; border-radius:4px; margin-right:12px; flex-shrink:0; background:${iconColor};" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">`;
+            iconHtml = `<img src="${src}" style="width:36px; height:36px; border-radius:4px; margin-right:12px; flex-shrink:0; background:${iconColor}; object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">`;
         } else if (iconType) {
             let svgContent = '';
             switch (iconType) {
@@ -978,7 +1001,7 @@ window.WeChat.Views = {
                     <div class="wx-char-panel-scrollable" style="flex: 1; overflow-y: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none;">
                         <style>.wx-char-panel-scrollable::-webkit-scrollbar { display: none; }</style>
                         <div class="wx-char-panel-main">
-                            <img src="${char.avatar || 'assets/images/avatar_placeholder.png'}" class="wx-char-panel-avatar" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
+                            <img src="${char.avatar || 'assets/images/avatar_placeholder.png'}" class="wx-char-panel-avatar" style="object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
                             <div class="wx-char-panel-name">${char.name || '未知角色'}</div>
                             <div class="wx-char-panel-affection">❤️ ${status.affection || '0.0'}</div>
                         </div>
@@ -991,7 +1014,7 @@ window.WeChat.Views = {
                                     </div>
                                 </div>
                                 <div class="wx-char-card-content">
-                                    ${status.outfit || '暂无描述'}
+                                    ${String(status.outfit || '暂无描述')}
                                 </div>
                             </div>
 
@@ -1002,7 +1025,7 @@ window.WeChat.Views = {
                                     </div>
                                 </div>
                                 <div class="wx-char-card-content">
-                                    ${status.behavior || '暂无描述'}
+                                    ${String(status.behavior || '暂无描述')}
                                 </div>
                             </div>
 
@@ -1013,7 +1036,7 @@ window.WeChat.Views = {
                                     </div>
                                 </div>
                                 <div class="wx-char-card-content">
-                                    ${status.inner_voice || '暂无消息'}
+                                    ${String(status.inner_voice || '暂无消息')}
                                 </div>
                             </div>
                         </div>
@@ -1197,11 +1220,14 @@ window.WeChat.Views = {
                         </div>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        <div style="font-size: 12px; color: #333; line-height: 1.5; width: 100%;">❤️ 好感度: ${record.status?.affection || '0.0'}</div>
-                        <div style="font-size: 12px; color: #666; line-height: 1.5; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            👕 ${record.status?.outfit || '暂无描述'}
+                        <div style="font-size: 12px; color: gold; line-height: 1.5; width: 100%;">❤️ 好感度: ${record.status?.affection || '0.0'}</div>
+                        <div style="font-size: 12px; color: var(--wx-text); line-height: 1.5; width: 100%;">
+                            👕 服装: ${record.status?.outfit || '暂无描述'}
                         </div>
-                        <div style="font-size: 11px; color: #999; line-height: 1.4; background: #f5f6f8; padding: 6px 10px; border-radius: 8px; width: 100%;">
+                        <div style="font-size: 12px; color: var(--wx-text-sec); line-height: 1.5; width: 100%;">
+                            🏃 行为: ${record.status?.behavior || '暂无描述'}
+                        </div>
+                        <div style="font-size: 11px; color: #999; line-height: 1.4; background: var(--wx-bg-alt); padding: 8px 12px; border-radius: 12px; width: 100%; margin-top: 4px; font-style: italic;">
                             心声: ${record.status?.inner_voice || '无'}
                         </div>
                     </div>

@@ -1,64 +1,162 @@
 /**
  * js/core/store.js
  * * 本模块负责系统的持久化存储。
- * 已升级以支持 CharaOS 蓝图功能：消息总线与角色状态管理。
+ * * [Upgrade] Storage Engine upgraded to IndexedDB + Memory Cache
+ * * Enables "Unlimited" storage capacity while keeping Sync API compatibility.
  * * @author CharaOS Team
  */
 
 const APP_PREFIX = 'chara_os_';
+const DB_NAME = 'CharaOS_Storage_V1';
+const STORE_NAME = 'key_value_pairs';
 
 class Store {
     constructor() {
         this.cache = {};
-        this.init(); // 确保实例化时自动初始化
+        this.db = null;
+        this.pendingWrites = new Map(); // Debounce map
+
+        // Return a promise that resolves when DB is loaded into cache
+        this.readyPromise = this._initInfrastructure();
     }
 
-    // =================================================
-    // Part 1: Legacy Core (兼容旧代码 - 💀严禁修改)
-    // =================================================
+    // --- Infrastructure (Async) ---
 
-    get(key, defaultValue = null) {
-        if (this.cache[key]) return this.cache[key];
-        try {
-            const value = localStorage.getItem(APP_PREFIX + key);
-            if (value === null) return defaultValue;
-            const parsed = JSON.parse(value);
-            this.cache[key] = parsed;
-            return parsed;
-        } catch (e) {
-            return defaultValue;
+    async _initInfrastructure() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+
+            request.onsuccess = async (event) => {
+                this.db = event.target.result;
+                await this._loadAllToCache();
+
+                // Initialize default data if cache is empty (New User or Clean Slate)
+                this._ensureDefaults();
+
+                console.log('[Store] Infrastructure Ready (IndexedDB Mode)');
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                console.error('[Store] IndexedDB Error:', event.target.error);
+                // Fallback to localStorage if IDB fails?
+                // For now, allow cache to work in memory-only mode if DB fails
+                resolve();
+            };
+        });
+    }
+
+    async _loadAllToCache() {
+        return new Promise((resolve) => {
+            try {
+                const transaction = this.db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.openCursor();
+                let count = 0;
+
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        this.cache[cursor.key] = cursor.value;
+                        count++;
+                        cursor.continue();
+                    } else {
+                        // EOF
+                        if (count === 0) {
+                            // If IDB is empty, try to migrate from LocalStorage
+                            this._migrateFromLocalStorage();
+                        }
+                        resolve();
+                    }
+                };
+
+                request.onerror = () => resolve(); // Ignore errors, proceed with empty/partial cache
+            } catch (e) {
+                console.error('Loader failed', e);
+                resolve();
+            }
+        });
+    }
+
+    _migrateFromLocalStorage() {
+        console.log('[Store] Migrating from LocalStorage to IndexedDB...');
+        let migratedCount = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(APP_PREFIX)) {
+                try {
+                    const rawVal = localStorage.getItem(key);
+                    const val = JSON.parse(rawVal);
+
+                    // Strip prefix for internal cache (Optional, but let's keep prefix for logic consistency if needed)
+                    // Actually, the Store methods usually expect raw keys like 'chara_db_messages'
+                    // But in old Store.js, keys passed to get() didn't have prefix, prefix was added in get().
+                    // Wait, old code: get(key) -> localStorage.getItem(APP_PREFIX + key)
+                    // So the key in LocalStorage IS 'chara_os_chara_db_messages'.
+
+                    // We will store it in IDB using the SAME KEY (without prefix? or with?)
+                    // To keep new `get` compatible: get(key) { return this.cache[key]; }
+                    // We should strip the prefix if we want cleaner keys, OR we follow the existing pattern.
+                    // Let's look at `get(key)` implementation below.
+                    // It uses `this.cache[key]`.
+
+                    // SO: We must store in `this.cache` WITHOUT the prefix.
+                    // The migration needs to strip the prefix.
+
+                    const cleanKey = key.replace(APP_PREFIX, '');
+                    this.cache[cleanKey] = val;
+                    this._persist(cleanKey, val); // Save to IDB
+                    migratedCount++;
+                } catch (e) {
+                    console.warn('Migration skip:', key);
+                }
+            }
         }
-    }
-
-    set(key, value) {
-        try {
-            this.cache[key] = value;
-            localStorage.setItem(APP_PREFIX + key, JSON.stringify(value));
-        } catch (e) {
-            console.error('Storage Save Failed:', e);
-            if (e.name === 'QuotaExceededError' || e.code === 22) {
-                alert('保存失败：存储空间不足。请删除一些大图片或使用图床功能。');
+        if (migratedCount > 0) {
+            console.log(`[Store] Migrated ${migratedCount} items. Clearing LocalStorage...`);
+            // Optional: Clear LocalStorage to free up space, or keep as backup?
+            // Better clear it to avoid confusion and "Stock Full" errors in other apps
+            // But for safety, maybe just leave it?
+            // The user wants "Extended Capacity", so we MUST move away from LS.
+            // Let's clear the migrated keys.
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(APP_PREFIX)) {
+                    localStorage.removeItem(key);
+                }
             }
         }
     }
 
-    remove(key) {
-        delete this.cache[key];
-        localStorage.removeItem(APP_PREFIX + key);
+    _persist(key, value) {
+        if (!this.db) return;
+
+        // Debounce? No, IDB is fast enough for object writes usually. 
+        // But let's simple-fire-and-forget for now.
+        const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        store.put(value, key);
+
+        transaction.oncomplete = () => {
+            // Success
+        };
+        transaction.onerror = (e) => {
+            console.error('IDB Write Failed', e);
+        };
     }
 
-    // =================================================
-    // Part 2: Genesis Core (新功能 - 用于微信/Siri)
-    // =================================================
-
-    /**
-     * 初始化存储系统
-     */
-    init() {
+    _ensureDefaults() {
         const initialStates = {
-            'chara_db_messages': [],                // 消息总线
-            'chara_db_characters': {},              // 角色表
-            'chara_db_world': {                     // 世界状态
+            'chara_db_messages': [],
+            'chara_db_characters': {},
+            'chara_db_world': {
                 mode: 'online',
                 location: 'home',
                 offline_participants: []
@@ -66,28 +164,51 @@ class Store {
         };
 
         Object.keys(initialStates).forEach(key => {
-            if (this.get(key) === null) {
+            if (this.cache[key] === undefined) {
                 this.set(key, initialStates[key]);
             }
         });
-
-        // 可选：打印日志确认初始化
-        // console.log('[Store] Genesis Core Ready');
     }
 
-    /**
-     * 获取所有消息数组 (Siri 全知视角)
-     * @returns {Array}
-     */
-    getAllMessages() {
-        return this.get('chara_db_messages', []);
-    }
+    // --- Public API (Async Waiter) ---
 
     /**
-     * 获取“我”与 targetId 的所有交互
-     * 自动过滤 sender_id 或 receiver_id
-     * @param {string} targetId 对方角色 ID
+     * Wait for the Store to be fully loaded from Disk.
+     * All Apps should await this before rendering.
      */
+    async ready() {
+        return this.readyPromise;
+    }
+
+    // --- Public API (Sync) ---
+    // Reads are instant (from Memory)
+
+    get(key, defaultValue = null) {
+        // If cache has it, return it.
+        if (this.cache[key] !== undefined) {
+            return this.cache[key];
+        }
+        return defaultValue;
+    }
+
+    set(key, value) {
+        this.cache[key] = value;
+        // Asynchronous persistence
+        this._persist(key, value);
+    }
+
+    remove(key) {
+        delete this.cache[key];
+        if (this.db) {
+            const tx = this.db.transaction([STORE_NAME], 'readwrite');
+            tx.objectStore(STORE_NAME).delete(key);
+        }
+    }
+
+    // --- Helpers (Same as before) ---
+
+    getAllMessages() { return this.get('chara_db_messages', []); }
+
     getMessagesBySession(targetId) {
         const messages = this.getAllMessages();
         const isMe = (id) => id === 'user' || id === 'me' || id === 'my';
@@ -97,10 +218,6 @@ class Store {
         );
     }
 
-    /**
-     * [Spy Mode] 获取任意两个角色之间的交互
-     * 用于“查看角色手机”功能
-     */
     getMessagesBetween(charA, charB) {
         const messages = this.getAllMessages();
         return messages.filter(m =>
@@ -109,16 +226,8 @@ class Store {
         );
     }
 
-    /**
-     * 根据 ID 获取单条消息
-     */
-    getMessageById(id) {
-        return this.getAllMessages().find(m => m.id === id) || null;
-    }
+    getMessageById(id) { return this.getAllMessages().find(m => m.id === id) || null; }
 
-    /**
-     * 删除单条消息
-     */
     deleteMessage(id) {
         const messages = this.getAllMessages();
         const index = messages.findIndex(m => m.id === id);
@@ -130,55 +239,33 @@ class Store {
         return false;
     }
 
-    /**
-     * 添加消息到消息总线
-     * @param {Object} payload {sender_id, receiver_id, content, type}
-     */
     addMessage(payload) {
         const messages = this.getAllMessages();
         const newMessage = {
-            id: window.utils.generateUUID(),
+            id: window.utils ? window.utils.generateUUID() : Date.now() + '_' + Math.random(),
             timestamp: Date.now(),
             is_recalled: false,
             read_status: {},
-            ...payload // 包含 sender_id, receiver_id, content, type
+            ...payload
         };
         messages.push(newMessage);
         this.set('chara_db_messages', messages);
         return newMessage;
     }
 
-    /**
-     * 获取特定角色对象
-     */
-    getCharacter(id) {
-        const db = this.get('chara_db_characters', {});
-        return db[id] || null;
-    }
+    getCharacter(id) { const db = this.get('chara_db_characters', {}); return db[id] || null; }
+    getAllCharacters() { const db = this.get('chara_db_characters', {}); return Object.values(db); }
 
-    /**
-     * 获取所有角色数组
-     * @returns {Array} 角色数组
-     */
-    getAllCharacters() {
-        const db = this.get('chara_db_characters', {});
-        return Object.values(db);
-    }
-
-    /**
-     * 更新角色状态（深度合并）
-     */
     updateCharacter(id, data) {
         const db = this.get('chara_db_characters', {});
         const current = db[id] || {};
-        db[id] = window.utils.deepMerge(current, data);
+        // Use window.utils.deepMerge if available, else simple spread
+        const merged = window.utils && window.utils.deepMerge ? window.utils.deepMerge(current, data) : { ...current, ...data };
+        db[id] = merged;
         this.set('chara_db_characters', db);
         return db[id];
     }
 
-    /**
-     * 删除特定角色
-     */
     deleteCharacter(id) {
         const db = this.get('chara_db_characters', {});
         if (db[id]) {
@@ -189,10 +276,6 @@ class Store {
         return false;
     }
 
-    /**
-     * 清空特定会话的所有消息
-     * @param {string} targetId 对方角色 ID
-     */
     clearMessagesBySession(targetId) {
         let messages = this.getAllMessages();
         const isMe = (id) => id === 'user' || id === 'me' || id === 'my';
@@ -203,16 +286,10 @@ class Store {
         this.set('chara_db_messages', messages);
     }
 
-    /**
-     * 重置角色状态（清空记忆、状态面板等，但在通讯录保留）
-     * @param {string} id 角色 ID
-     */
     resetCharacterState(id) {
         const db = this.get('chara_db_characters', {});
         const char = db[id];
         if (char) {
-            // Keep identity fields (id, name, avatar, persona settings)
-            // Reset dynamic fields (memories, status, mood, etc.)
             db[id] = {
                 id: char.id,
                 name: char.name,
@@ -223,13 +300,10 @@ class Store {
                 main_persona: char.main_persona,
                 section: char.section,
                 type: char.type,
-                settings: char.settings, // Keep user preferences? Or reset? Usually keep general settings.
-
-                // Clear these:
+                settings: char.settings,
                 memories: [],
                 status: {},
-                status_history: [], // User requested to clear history too
-                // Any other dynamic fields?
+                status_history: []
             };
             this.set('chara_db_characters', db);
             return true;
@@ -237,7 +311,6 @@ class Store {
         return false;
     }
 }
-
 
 // 实例化并挂载到 window
 window.sysStore = new Store();

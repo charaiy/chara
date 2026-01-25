@@ -73,6 +73,65 @@ class CharaOS {
         }, duration);
     }
 
+    /**
+     * 显示顶部横幅通知
+     * @param {Object} config
+     * @param {string} config.app - App ID (e.g. 'wechat')
+     * @param {string} config.title - 标题
+     * @param {string} config.content - 内容
+     * @param {string} config.icon - 图标URL
+     * @param {Object} config.data - 附加数据
+     */
+    pushNotification(config) {
+        const { app, title, content, icon, data } = config;
+
+        // Remove existing banner
+        const oldBanner = document.querySelector('.os-notification-banner');
+        if (oldBanner) oldBanner.remove();
+
+        const banner = document.createElement('div');
+        banner.className = 'os-notification-banner';
+
+        banner.innerHTML = `
+            <div class="os-notification-icon">
+                <img src="${icon || 'assets/icons/system.png'}" onerror="this.src='assets/icons/system.png'">
+            </div>
+            <div class="os-notification-content">
+                <div class="os-notification-header">
+                    <span class="os-notification-title">${title}</span>
+                    <span class="os-notification-time">现在</span>
+                </div>
+                <div class="os-notification-body">${content}</div>
+            </div>
+        `;
+
+        // Click Handler: Open App
+        banner.onclick = () => {
+            if (app === 'wechat' && window.WeChat) {
+                this.openWeChat();
+                if (data && data.sessionId && window.WeChat.App.openChat) {
+                    // Wait for render
+                    setTimeout(() => window.WeChat.App.openChat(data.sessionId), 100);
+                }
+            }
+            banner.classList.remove('show');
+            setTimeout(() => banner.remove(), 400);
+        };
+
+        const osRoot = document.getElementById('os-root') || document.body;
+        osRoot.appendChild(banner);
+
+        // Animate in
+        requestAnimationFrame(() => banner.classList.add('show'));
+
+        // Auto dismiss
+        if (this._notifTimer) clearTimeout(this._notifTimer);
+        this._notifTimer = setTimeout(() => {
+            banner.classList.remove('show');
+            setTimeout(() => banner.remove(), 400);
+        }, 5000);
+    }
+
     initDOM() {
         this.dom = {
             root: document.getElementById('os-root'),
@@ -462,7 +521,12 @@ class CharaOS {
         });
     }
 
-    _initWeatherModule() {
+    async _initWeatherModule() {
+        // [Fix] Wait for Store to be ready before checking saved location
+        if (window.sysStore && window.sysStore.ready) {
+            await window.sysStore.ready();
+        }
+
         const fetchWeather = async (lat, lon, locationName) => {
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
@@ -475,14 +539,28 @@ class CharaOS {
                     const desc = WEATHER_MAP[code] || '未知';
 
                     if (this.dom.weatherDisplay) {
-                        this.dom.weatherDisplay.innerHTML = `<span class="weather-location">${locationName}</span> <span class="weather-icon">${desc}</span> ${temp}°C`;
+                        this.dom.weatherDisplay.innerHTML = `<span class="weather-location" style="cursor:pointer;" title="点击重新定位">${locationName}</span> <span class="weather-icon">${desc}</span> ${temp}°C`;
                         console.log(`Weather updated: ${locationName} ${desc} ${temp}°C`);
+
+                        // Bind click to refresh
+                        const locEl = this.dom.weatherDisplay.querySelector('.weather-location');
+                        if (locEl) {
+                            locEl.onclick = () => {
+                                if (confirm('重新获取当前定位？')) {
+                                    window.sysStore.remove('last_lat');
+                                    window.sysStore.remove('last_lon');
+                                    window.sysStore.remove('last_location_name');
+                                    this.dom.weatherDisplay.innerHTML = '正在定位...';
+                                    startLocationSequence();
+                                }
+                            };
+                        }
                     }
                 }
             } catch (e) {
                 console.error('Weather fetch failed:', e);
                 if (this.dom.weatherDisplay) {
-                    this.dom.weatherDisplay.innerHTML = `<span class="weather-location">${locationName}</span> <span class="weather-icon">--</span> --°C`;
+                    this.dom.weatherDisplay.innerHTML = `<span class="weather-location" style="cursor:pointer;" onclick="location.reload()">未知</span> --°C`;
                 }
             }
         };
@@ -499,34 +577,39 @@ class CharaOS {
             }
         };
 
+        const startLocationSequence = () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lon = pos.coords.longitude;
+                        const locationName = await getLocationName(lat, lon);
+                        window.sysStore.set('last_lat', lat.toString());
+                        window.sysStore.set('last_lon', lon.toString());
+                        window.sysStore.set('last_location_name', locationName);
+                        fetchWeather(lat, lon, locationName);
+                    },
+                    (err) => {
+                        console.warn('Geolocation denied, using default (Beijing)', err);
+                        fetchWeather(39.9042, 116.4074, '北京');
+                    }
+                );
+            } else {
+                fetchWeather(39.9042, 116.4074, '北京');
+            }
+        };
+
         const savedLat = window.sysStore.get('last_lat');
         const savedLon = window.sysStore.get('last_lon');
         const savedName = window.sysStore.get('last_location_name');
 
         if (savedLat && savedLon && savedName) {
+            console.log('[OS] Using saved location:', savedName);
             fetchWeather(savedLat, savedLon, savedName);
             return;
         }
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    const locationName = await getLocationName(lat, lon);
-                    window.sysStore.set('last_lat', lat.toString());
-                    window.sysStore.set('last_lon', lon.toString());
-                    window.sysStore.set('last_location_name', locationName);
-                    fetchWeather(lat, lon, locationName);
-                },
-                (err) => {
-                    console.warn('Geolocation denied, using default (Beijing)', err);
-                    fetchWeather(39.9042, 116.4074, '北京');
-                }
-            );
-        } else {
-            fetchWeather(39.9042, 116.4074, '北京');
-        }
+        startLocationSequence();
     }
 
 

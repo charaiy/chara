@@ -58,9 +58,14 @@ const State = {
     characterPanelOpen: false,
     relationshipPanelOpen: false,
     statusHistoryPanelOpen: false,
+    cameraFacingMode: 'user', // 'user' or 'environment'
 
     // Pending edits for relationship management
-    pendingRelationship: null
+    pendingRelationship: null,
+    cameraModalOpen: false,
+    locationModalOpen: false, // New State
+    transferModalOpen: false, // New State
+    cameraError: null
 };
 
 window.WeChat = window.WeChat || {};
@@ -78,13 +83,44 @@ window.WeChat.App = {
         State.stickerTab = 'heart';
         State.selectionMode = false;
         State.selectedStickers = new Set();
+        State.cameraModalOpen = false;
+        State.cameraFacingMode = 'user';
 
         this.injectForceStyles();
 
         // [file:// Compatibility] Stickers service is now statically loaded in index.html
         // No dynamic loading needed - this ensures file:// protocol compatibility
 
+        // [Upgrade] Wait for Store (IndexedDB) to be ready
+        if (window.sysStore && window.sysStore.ready) {
+            await window.sysStore.ready();
+        }
+
         this.render();
+    },
+
+    sendMessage(text) {
+        if (!text) return;
+        const cleanText = text.trim();
+        if (!cleanText) return;
+
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            window.WeChat.Services.Chat.sendMessage(cleanText, 'text');
+        }
+
+        // Clear input
+        const input = document.getElementById('wx-chat-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    },
+
+    setTypingState(isTyping) {
+        if (State.isTyping !== isTyping) {
+            State.isTyping = isTyping;
+            this.render();
+        }
     },
 
 
@@ -246,6 +282,18 @@ window.WeChat.App = {
             let contentHtml = '', navTitle = '微信', rightIcon = 'add', showBack = false, rightAction = '';
 
             if (State.currentTab === 'chat_session') {
+                // [Fix] Ensure Service is synced with App State
+                if (window.WeChat.Services && window.WeChat.Services.Chat && State.activeSessionId) {
+                    if (window.WeChat.Services.Chat._activeSession !== State.activeSessionId) {
+                        window.WeChat.Services.Chat.openSession(State.activeSessionId);
+                    }
+                }
+
+                // [Fix] Enforce clearing unread status while in chat (SILENTLY to avoid infinite loop)
+                if (window.WeChat.Services && window.WeChat.Services.Notifications && State.activeSessionId) {
+                    window.WeChat.Services.Notifications.clearUnread(State.activeSessionId, true);
+                }
+
                 navTitle = State.chatTitle || '聊天';
                 contentHtml = Views.renderChatSession(State.activeSessionId);
                 rightIcon = 'more';
@@ -308,6 +356,10 @@ window.WeChat.App = {
             const showTabBar = (typeof State.currentTab === 'number');
             const selectionModeClass = State.msgSelectionMode ? 'wx-msg-selection-active' : '';
 
+            // --- Enhanced Scroll Preservation ---
+            const viewEl = document.getElementById('wx-view-session');
+            const oldScrollTop = viewEl ? viewEl.scrollTop : null;
+
             State.root.innerHTML = `
                     <div class="wechat-app ${selectionModeClass}">
                         ${this.renderNavBarOverride({ title: navTitle, showBack, rightIcon, rightAction })}
@@ -317,12 +369,18 @@ window.WeChat.App = {
                         ${this.renderModals()}
                     </div>
                 `;
-            // --- Auto Scroll for Chat Session ---
+
+            // --- Restore or Update Scroll ---
             if (State.currentTab === 'chat_session') {
-                setTimeout(() => {
-                    const view = document.getElementById('wx-view-session');
-                    if (view) view.scrollTop = view.scrollHeight;
-                }, 50);
+                const newView = document.getElementById('wx-view-session');
+                if (newView) {
+                    if (State.shouldScrollToBottom) {
+                        newView.scrollTop = newView.scrollHeight;
+                        State.shouldScrollToBottom = false; // Reset
+                    } else if (oldScrollTop !== null) {
+                        newView.scrollTop = oldScrollTop; // Keep position
+                    }
+                }
             }
         } catch (e) {
             console.error(e);
@@ -846,6 +904,7 @@ window.WeChat.App = {
             window.WeChat.Services.Chat.openSession(id);
         }
 
+        State.shouldScrollToBottom = true; // [Fix] Only scroll on initial entry
         this.render();
     },
 
@@ -1038,10 +1097,369 @@ window.WeChat.App = {
         this.closeModals();
     },
 
+
+    // --- Photo & Camera Features ---
+
+    triggerPhotoUpload() {
+        let input = document.getElementById('wx-photo-upload-input');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'file';
+            input.id = 'wx-photo-upload-input';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            input.onchange = (e) => this.handlePhotoFileSelect(e.target);
+            document.body.appendChild(input);
+        }
+        input.click();
+        this.toggleExtraPanel(); // Close the panel
+    },
+
+    handlePhotoFileSelect(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            window.WeChat.Services.Chat.sendMessage(dataUrl, 'image');
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+    },
+
+    triggerCamera() {
+        this.toggleExtraPanel(); // Close the panel
+        State.cameraModalOpen = true;
+        this.render();
+        // Delay to ensure DOM is ready
+        setTimeout(() => this.initCamera(), 100);
+    },
+
+    async initCamera() {
+        this._stopCameraStream(); // Stop any existing stream first
+
+        // 1. Check Support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            this._handleCameraError('SecureContextRequired');
+            return;
+        }
+
+        const video = document.getElementById('wx-camera-video');
+        if (!video) return;
+
+        try {
+            const constraints = {
+                video: { facingMode: State.cameraFacingMode },
+                audio: false
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            video.onloadedmetadata = () => video.play();
+
+            // Hide error if previously shown
+            State.cameraError = null;
+            this.render(); // Re-render to clear error state if needed
+
+        } catch (err) {
+            console.error("Camera access failed", err);
+            // Ignore abort error which happens during quick switching
+            if (err.name !== 'AbortError' && err.name !== 'NotReadableError') {
+                this._handleCameraError(err.name);
+            }
+        }
+    },
+
+    _handleCameraError(errorName) {
+        State.cameraError = errorName;
+        this.render(); // Trigger re-render to show fallback
+
+        let msg = '无法访问摄像头';
+        if (errorName === 'NotAllowedError') msg = '请在浏览器设置中允许摄像头权限';
+        if (errorName === 'SecureContextRequired') msg = '当前环境不支持摄像头 (需 HTTPS 或 localhost)';
+        if (errorName === 'NotFoundError') msg = '未检测到摄像头设备';
+
+        if (window.os) window.os.showToast(msg, 'error');
+    },
+
+    switchCamera() {
+        State.cameraFacingMode = State.cameraFacingMode === 'user' ? 'environment' : 'user';
+        this.initCamera();
+    },
+
+    capturePhoto() {
+        const video = document.getElementById('wx-camera-video');
+        if (!video) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+
+        // Mirror if user facing
+        if (State.cameraFacingMode === 'user') {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        window.WeChat.Services.Chat.sendMessage(dataUrl, 'image');
+
+        this.closeCameraModal();
+    },
+
+    _stopCameraStream() {
+        const video = document.getElementById('wx-camera-video');
+        if (video && video.srcObject) {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+    },
+
+    closeCameraModal() {
+        this._stopCameraStream();
+        State.cameraModalOpen = false;
+        this.render();
+    },
+
+    // --- Location Feature ---
+    triggerLocation() {
+        this.toggleExtraPanel(); // Close extra panel
+        State.locationModalOpen = true;
+        this.render();
+    },
+
+    closeLocationModal() {
+        State.locationModalOpen = false;
+        this.render();
+    },
+
+    sendLocation() {
+        const nameInput = document.getElementById('wx-location-name');
+        const remarkInput = document.getElementById('wx-location-remark');
+        const distInput = document.getElementById('wx-location-dist');
+
+        const locationName = nameInput ? nameInput.value.trim() : '';
+        const remark = remarkInput ? remarkInput.value.trim() : '';
+        const distance = distInput ? distInput.value.trim() : '';
+
+        if (!locationName) {
+            if (window.os) window.os.showToast('请输入位置名称', 'error');
+            return;
+        }
+
+        // Construct detail string: "Remark" + " | " + "Distance"
+        let detailParts = [];
+        if (remark) detailParts.push(remark);
+        if (distance) detailParts.push(`距你 ${distance} km`);
+        const detailText = detailParts.join(' | ');
+
+        const payload = {
+            name: locationName,
+            detail: detailText || locationName // Fallback
+        };
+
+        window.WeChat.Services.Chat.sendMessage(JSON.stringify(payload), 'location');
+
+        this.closeLocationModal();
+        if (window.os) window.os.showToast('位置已发送');
+    },
+
+    // --- Transfer Feature --- //
+    triggerTransfer() {
+        this.toggleExtraPanel();
+        State.transferModalOpen = true;
+        this.render();
+    },
+
+    closeTransferModal() {
+        State.transferModalOpen = false;
+        this.render();
+    },
+
+    sendTransfer() {
+        const amountInput = document.getElementById('wx-transfer-amount');
+        const noteInput = document.getElementById('wx-transfer-note');
+
+        const amount = amountInput ? parseFloat(amountInput.value).toFixed(2) : '0.00';
+        const note = noteInput ? noteInput.value.trim() : '';
+
+        if (parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) {
+            // Button should be disabled ideally, but safety check
+            return;
+        }
+
+        const payload = {
+            amount: amount,
+            note: note
+        };
+
+        window.WeChat.Services.Chat.sendMessage(JSON.stringify(payload), 'transfer');
+
+        this.closeTransferModal();
+        // if (window.os) window.os.showToast('Transfer sent'); // WeChat usually doesn't toast, just bubbles
+    },
+
     renderModals() {
-        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen && !State.bubbleMenuOpen && !State.characterPanelOpen && !State.relationshipPanelOpen && !State.statusHistoryPanelOpen) return '';
+        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen && !State.bubbleMenuOpen && !State.characterPanelOpen && !State.relationshipPanelOpen && !State.statusHistoryPanelOpen && !State.cameraModalOpen && !State.locationModalOpen && !State.transferModalOpen) return '';
 
         const char = window.sysStore.getCharacter(State.activeSessionId);
+
+        // --- Transfer Modal (Full Screen Simulation) ---
+        if (State.transferModalOpen) {
+            const avatar = char?.avatar || 'assets/images/avatar_placeholder.png';
+            const name = char?.name || 'User';
+            // Mask the real name logic (Last name masking is complex without real name data, assume 'User' for now)
+            const maskedName = name.length > 1 ? `(**${name.slice(-1)})` : name;
+
+            return `
+                <div class="wx-modal-overlay active" style="background: #EDEDED; display: block;">
+                    <!-- Nav Bar -->
+                    <div style="height: 44px; padding-top: 48px; display: flex; align-items: center; padding-left: 16px; position: relative;">
+                        <div onclick="window.WeChat.App.closeTransferModal()" style="width: 24px; cursor: pointer;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                        </div>
+                        <div style="flex: 1;"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <div style="padding: 20px 24px;">
+                        <!-- User Info -->
+                        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
+                            <img src="${avatar}" style="width: 50px; height: 50px; border-radius: 6px; margin-bottom: 12px; background: #ddd;">
+                            <div style="font-size: 16px; color: #000;">转账给 <span style="font-weight: 500;">${name}</span> ${maskedName}</div>
+                        </div>
+
+                        <!-- Card -->
+                        <div style="background: white; border-radius: 12px; padding: 24px 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="font-size: 14px; color: #000; margin-bottom: 16px;">转账金额</div>
+                            
+                            <div style="display: flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 24px;">
+                                <span style="font-size: 30px; font-weight: 600; margin-right: 8px;">¥</span>
+                                <input id="wx-transfer-amount" type="number" step="0.01" 
+                                    style="border: none; font-size: 40px; font-weight: 600; width: 100%; outline: none; caret-color: #07C160;"
+                                    placeholder="" oninput="document.getElementById('wx-transfer-btn').style.opacity = (this.value > 0 ? 1 : 0.5)">
+                            </div>
+
+                            <div style="margin-bottom: 30px;">
+                                <input id="wx-transfer-note" 
+                                    style="border: none; font-size: 14px; width: 100%; outline: none; color: #333;" 
+                                    placeholder="添加备注 (50字以内)">
+                            </div>
+
+                            <div id="wx-transfer-btn" onclick="window.WeChat.App.sendTransfer()"
+                                style="background: #07C160; color: white; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer; opacity: 0.5; transition: opacity 0.2s;">
+                                转账
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Location Modal ---
+        if (State.locationModalOpen) {
+            return `
+                <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeLocationModal()">
+                    <div class="wx-modal" onclick="event.stopPropagation()">
+                        <div class="wx-modal-header">
+                            <div class="wx-modal-title">发送位置</div>
+                        </div>
+                        <div class="wx-modal-body">
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">位置名称</div>
+                                <input id="wx-location-name" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：上海中心大厦" />
+                            </div>
+                            <div>
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">距离对方 (km)</div>
+                                <input id="wx-location-dist" type="number" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：1.5" />
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">备注 (可选)</div>
+                                <input id="wx-location-remark" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：人均¥200、历史传说、甚至是“xx的家”" />
+                            </div>
+                        </div>
+                        <div class="wx-modal-footer">
+                            <div class="wx-modal-btn cancel" onclick="window.WeChat.App.closeLocationModal()">取消</div>
+                            <div class="wx-modal-btn confirm" onclick="window.WeChat.App.sendLocation()">发送</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (State.cameraModalOpen) {
+            const errorMode = State.cameraError ? true : false;
+
+            return `
+                <div class="wx-modal-overlay active" style="background: black; display: flex; align-items: center; justify-content: center;">
+                    
+                    ${errorMode ? `
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888;">
+                            <div style="margin-bottom: 20px; font-size: 48px; opacity: 0.3;">📷</div>
+                            <div style="font-size: 16px; margin-bottom: 8px;">无法启动摄像头</div>
+                            <div style="font-size: 12px; opacity: 0.6; margin-bottom: 30px; text-align: center; padding: 0 40px;">
+                                ${State.cameraError === 'SecureContextRequired' ? '浏览器安全限制：请使用 HTTPS 或 localhost 访问' : '请检查设备连接或权限设置'}
+                            </div>
+                            <!-- Fallback Upload Button -->
+                            <div onclick="window.WeChat.App.triggerPhotoUpload()" style="padding: 10px 24px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 14px; color: white; cursor: pointer; border: 1px solid rgba(255,255,255,0.2);">
+                                从相册选择...
+                            </div>
+                        </div>
+                    ` : `
+                        <!-- Video Container -->
+                        <video id="wx-camera-video" style="width: 100%; height: 100%; object-fit: cover; transform: ${State.cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'};" autoplay playsinline></video>
+                    `}
+                    
+                    <!-- Close Button Removed as per User Request -->
+                    <!-- The close functionality is handled by the 'Cancel' button in the bottom controls -->
+
+                    <!-- Bottom Controls (Hide if error) -->
+                    <div style="position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 60px; z-index: 10002; ${errorMode ? 'display: none !important;' : ''}">
+                         <!-- Cancel / Back -->
+                         <div onclick="window.WeChat.App.closeCameraModal()" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                         </div>
+                         
+                         <!-- Shutter Button -->
+                         <div onclick="window.WeChat.App.capturePhoto()" style="width: 76px; height: 76px; border-radius: 50%; background: white; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 4px solid rgba(255,255,255,0.3); transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                             <div style="width: 60px; height: 60px; border-radius: 50%; background: white;"></div>
+                         </div>
+                         
+                         <!-- Flip Camera -->
+                         <div onclick="window.WeChat.App.switchCamera()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; backdrop-filter: blur(4px);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 .46.04.91.12 1.35"></path>
+                                <path d="M4 22c0-4.42 3.58-8 8-8s8 3.58 8 8c0-.46-.04-.91-.12-1.35"></path>
+                                <polyline points="16 11.65 20 10 20 14.35"></polyline>
+                                <polyline points="8 12.35 4 14 4 9.65"></polyline>
+                            </svg>
+                         </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Modal 6: Generic Confirmation Modal (iOS Style) - High Priority Overlay
+        if (State.confirmationModal && State.confirmationModal.open) {
+            const { title, content, onConfirm, onCancel } = State.confirmationModal;
+            return `
+                <div class="wx-modal-overlay active" style="z-index: 20002; background: rgba(0,0,0,0.4);" onclick="window.WeChat.App.closeConfirmationModal()">
+                     <div class="wx-ios-alert" onclick="event.stopPropagation()">
+                        <div class="wx-ios-alert-title">${title}</div>
+                        <div class="wx-ios-alert-content">${content}</div>
+                        <div class="wx-ios-alert-footer">
+                            <div class="wx-ios-alert-btn cancel" onclick="window.WeChat.App.closeConfirmationModal()">取消</div>
+                            <div class="wx-ios-alert-btn confirm" onclick="${onConfirm}">确定</div>
+                        </div>
+                     </div>
+                </div>
+                ${State.statusHistoryPanelOpen ? window.WeChat.Views.renderStatusHistoryPanel(State.activeSessionId) : ''}
+            `;
+        }
 
         if (State.characterPanelOpen) {
             return window.WeChat.Views.renderCharacterPanel(State.activeSessionId);
@@ -1049,6 +1467,66 @@ window.WeChat.App = {
 
         if (State.relationshipPanelOpen) {
             return window.WeChat.Views.renderRelationshipPanel(State.activeSessionId);
+        }
+
+        // Transfer Modal
+        if (State.transferModalOpen) {
+            const msg = window.sysStore.getMessageById(State.activeTransferMsgId);
+            if (!msg) {
+                setTimeout(() => window.WeChat.App.closeTransferModal(), 0);
+                return '';
+            }
+
+            let trans = { amount: '0.00', note: '' };
+            try { trans = JSON.parse(msg.content); } catch (e) { }
+
+            const status = msg.transfer_status || 'pending';
+            const isReceived = status === 'received';
+            const isRefunded = status === 'refunded';
+
+            // UI State
+            let title = '待收款';
+            let iconClass = 'waiting';
+            let statusText = '确认收款后，资金将存入零钱';
+
+            if (isReceived) {
+                title = '已收款';
+                iconClass = 'received';
+                statusText = '已存入零钱';
+            } else if (isRefunded) {
+                title = '已退款';
+                iconClass = 'refunded';
+                statusText = '该转账已退回';
+            }
+
+            return `
+                <div class="wx-modal-overlay active" style="align-items: center; justify-content: center;" onclick="if(event.target===this) window.WeChat.App.closeTransferModal()">
+                    <div class="wx-transfer-modal" style="width: 300px; background: white; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                        <div style="background: #f79e39; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: relative;">
+                            <div style="position: absolute; top: 10px; left: 10px; cursor: pointer;" onclick="window.WeChat.App.closeTransferModal()">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </div>
+                            <div style="width: 60px; height: 60px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+                            </div>
+                            <div style="font-size: 16px; margin-bottom: 5px;">${title}</div>
+                        </div>
+                        <div style="flex: 1; padding: 30px 20px; display: flex; flex-direction: column; align-items: center;">
+                            <div style="font-size: 36px; font-weight: 600; color: #333; margin-bottom: 5px;">¥${trans.amount}</div>
+                            <div style="font-size: 14px; color: #999; margin-bottom: 30px;">${trans.note || '转账给您'}</div>
+                            
+                            ${(!isReceived && !isRefunded) ? `
+                                <div onclick="window.WeChat.App.confirmReceiveTransfer()" style="width: 100%; height: 48px; background: #07c160; color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; cursor: pointer;">
+                                    确认收款
+                                </div>
+                                <div style="font-size: 12px; color: #999; margin-top: 15px;">${statusText}</div>
+                            ` : `
+                                <div style="font-size: 14px; color: #999;">${statusText}</div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         if (State.statusHistoryPanelOpen) {
@@ -1220,6 +1698,7 @@ window.WeChat.App = {
                 <div class="wx-menu-mask active" onclick="window.WeChat.App.closeMsgMenu()"></div>
                 <div class="wx-bubble-menu active ${flippedClass}" style="left: ${pos.x}px; top: ${pos.y}px;">
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.regenerateMsg('${State.bubbleMenuId}')">重回</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.recallMsg('${State.bubbleMenuId}')">撤回</div>
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.quoteMsg('${State.bubbleMenuId}')">引用</div>
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多选</div>
                     <div class="wx-bubble-menu-item delete" onclick="window.WeChat.App.deleteMsg('${State.bubbleMenuId}')">删除</div>
@@ -1227,9 +1706,36 @@ window.WeChat.App = {
             `;
         }
 
+        // Modal 6: Generic Confirmation Modal (iOS Style)
+        if (State.confirmationModal && State.confirmationModal.open) {
+            const { title, content, onConfirm, onCancel } = State.confirmationModal;
+            return `
+                <div class="wx-modal-overlay active" style="z-index: 20000; background: rgba(0,0,0,0.4);" onclick="window.WeChat.App.closeConfirmationModal()">
+                     <div class="wx-ios-alert" onclick="event.stopPropagation()">
+                        <div class="wx-ios-alert-title">${title}</div>
+                        <div class="wx-ios-alert-content">${content}</div>
+                        <div class="wx-ios-alert-footer">
+                            <div class="wx-ios-alert-btn cancel" onclick="window.WeChat.App.closeConfirmationModal()">取消</div>
+                            <div class="wx-ios-alert-btn confirm" onclick="${onConfirm}">确定</div>
+                        </div>
+                     </div>
+                </div>
+            `;
+        }
+
         return '';
     },
 
+
+    openChat(sessionId) {
+        if (!sessionId) return;
+        const char = window.sysStore.getCharacter(sessionId);
+        State.activeSessionId = sessionId;
+        State.chatTitle = char ? char.name : sessionId;
+        State.currentTab = 'chat_session';
+        State.shouldScrollToBottom = true; // FORCE SCROLL TO BOTTOM
+        this.render();
+    },
 
     openChatInfo() {
         State.prevTab = 'chat_session'; // Although strictly it came from chat session
@@ -1254,6 +1760,18 @@ window.WeChat.App = {
         if (window.WeChat.Services && window.WeChat.Services.Chat) window.WeChat.Services.Chat.sendMessage(text);
         const input = document.getElementById('wx-chat-input');
         if (input) input.value = '';
+
+        // [Fix] Force scroll to bottom to prevent "disappearing message" illusion
+        // We set the flag for any pending renders
+        State.shouldScrollToBottom = true;
+
+        // And we also try to scroll immediately after a short delay (for DOM update)
+        setTimeout(() => {
+            const view = document.getElementById('wx-view-session');
+            if (view) {
+                view.scrollTop = view.scrollHeight;
+            }
+        }, 100);
     },
     openCharacterPanel() {
         State.relationshipPanelOpen = false;
@@ -1503,13 +2021,55 @@ ${mainPersona}
         State.statusHistoryPanelOpen = false;
         this.render();
     },
-    deleteStatusHistoryRecord(sessionId, timestamp) {
+    openConfirmationModal({ title, content, onConfirm }) {
+        State.confirmationModal = {
+            open: true,
+            title,
+            content,
+            onConfirm
+        };
+        this.render();
+    },
+
+    closeConfirmationModal() {
+        State.confirmationModal = { open: false };
+        this.render();
+    },
+
+    performDeleteStatusHistoryRecord(sessionId, timestamp) {
         const char = window.sysStore.getCharacter(sessionId);
         if (!char || !char.status_history) return;
 
         const history = char.status_history.filter(record => record.timestamp !== timestamp);
-        window.sysStore.updateCharacter(sessionId, { status_history: history });
-        this.render();
+
+        // Logic: If we deleted the LATEST record (index 0), then the current active status must roll back to the new latest.
+        // If history becomes empty, reset to default.
+        let updates = { status_history: history };
+
+        if (history.length > 0) {
+            // Check if we deleted the head. Comparing timestamp is safest.
+            // Actually, we just simply apply the RULE: "Current Status" should always mirror "History[0]".
+            // So if History[0] changed, we update Status.
+            updates.status = history[0].status;
+        } else {
+            updates.status = {
+                outfit: "日常便装",
+                behavior: "等待回复",
+                inner_voice: "..."
+            };
+        }
+
+        window.sysStore.updateCharacter(sessionId, updates);
+        this.closeConfirmationModal();
+        this.render(); // Will re-render status panel
+    },
+
+    deleteStatusHistoryRecord(sessionId, timestamp) {
+        this.openConfirmationModal({
+            title: '删除状态',
+            content: '确定要删除这条历史状态吗？删除后将无法恢复。',
+            onConfirm: `window.WeChat.App.performDeleteStatusHistoryRecord('${sessionId}', ${timestamp})`
+        });
     },
     goBack() {
         if (State.currentTab === 'chat_session') {
@@ -1587,25 +2147,39 @@ ${mainPersona}
 
     showMsgMenu(msgId, x, y) {
         const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+        const appEl = document.querySelector('.wechat-app');
+        const appWidth = appEl ? appEl.offsetWidth : window.innerWidth;
+
         if (el) {
             const rect = el.getBoundingClientRect();
-            let menuX = rect.left + rect.width / 2;
-            let menuY = rect.top;
+            // 获取相对于 app 容器的坐标
+            const appRect = appEl ? appEl.getBoundingClientRect() : { left: 0, top: 0 };
 
-            // [Safety] If the bubble is too close to the top (near navbar 92px), 
-            // show the menu BELOW the bubble instead.
+            let menuX = (rect.left - appRect.left) + rect.width / 2;
+            let menuY = (rect.top - appRect.top);
+
+            // [Boundary Check] Menu max-width is 160px, centered means 80px on each side
+            const halfMenuWidth = 80;
+            if (menuX < halfMenuWidth + 10) {
+                menuX = halfMenuWidth + 10;
+            } else if (menuX > appWidth - (halfMenuWidth + 10)) {
+                menuX = appWidth - (halfMenuWidth + 10);
+            }
+
             // [Safety] If the bubble is too close to the top, show the menu BELOW the bubble.
-            const isTooTop = rect.top < (92 + 150); // Navbar(92) + Buffer for menu height(150)
+            const isTooTop = (rect.top - appRect.top) < (92 + 150);
 
             if (isTooTop) {
-                menuY = rect.bottom + 10; // Shift down slightly below bubble
+                menuY = (rect.bottom - appRect.top) + 10;
             } else {
-                menuY = rect.top - 10; // Shift up slightly above bubble
+                menuY = (rect.top - appRect.top) - 10;
             }
 
             State.bubbleMenuPos = { x: menuX, y: menuY, isFlipped: isTooTop };
         } else {
-            State.bubbleMenuPos = { x, y, isFlipped: false };
+            // Absolute coordinates fallback (need to adjust relative to container)
+            const appRect = appEl ? appEl.getBoundingClientRect() : { left: 0, top: 0 };
+            State.bubbleMenuPos = { x: x - appRect.left, y: y - appRect.top, isFlipped: false };
         }
 
         State.bubbleMenuOpen = true;
@@ -1625,6 +2199,14 @@ ${mainPersona}
             this.render();
         }
         this.closeMsgMenu();
+    },
+
+    recallMsg(msgId) {
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            window.WeChat.Services.Chat.recallMessage(State.activeSessionId, msgId);
+        }
+        this.closeMsgMenu();
+        this.render(); // Redraw session
     },
 
     regenerateMsg(msgId) {
@@ -1712,7 +2294,14 @@ ${mainPersona}
     },
 
     toggleMsgSelection(msgId) {
-        if (!State.msgSelectionMode) return;
+        if (!State.msgSelectionMode) {
+            // [Interactive Feature] Handle specific message interactions when NOT in selection mode
+            const msg = window.sysStore.getMessageById(msgId);
+            if (msg && msg.type === 'transfer') {
+                this.openTransferModal(msgId);
+            }
+            return;
+        }
         if (State.selectedMsgIds.has(msgId)) {
             State.selectedMsgIds.delete(msgId);
         } else {
@@ -1725,7 +2314,9 @@ ${mainPersona}
         if (State.selectedMsgIds.size === 0) return;
         if (confirm(`确定删除选中的 ${State.selectedMsgIds.size} 条消息吗？`)) {
             if (window.sysStore && window.sysStore.deleteMessage) {
-                State.selectedMsgIds.forEach(id => window.sysStore.deleteMessage(id));
+                State.selectedMsgIds.forEach(id => {
+                    window.sysStore.deleteMessage(id);
+                });
             }
             this.exitMsgSelectionMode();
         }
@@ -1802,13 +2393,84 @@ ${mainPersona}
         } else if (current === 'add_friend' || current === 'my_profile_settings') {
             State.currentTab = (typeof prev === 'number') ? prev : 0;
         } else {
-            State.currentTab = (typeof prev === 'number') ? prev : 0;
+            // Default fallback
+            State.currentTab = 0;
         }
 
         // Reset scrolling or close panels if needed
         this.closeAllPanels();
+
+        if (State.currentTab === 'chat_session' && prev === 0) {
+            State.shouldScrollToBottom = true; // Force scroll if coming from list
+        }
+
         this.render();
     },
+
+    // --- Transfer Modal Logic ---
+    openTransferModal(msgId) {
+        State.transferModalOpen = true;
+        State.activeTransferMsgId = msgId;
+        this.render();
+    },
+
+    closeTransferModal() {
+        State.transferModalOpen = false;
+        State.activeTransferMsgId = null;
+        this.render();
+    },
+
+    confirmReceiveTransfer() {
+        if (!State.activeTransferMsgId) return;
+        const msgId = State.activeTransferMsgId;
+        const msg = window.sysStore.getMessageById(msgId);
+
+        if (msg) {
+            // 1. Update Message Status
+            msg.transfer_status = 'received';
+
+            // 2. Persist
+            if (window.sysStore.updateMessage) {
+                window.sysStore.updateMessage(msg.id, msg);
+            } else {
+                // Fallback update
+                const all = window.sysStore.getAllMessages();
+                window.sysStore.set('chara_db_messages', all);
+            }
+
+            // 3. Add System Notice (Use Chat Service helper if available, or direct store add)
+            // We can simulate an "accept_transfer" action behavior
+            let amount = '0.00';
+            try { amount = JSON.parse(msg.content).amount; } catch (e) { }
+
+            const sysMsg = {
+                sender_id: 'system',
+                receiver_id: 'user',
+                content: `已收款 ¥${amount}`,
+                type: 'transfer_status' // Use a special type for the "Received" notice bubble if we have one, or simple text
+            };
+            // Use `transfer_status` type which we saw in chat.js logic
+            sysMsg.content = JSON.stringify({ status: 'received', text: `已收款 ¥${amount}`, amount: amount });
+            sysMsg.type = 'transfer_status';
+
+            window.sysStore.addMessage(sysMsg);
+
+            // 4. Update UI
+            if (window.WeChat.Services && window.WeChat.Services.Chat && window.WeChat.Services.Chat._findAndUpdateTransfer) {
+                // This updates the *original* bubble visually in DOM if needed immediately
+                // But since we updated the store and will re-render, it might be redundant but safe
+            }
+        }
+
+        // Close modal
+        this.closeTransferModal();
+
+        // Force full re-render to update the bubble status color
+        this.render();
+
+        if (window.os) window.os.showToast('收款成功');
+    },
+
 
     // --- Public Getters for View ---
     getSelectionState() {
@@ -1818,6 +2480,12 @@ ${mainPersona}
             msgSelectionMode: State.msgSelectionMode,
             selectedMsgIds: State.selectedMsgIds
         };
+    },
+
+    getActiveSessionId() {
+        // Only return ID if we are actually viewing the chat session
+        if (State.currentTab === 'chat_session') return State.activeSessionId;
+        return null;
     }
 };
 

@@ -747,6 +747,7 @@ html body #os-root.light-mode {
     height: 40px;
     border-radius: 4px;
     flex-shrink: 0;
+    object-fit: cover;
 }
 
 .wx-msg-content {
@@ -843,18 +844,45 @@ html body #os-root.light-mode .wx-msg-time {
 }
 
 .wx-msg-system span {
-    background-color: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.6);
-    padding: 4px 12px;
-    border-radius: 4px;
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 2px 0;
+    border-radius: 0;
     font-size: 12px;
     max-width: 80%;
     text-align: center;
 }
 
 html body #os-root.light-mode .wx-msg-system span {
-    background-color: #dadada;
-    color: rgba(0, 0, 0, 0.5);
+    background-color: transparent;
+    color: rgba(0, 0, 0, 0.4);
+}
+
+/* Nudge Shake Animation */
+@keyframes wx-avatar-shake {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(-10deg);
+    }
+
+    50% {
+        transform: rotate(10deg);
+    }
+
+    75% {
+        transform: rotate(-10deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+.wx-avatar-shake {
+    animation: wx-avatar-shake 0.3s ease-in-out;
 }
 
 
@@ -1340,6 +1368,8 @@ html:not(.light-mode) .wx-sticker-add-btn {
     background-color: var(--wx-bg);
     scrollbar-width: none;
     -ms-overflow-style: none;
+    padding-bottom: var(--wx-tab-height);
+    box-sizing: border-box;
 }
 
 .wx-view-container::-webkit-scrollbar {
@@ -1674,6 +1704,20 @@ html body #os-root.light-mode .wx-switch {
     outline: none;
     font-family: inherit;
     line-height: 1.5;
+}
+
+.wx-ios-alert-content {
+    padding: 0 16px 16px 16px;
+    font-size: 13px;
+    color: var(--wx-text);
+    text-align: center;
+    line-height: 1.4;
+    word-wrap: break-word;
+    /* Enable wrapping */
+    word-break: break-all;
+    /* Ensure long words break */
+    white-space: pre-wrap;
+    /* Preserve newlines */
 }
 
 .wx-settings-hint {
@@ -2742,3 +2786,5 @@ html body #os-root.light-mode .wx-msg-selection-footer {
 html body #os-root.light-mode .wx-wb-checkbox {
     border-color: rgba(0, 0, 0, 0.1);
 }
+/* IOS Alert Styles */
+.wx-ios-alert { width: 270px; background-color: rgba(255, 255, 255, 0.95); border-radius: 14px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; overflow: hidden; animation: wx-ios-alert-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); } html body #os-root.light-mode .wx-ios-alert { background-color: rgba(255, 255, 255, 0.95); } html body #os-root:not(.light-mode) .wx-ios-alert { background-color: rgba(30, 30, 30, 0.95); border: 0.5px solid rgba(255,255,255,0.1); } .wx-ios-alert-title { padding: 20px 16px 8px 16px; font-size: 17px; font-weight: 600; text-align: center; color: var(--wx-text); } .wx-ios-alert-content { padding: 0 16px 20px 16px; font-size: 13px; color: var(--wx-text); text-align: center; line-height: 1.4; word-wrap: break-word; word-break: break-all; white-space: pre-wrap; } .wx-ios-alert-footer { display: flex; border-top: 0.5px solid var(--wx-border); height: 44px; } .wx-ios-alert-btn { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: background-color 0.2s; } .wx-ios-alert-btn:active { background-color: rgba(0,0,0,0.05); } html body #os-root:not(.light-mode) .wx-ios-alert-btn:active { background-color: rgba(255,255,255,0.1); } .wx-ios-alert-btn.cancel { color: #007aff; font-weight: 400; border-right: 0.5px solid var(--wx-border); } .wx-ios-alert-btn.confirm { color: #007aff; font-weight: 600; } .wx-ios-alert-btn.destructive { color: #fa5151; font-weight: 600; } @keyframes wx-ios-alert-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }

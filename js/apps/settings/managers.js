@@ -93,11 +93,9 @@ window.BackgroundActivityManager = (function () {
                         char.settings.bg_last_run = now;
                         s.updateCharacter(charId, { settings: char.settings });
 
-                        // 模拟活动：如果之前正在聊天，可能触发主动回复或发送一条问候/感慨
-                        // 这里我们可以调用一个服务来生成动作
+                        // 启用角色独立活动
                         if (window.WeChat && window.WeChat.Services && window.WeChat.Services.Chat) {
-                            // 暂时只打印日志，实际可能需要调用 LLM 生成内容并发送
-                            // window.WeChat.Services.Chat.triggerCharacterIndependentActivity(charId);
+                            window.WeChat.Services.Chat.triggerCharacterIndependentActivity(charId);
                         }
                     }
                 }
