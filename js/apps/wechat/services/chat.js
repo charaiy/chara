@@ -666,37 +666,25 @@ window.WeChat.Services.Chat = {
             // 1. Build background prompt
             const prompt = window.WeChat.Services.Prompts.constructBackgroundActivityPrompt(targetId, char);
 
-            // 2. Call API (Silent, use sub_model if available for background tasks)
-            const s = window.sysStore;
-            const apiUrl = s.get('sub_api_url') || s.get('main_api_url');
-            const apiKey = s.get('sub_api_key') || s.get('main_api_key');
-            const model = s.get('sub_model') || s.get('main_model') || 'gpt-3.5-turbo';
+            // 2. Call API (Using window.API with built-in retry/timeout)
+            const Api = window.Core?.Api || window.API;
+            if (!Api) return;
 
-            if (!apiUrl || !apiKey) return;
-
-            const response = await fetch(`${apiUrl.replace(/\/$/, '')}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'system', content: prompt }],
-                    temperature: 0.8,
-                    max_tokens: 300,
-                    response_format: { type: "json_object" }
-                })
-            });
-
-            if (!response.ok) throw new Error(`API failed: ${response.status}`);
-            const data = await response.json();
-            const responseText = data.choices[0].message.content;
+            const responseText = await Api.chat(
+                [{ role: 'system', content: prompt }],
+                {
+                    silent: true,
+                    useSub: true // 使用专用子模型配置
+                }
+            );
 
             // 3. Parse and Execute
             let actions = [];
             try {
-                const parsed = JSON.parse(responseText.trim());
+                // Background activity expects JSON
+                const match = responseText.match(/\{[\s\S]*\}/);
+                const jsonText = match ? match[0] : responseText;
+                const parsed = JSON.parse(jsonText.trim());
                 // Handle both array and object { actions: [] } formats
                 actions = Array.isArray(parsed) ? parsed : (parsed.actions || [parsed]);
             } catch (e) {

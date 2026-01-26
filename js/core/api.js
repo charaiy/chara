@@ -13,27 +13,33 @@ const API = {
 
     /**
      * 初始化配置 (每次请求前都会调用，确保拿到最新 Store 数据)
+     * @param {boolean} useSub - 是否使用从属/子模型配置 (针对后台任务)
      */
-    init() {
+    init(useSub = false) {
         const s = window.sysStore;
         if (!s) return;
 
-        // 优先读取 main_ 前缀的配置 (Settings App 新标准)
-        // 如果没有，才读取旧的 api_ 前缀
-        const savedKey = s.get('main_api_key') || s.get('api_key');
-        const savedUrl = s.get('main_api_url') || s.get('api_url');
-        const savedModel = s.get('main_model') || s.get('api_model');
+        const prefix = useSub ? 'sub_' : 'main_';
+
+        // 优先读取指定前缀的配置
+        let savedKey = s.get(`${prefix}api_key`);
+        let savedUrl = s.get(`${prefix}api_url`);
+        let savedModel = s.get(`${prefix}model`);
+
+        // 如果没找到指定前缀的，回退到 legacy 或 main
+        if (!useSub) {
+            if (!savedKey) savedKey = s.get('api_key');
+            if (!savedUrl) savedUrl = s.get('api_url');
+            if (!savedModel) savedModel = s.get('api_model');
+        } else {
+            if (!savedKey) savedKey = s.get('main_api_key') || s.get('api_key');
+            if (!savedUrl) savedUrl = s.get('main_api_url') || s.get('api_url');
+            if (!savedModel) savedModel = s.get('main_model') || s.get('api_model');
+        }
 
         if (savedKey) this.config.apiKey = String(savedKey).trim();
-        if (savedUrl) this.config.baseUrl = String(savedUrl).trim(); // 暂时不去尾，交给 _getEndpoint 处理
+        if (savedUrl) this.config.baseUrl = String(savedUrl).trim();
         if (savedModel) this.config.model = String(savedModel).trim();
-
-        // Debug: 可以在控制台看到当前用的到底是哪套配置
-        // console.log('[API Init] Using:', { 
-        //    url: this.config.baseUrl, 
-        //    model: this.config.model, 
-        //    keyMask: this.config.apiKey ? this.config.apiKey.slice(0, 4) + '***' : 'NONE' 
-        // });
     },
 
     /**
@@ -63,17 +69,29 @@ const API = {
     },
 
     /**
-     * 发送聊天请求
+     * 发送聊天请求 (带重试和超时逻辑，优化手机端稳定性)
      */
-    async chat(messages) {
-        this.init(); // 确保配置最新
+    async chat(messages, options = {}) {
+        const {
+            retries = 2,
+            timeout = 60000, // 默认 60 秒超时 (LLM 生成可能较慢)
+            silent = false,
+            useSub = false
+        } = options;
+
+        this.init(useSub); // 确保配置最新
 
         if (!this.config.apiKey) {
             throw new Error('API Key 未配置，请在设置中填写');
         }
 
         const url = this._getEndpoint();
-        console.log('[API] Requesting:', url);
+        const currentTry = options._currentTry || 0;
+
+        if (!silent) console.log(`[API] Requesting (${currentTry + 1}/${retries + 1}):`, url);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
         try {
             const response = await fetch(url, {
@@ -85,9 +103,12 @@ const API = {
                 body: JSON.stringify({
                     model: this.config.model,
                     messages: messages,
-                    stream: false // 暂时关闭流式，先跑通逻辑
-                })
+                    stream: false
+                }),
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             // 错误处理升级: 尝试读取服务器返回的具体错误信息
             if (!response.ok) {
@@ -99,7 +120,12 @@ const API = {
                     errorDetails = response.statusText;
                 }
 
-                // 抛出详细错误，让 ChatService 显示给用户
+                // 如果是 5xx 错误或特定的限流错误，且还有重试次数，则重试
+                if ((response.status >= 500 || response.status === 429) && currentTry < retries) {
+                    console.warn(`[API] Server busy (${response.status}), retrying...`);
+                    return this.chat(messages, { ...options, _currentTry: currentTry + 1 });
+                }
+
                 throw new Error(`API错误 (${response.status}): ${errorDetails}`);
             }
 
@@ -112,8 +138,22 @@ const API = {
             return data.choices[0].message.content || '';
 
         } catch (error) {
+            clearTimeout(timeoutId);
+
+            const isTimeout = error.name === 'AbortError';
+            const isNetworkError = error.message === 'Failed to fetch' || error.name === 'TypeError';
+
+            // 针对网络波动导致的“Failed to fetch”或超时进行重试
+            if ((isNetworkError || isTimeout) && currentTry < retries) {
+                const reason = isTimeout ? 'Timeout' : 'Network Error';
+                console.warn(`[API] ${reason}, retrying ${currentTry + 1}/${retries}...`);
+                // 延迟一秒重试，增加成功率
+                await new Promise(r => setTimeout(r, 1000));
+                return this.chat(messages, { ...options, _currentTry: currentTry + 1 });
+            }
+
             console.error('[API Error]', error);
-            throw error; // 继续抛出，让上层处理
+            throw error;
         }
     }
 };

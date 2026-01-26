@@ -2326,8 +2326,8 @@ Strict JSON Object.`;
             const maskedName = realName ? `(* ${realName.slice(-1)})` : (name.length > 1 ? `(** ${name.slice(-1)})` : '');
 
             return `
-    < div class="wx-modal-overlay active" style = "background: #EDEDED; display: block;" >
-                    < !--Nav Bar-- >
+                <div class="wx-modal-overlay active" style="background: #EDEDED; display: block;">
+                    <!-- Nav Bar -->
                     <div style="height: 44px; padding-top: 48px; display: flex; align-items: center; padding-left: 16px; position: relative;">
                         <div onclick="window.WeChat.App.closeTransferModal()" style="width: 24px; cursor: pointer;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -2335,79 +2335,78 @@ Strict JSON Object.`;
                         <div style="flex: 1;"></div>
                     </div>
 
-                    <!--Content -->
-    <div style="padding: 20px 24px;">
-        <!-- User Info -->
-        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
-            <img src="${avatar}" style="width: 50px; height: 50px; border-radius: 6px; margin-bottom: 12px; background: #ddd;">
-                <div style="font-size: 16px; color: #000;">转账给 <span style="font-weight: 500;">${name}</span> ${maskedName}</div>
-        </div>
+                    <!-- Content -->
+                    <div style="padding: 20px 24px;">
+                        <!-- User Info -->
+                        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
+                            <img src="${avatar}" style="width: 50px; height: 50px; border-radius: 6px; margin-bottom: 12px; background: #ddd;">
+                            <div style="font-size: 16px; color: #000;">转账给 <span style="font-weight: 500;">${name}</span> ${maskedName}</div>
+                        </div>
 
-        <!-- Card -->
-        <div style="background: white; border-radius: 12px; padding: 24px 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-            <div style="font-size: 14px; color: #000; margin-bottom: 16px;">转账金额</div>
+                        <!-- Card -->
+                        <div style="background: white; border-radius: 12px; padding: 24px 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="font-size: 14px; color: #000; margin-bottom: 16px;">转账金额</div>
 
-            <div style="display: flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 24px;">
-                <span style="font-size: 30px; font-weight: 600; margin-right: 8px;">¥</span>
-                <input id="wx-transfer-amount" type="number" step="0.01"
-                    style="border: none; font-size: 40px; font-weight: 600; width: 100%; outline: none; caret-color: #07C160;"
-                    placeholder="" oninput="document.getElementById('wx-transfer-btn').style.opacity = (this.value > 0 ? 1 : 0.5)">
-            </div>
+                            <div style="display: flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 24px;">
+                                <span style="font-size: 30px; font-weight: 600; margin-right: 8px;">¥</span>
+                                <input id="wx-transfer-amount" type="number" step="0.01"
+                                    style="border: none; font-size: 40px; font-weight: 600; width: 100%; outline: none; caret-color: #07C160;"
+                                    placeholder="" oninput="document.getElementById('wx-transfer-btn').style.opacity = (this.value > 0 ? 1 : 0.5)">
+                            </div>
 
-            <div style="margin-bottom: 30px;">
-                <input id="wx-transfer-note"
-                    style="border: none; font-size: 14px; width: 100%; outline: none; color: #333;"
-                    placeholder="添加备注 (50字以内)">
-            </div>
+                            <div style="margin-bottom: 30px;">
+                                <input id="wx-transfer-note"
+                                    style="border: none; font-size: 14px; width: 100%; outline: none; color: #333;"
+                                    placeholder="添加备注 (50字以内)">
+                            </div>
 
-            <div id="wx-transfer-btn" onclick="window.WeChat.App.sendTransfer()"
-                style="background: #07C160; color: white; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer; opacity: 0.5; transition: opacity 0.2s;">
-                转账
-            </div>
-        </div>
-    </div>
-                </div >
-    `;
+                            <div id="wx-transfer-btn" onclick="window.WeChat.App.sendTransfer()"
+                                style="background: #07C160; color: white; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer; opacity: 0.5; transition: opacity 0.2s;">
+                                转账
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
-        // --- Location Modal ---
         if (State.locationModalOpen) {
             return `
-    < div class="wx-modal-overlay active" onclick = "if(event.target===this) window.WeChat.App.closeLocationModal()" >
-        <div class="wx-modal" onclick="event.stopPropagation()">
-            <div class="wx-modal-header">
-                <div class="wx-modal-title">发送位置</div>
-            </div>
-            <div class="wx-modal-body">
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">位置名称</div>
-                    <input id="wx-location-name" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：上海中心大厦" />
+                <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeLocationModal()">
+                    <div class="wx-modal" onclick="event.stopPropagation()">
+                        <div class="wx-modal-header">
+                            <div class="wx-modal-title">发送位置</div>
+                        </div>
+                        <div class="wx-modal-body">
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">位置名称</div>
+                                <input id="wx-location-name" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：上海中心大厦" />
+                            </div>
+                            <div>
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">距离对方 (km)</div>
+                                <input id="wx-location-dist" type="number" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：1.5" />
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">备注 (可选)</div>
+                                <input id="wx-location-remark" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：人均¥200、历史传说、甚至是“xx的家”" />
+                            </div>
+                        </div>
+                        <div class="wx-modal-footer">
+                            <div class="wx-modal-btn cancel" onclick="window.WeChat.App.closeLocationModal()">取消</div>
+                            <div class="wx-modal-btn confirm" onclick="window.WeChat.App.sendLocation()">发送</div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">距离对方 (km)</div>
-                    <input id="wx-location-dist" type="number" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：1.5" />
-                </div>
-                <div style="margin-top: 12px;">
-                    <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">备注 (可选)</div>
-                    <input id="wx-location-remark" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：人均¥200、历史传说、甚至是“xx的家”" />
-                </div>
-            </div>
-            <div class="wx-modal-footer">
-                <div class="wx-modal-btn cancel" onclick="window.WeChat.App.closeLocationModal()">取消</div>
-                <div class="wx-modal-btn confirm" onclick="window.WeChat.App.sendLocation()">发送</div>
-            </div>
-        </div>
-                </div >
-    `;
+            `;
         }
 
         if (State.cameraModalOpen) {
             const errorMode = State.cameraError ? true : false;
 
             return `
-    < div class="wx-modal-overlay active" style = "background: black; display: flex; align-items: center; justify-content: center;" >
+                <div class="wx-modal-overlay active" style="background: black; display: flex; align-items: center; justify-content: center;">
 
-        ${errorMode ? `
+                    ${errorMode ? `
                         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888;">
                             <div style="margin-bottom: 20px; font-size: 48px; opacity: 0.3;">📷</div>
                             <div style="font-size: 16px; margin-bottom: 8px;">无法启动摄像头</div>
@@ -2424,33 +2423,33 @@ Strict JSON Object.`;
                         <video id="wx-camera-video" style="width: 100%; height: 100%; object-fit: cover; transform: ${State.cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'};" autoplay playsinline></video>
                     `}
                     
-                    < !--Close Button Removed as per User Request-- >
-                    < !--The close functionality is handled by the 'Cancel' button in the bottom controls-- >
+                    <!-- Close Button Removed as per User Request -->
+                    <!-- The close functionality is handled by the 'Cancel' button in the bottom controls -->
 
-                    < !--Bottom Controls(Hide if error) -->
-    <div style="position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 60px; z-index: 10002; ${errorMode ? 'display: none !important;' : ''}">
-        <!-- Cancel / Back -->
-        <div onclick="window.WeChat.App.closeCameraModal()" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
-        </div>
+                    <!-- Bottom Controls (Hide if error) -->
+                    <div style="position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 60px; z-index: 10002; ${errorMode ? 'display: none !important;' : ''}">
+                        <!-- Cancel / Back -->
+                        <div onclick="window.WeChat.App.closeCameraModal()" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+                        </div>
 
-        <!-- Shutter Button -->
-        <div onclick="window.WeChat.App.capturePhoto()" style="width: 76px; height: 76px; border-radius: 50%; background: white; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 4px solid rgba(255,255,255,0.3); transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: white;"></div>
-        </div>
+                        <!-- Shutter Button -->
+                        <div onclick="window.WeChat.App.capturePhoto()" style="width: 76px; height: 76px; border-radius: 50%; background: white; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 4px solid rgba(255,255,255,0.3); transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                            <div style="width: 60px; height: 60px; border-radius: 50%; background: white;"></div>
+                        </div>
 
-        <!-- Flip Camera -->
-        <div onclick="window.WeChat.App.switchCamera()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; backdrop-filter: blur(4px);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 .46.04.91.12 1.35"></path>
-                <path d="M4 22c0-4.42 3.58-8 8-8s8 3.58 8 8c0-.46-.04-.91-.12-1.35"></path>
-                <polyline points="16 11.65 20 10 20 14.35"></polyline>
-                <polyline points="8 12.35 4 14 4 9.65"></polyline>
-            </svg>
-        </div>
-    </div>
-                </div >
-    `;
+                        <!-- Flip Camera -->
+                        <div onclick="window.WeChat.App.switchCamera()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; backdrop-filter: blur(4px);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 .46.04.91.12 1.35"></path>
+                                <path d="M4 22c0-4.42 3.58-8 8-8s8 3.58 8 8c0-.46-.04-.91-.12-1.35"></path>
+                                <polyline points="16 11.65 20 10 20 14.35"></polyline>
+                                <polyline points="8 12.35 4 14 4 9.65"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // Modal 6: Generic Confirmation Modal (iOS Style) - High Priority Overlay
@@ -2595,71 +2594,71 @@ Strict JSON Object.`;
             const promptPlaceholder = "未设置则使用系统默认规则 (精准提取锚点细节，第一人称格式)";
 
             return `
-    < div class="wx-modal-overlay active" onclick = "if(event.target===this) window.WeChat.App.closeModals()" >
-        <div class="wx-modal" onclick="event.stopPropagation()">
-            <div class="wx-modal-header clean">
-                <div class="wx-modal-title clean">对话总结管理</div>
-            </div>
-            <div class="wx-ios-modal-body">
-
-                <!-- Group 1: Auto Summary -->
-                <div>
-                    <div class="wx-ios-section-header">自动智能总结 (随聊天触发)</div>
-                    <div class="wx-ios-card">
-                        <div class="wx-ios-row">
-                            <div class="wx-ios-label">启用自动总结</div>
-                            <div class="wx-switch ${State.summaryConfig.autoEnabled ? 'checked' : ''}" onclick="window.WeChat.App.toggleSummaryAuto()">
-                                <div class="wx-switch-node"></div>
-                            </div>
+                <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeModals()">
+                    <div class="wx-modal" onclick="event.stopPropagation()">
+                        <div class="wx-modal-header clean">
+                            <div class="wx-modal-title clean">对话总结管理</div>
                         </div>
+                        <div class="wx-ios-modal-body">
 
-                        ${State.summaryConfig.autoEnabled ? `
+                            <!-- Group 1: Auto Summary -->
+                            <div>
+                                <div class="wx-ios-section-header">自动智能总结 (随聊天触发)</div>
+                                <div class="wx-ios-card">
                                     <div class="wx-ios-row">
-                                        <div class="wx-ios-label">触发阈值 (消息数)</div>
-                                        <input type="number" class="wx-ios-value" 
-                                            value="${State.summaryConfig.threshold}" 
-                                            oninput="window.WeChat.App.updateSummaryConfig('threshold', this.value)" />
+                                        <div class="wx-ios-label">启用自动总结</div>
+                                        <div class="wx-switch ${State.summaryConfig.autoEnabled ? 'checked' : ''}" onclick="window.WeChat.App.toggleSummaryAuto()">
+                                            <div class="wx-switch-node"></div>
+                                        </div>
                                     </div>
-                                    <div class="wx-ios-input-container">
-                                        <div class="wx-ios-input-label">自动总结规则 (Prompt)</div>
-                                        <textarea class="wx-ios-textarea" 
-                                            placeholder="${promptPlaceholder}"
-                                            oninput="window.WeChat.App.updateSummaryConfig('autoPrompt', this.value)">${State.summaryConfig.autoPrompt}</textarea>
-                                    </div>
-                                    ` : ''}
-                    </div>
-                </div>
 
-                <!-- Group 2: Manual Summary -->
-                <div>
-                    <div class="wx-ios-section-header">手动范围总结 (即时执行)</div>
-                    <div class="wx-ios-card">
-                        <div class="wx-ios-input-container">
-                            <div class="wx-ios-input-label">手动总结规则 (Prompt)</div>
-                            <textarea class="wx-ios-textarea"
-                                style="min-height: 60px;"
-                                placeholder="例如：重点总结关于某次约会的细节... (留空则使用默认规则)"
-                                oninput="window.WeChat.App.updateSummaryConfig('manualPrompt', this.value)">${State.summaryConfig.manualPrompt}</textarea>
-                        </div>
-
-                        <div class="wx-ios-row" style="padding-top: 0; padding-bottom: 0px; border-bottom: none;">
-                            <div class="wx-ios-action-link" style="width: 100%; border-top: 0.5px solid var(--wx-border);" onclick="window.WeChat.App.openSummaryRange()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59L14 6z" transform="rotate(180 12 12)" /></svg>
-                                去选择范围并立即执行
+                                    ${State.summaryConfig.autoEnabled ? `
+                                        <div class="wx-ios-row">
+                                            <div class="wx-ios-label">触发阈值 (消息数)</div>
+                                            <input type="number" class="wx-ios-value" 
+                                                value="${State.summaryConfig.threshold}" 
+                                                oninput="window.WeChat.App.updateSummaryConfig('threshold', this.value)" />
+                                        </div>
+                                        <div class="wx-ios-input-container">
+                                            <div class="wx-ios-input-label">自动总结规则 (Prompt)</div>
+                                            <textarea class="wx-ios-textarea" 
+                                                placeholder="${promptPlaceholder}"
+                                                oninput="window.WeChat.App.updateSummaryConfig('autoPrompt', this.value)">${State.summaryConfig.autoPrompt}</textarea>
+                                        </div>
+                                        ` : ''}
+                                </div>
                             </div>
+
+                            <!-- Group 2: Manual Summary -->
+                            <div>
+                                <div class="wx-ios-section-header">手动范围总结 (即时执行)</div>
+                                <div class="wx-ios-card">
+                                    <div class="wx-ios-input-container">
+                                        <div class="wx-ios-input-label">手动总结规则 (Prompt)</div>
+                                        <textarea class="wx-ios-textarea"
+                                            style="min-height: 60px;"
+                                            placeholder="例如：重点总结关于某次约会的细节... (留空则使用默认规则)"
+                                            oninput="window.WeChat.App.updateSummaryConfig('manualPrompt', this.value)">${State.summaryConfig.manualPrompt}</textarea>
+                                    </div>
+
+                                    <div class="wx-ios-row" style="padding-top: 0; padding-bottom: 0px; border-bottom: none;">
+                                        <div class="wx-ios-action-link" style="width: 100%; border-top: 0.5px solid var(--wx-border);" onclick="window.WeChat.App.openSummaryRange()">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59L14 6z" transform="rotate(180 12 12)" /></svg>
+                                            去选择范围并立即执行
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Footer Button -->
+                            <div class="wx-ios-primary-btn" onclick="window.WeChat.App.saveSummarySettings()">
+                                保存并完成
+                            </div>
+
                         </div>
                     </div>
                 </div>
-
-                <!-- Footer Button -->
-                <div class="wx-ios-primary-btn" onclick="window.WeChat.App.saveSummarySettings()">
-                    保存并完成
-                </div>
-
-            </div>
-        </div>
-                </div >
-    `;
+            `;
         }
 
         // Modal 3: Determine Range
@@ -2705,16 +2704,16 @@ Strict JSON Object.`;
             const pos = State.bubbleMenuPos;
             const flippedClass = pos.isFlipped ? 'flipped' : '';
             return `
-    < div class="wx-menu-mask active" onclick = "window.WeChat.App.closeMsgMenu()" ></div >
-        <div class="wx-bubble-menu active ${flippedClass}" style="left: ${pos.x}px; top: ${pos.y}px;">
-            <div class="wx-bubble-menu-item" onclick="window.WeChat.App.copyMsg('${State.bubbleMenuId}')">复制</div>
-            <div class="wx-bubble-menu-item" onclick="window.WeChat.App.regenerateMsg('${State.bubbleMenuId}')">重回</div>
-            <div class="wx-bubble-menu-item" onclick="window.WeChat.App.recallMsg('${State.bubbleMenuId}')">撤回</div>
-            <div class="wx-bubble-menu-item" onclick="window.WeChat.App.quoteMsg('${State.bubbleMenuId}')">引用</div>
-            <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多选</div>
-            <div class="wx-bubble-menu-item delete" onclick="window.WeChat.App.deleteMsg('${State.bubbleMenuId}')">删除</div>
-        </div>
-`;
+                <div class="wx-menu-mask active" onclick="window.WeChat.App.closeMsgMenu()"></div>
+                <div class="wx-bubble-menu active ${flippedClass}" style="left: ${pos.x}px; top: ${pos.y}px;">
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.copyMsg('${State.bubbleMenuId}')">复制</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.regenerateMsg('${State.bubbleMenuId}')">重回</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.recallMsg('${State.bubbleMenuId}')">撤回</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.quoteMsg('${State.bubbleMenuId}')">引用</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多选</div>
+                    <div class="wx-bubble-menu-item delete" onclick="window.WeChat.App.deleteMsg('${State.bubbleMenuId}')">删除</div>
+                </div>
+            `;
         }
 
         // Modal 6: Generic Confirmation Modal (iOS Style) - High Priority Overlay
@@ -3008,9 +3007,11 @@ Strict JSON Object.`;
         const originalHtml = btn ? btn.innerHTML : '';
         if (btn) {
             btn.innerHTML = `
-    < svg class="wx-spin" width = "14" height = "14" viewBox = "0 0 24 24" fill = "none" stroke = "currentColor" stroke - width="2.5" stroke - linecap="round" stroke - linejoin="round" style = "animation: wx-spin 1s linear infinite;" > <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg >
-        生成中...
-`;
+                <svg class="wx-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: wx-spin 1s linear infinite;">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                生成中...
+            `;
             btn.style.pointerEvents = 'none';
             btn.style.opacity = '0.7';
         }
@@ -3027,7 +3028,7 @@ Strict JSON Object.`;
         for (const [key, id] of Object.entries(fieldMap)) {
             const isLocked = !!State.fieldLocks?.[id];
             const value = rel[key] || "(未填写)";
-            contextParts.push(`- ${key}: ${value}${isLocked ? " [已锁定]" : " [待生成]"} `);
+            contextParts.push(`- ${key}: ${value}${isLocked ? " [已锁定]" : " [待生成]"}`);
         }
 
         const char = window.sysStore.getCharacter(sessionId);
@@ -3044,11 +3045,11 @@ ${mainPersona}
 ${contextParts.join('\n')}
 
 [任务要求]
-1. ** 深度适配 **：关系设定必须与[核心人设]相辅相成。若角色由于背景或底层性格（如缺乏情感）而显得疏离，好感度阶梯的表现必须遵循此逻辑，禁止情感突变或割裂。
-2. ** 细节补全 **：针对待生成的项，扩写为生动、有张力且符合微信聊天背景的描述（40 - 80字）。
-3. ** 关系透镜 **：强化“表现”与“内心”的反差，体现人物的欲望、弱点或执念。
-4. ** 阶梯演进 **：如果[wx - rel - ladder] 未锁定，生成5个阶段的表现，体现情感的随好感度变化的细腻递进。
-5. ** 格式要求 **：只输出一个纯 JSON 对象，包含上述所有5个关系字段名以及 ladder_persona 数组。不要包含多余解释。
+1. **深度适配**：关系设定必须与[核心人设]相辅相成。若角色由于背景或底层性格（如缺乏情感）而显得疏离，好感度阶梯的表现必须遵循此逻辑，禁止情感突变或割裂。
+2. **细节补全**：针对待生成的项，扩写为生动、有张力且符合微信聊天背景的描述（40-80字）。
+3. **关系透镜**：强化“表现”与“内心”的反差，体现人物的欲望、弱点或执念。
+4. **阶梯演进**：如果[wx-rel-ladder] 未锁定，生成5个阶段的表现，体现情感的随好感度变化的细腻递进。
+5. **格式要求**：只输出一个纯 JSON 对象，包含上述所有5个关系字段名以及 ladder_persona 数组。不要包含多余解释。
 
 输出 JSON：`;
 
@@ -3090,7 +3091,12 @@ ${contextParts.join('\n')}
 
                 if (!State.fieldLocks?.['wx-rel-ladder']) {
                     const ladderVal = data.ladder_persona || data.ladder;
-                    if (Array.isArray(ladderVal)) rel.ladder_persona = ladderVal;
+                    if (Array.isArray(ladderVal)) {
+                        rel.ladder_persona = ladderVal.map(item => ({
+                            affection_threshold: item.affection_threshold ?? item.threshold ?? 0,
+                            content: item.content || item.performance || item.desc || '...'
+                        }));
+                    }
                 }
 
                 if (window.os) window.os.showToast('✨ 关系设定已完成', 'success');
@@ -3421,7 +3427,7 @@ ${contextParts.join('\n')}
 
     showMsgMenu(msgId, x, y) {
         // [Fix] Correct Selector Syntax (No spaces)
-        const el = document.querySelector(`.wx - bubble[data - msg - id="${msgId}"]`);
+        const el = document.querySelector(`.wx-bubble[data-msg-id="${msgId}"]`);
 
         const appEl = document.querySelector('.wechat-app');
         const appWidth = appEl ? appEl.offsetWidth : window.innerWidth;
