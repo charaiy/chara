@@ -48,9 +48,9 @@
 
     /* 间距与尺寸 (修正版) */
 
-    --wx-status-bar-height: 48px;
+    --wx-status-bar-height: max(48px, env(safe-area-inset-top));
 
-    /* 灵动岛区域 */
+    /* 灵动岛或状态栏区域 */
 
     --wx-nav-inner-height: 44px;
 
@@ -60,9 +60,9 @@
 
     --wx-tab-inner-height: 56px;
 
-    --wx-safe-bottom: 34px;
+    --wx-safe-bottom: max(34px, env(safe-area-inset-bottom));
 
-    /* 底部安全区，防止被圆角切, 恢复为标准的 34px 以远离 HomeBar */
+    /* 底部安全区，防止被圆角或系统手势遮挡 */
 
     --wx-tab-height: calc(var(--wx-tab-inner-height) + var(--wx-safe-bottom));
 

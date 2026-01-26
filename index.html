@@ -3,8 +3,19 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CharaOS</title>
+
+    <!-- PWA / Fullscreen Mobile Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CharaOS">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="assets/icon_192.png">
+
     <link rel="stylesheet" href="css/os.css">
     <link rel="stylesheet" href="css/os_toast.css">
     <link rel="stylesheet" href="css/apps/settings.css">
@@ -319,6 +330,7 @@
     <script src="js/apps/wechat/index.js?v=5"></script>
     <script src="js/apps/worldbook/index.js?v=5"></script>
     <script src="js/core/os.js?v=5"></script>
+    <script src="js/utils/pwa_guide.js?v=1"></script>
 </body>
 
 </html>
