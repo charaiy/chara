@@ -7,11 +7,7 @@ window.WeChat = window.WeChat || {};
 window.WeChat.Services = window.WeChat.Services || {};
 
 window.WeChat.Services.Contacts = {
-    _contacts: [
-        { id: 'file_helper', name: '文件传输助手', avatar: '', type: 'system', section: 'W' },
-        { id: 'tencent', name: '微信团队', avatar: '', type: 'system', section: 'W' },
-        { id: 'chara_assistant', name: 'Chara 小助手', avatar: '', type: 'bot', section: 'C' }
-    ],
+    _contacts: [],
 
     /**
      * 获取所有联系人，按 A-Z 排序（简化版）
@@ -86,7 +82,9 @@ window.WeChat.Services.Contacts = {
                 remark: contact.remark || '',
                 nickname: contact.nickname || '',
                 avatar: contact.avatar || '',
-                main_persona: contact.settings?.persona || "Assistant"
+                main_persona: contact.settings?.persona || "Assistant",
+                gender: contact.gender || '',
+                wxid: contact.wxid || ''
             });
         }
     },

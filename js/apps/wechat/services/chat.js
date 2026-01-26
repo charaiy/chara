@@ -20,7 +20,27 @@ window.WeChat.Services.Chat = {
 
     triggerSmartReply() {
         console.log('[ChatService] Triggering Smart Reply...');
-        this.triggerAIReply();
+
+        // [Manual Trigger Logic]
+        // If last message is from User -> Reply
+        // If last message is from AI -> Continue/Follow-up
+        if (!this._activeSession) return;
+
+        const msgs = window.sysStore.getMessagesBySession(this._activeSession);
+        if (msgs.length === 0) {
+            this.triggerAIReply();
+            return;
+        }
+
+        const lastMsg = msgs[msgs.length - 1];
+        const isUser = lastMsg.sender_id === 'user' || lastMsg.sender_id === 'me';
+
+        if (isUser) {
+            this.triggerAIReply();
+        } else {
+            // AI Last spoke -> No action (Auto-continue removed)
+            console.log('[Chat] Last message was from AI. Waiting for user input.');
+        }
     },
 
     sendMessage(text, type = 'text') {
@@ -34,9 +54,7 @@ window.WeChat.Services.Chat = {
         this.updateUI(msg);
 
         if (this._activeSession !== 'me' && this._activeSession !== 'file_helper') {
-            // Priority 1: Trigger AI Reply
-            this.triggerAIReply();
-
+            // [Manual Mode] Auto-reply disabled. User must click the button.
             // Priority 2: Memory Summarization (Background)
             if (window.Core && window.Core.Memory) {
                 window.Core.Memory.checkAndSummarize(this._activeSession);
@@ -125,16 +143,6 @@ window.WeChat.Services.Chat = {
         } finally {
             this._isRequesting = false;
             this.setTypingState(false);
-
-            // [Auto-Continuation]
-            // Randomly allow AI to follow up (25% chance)
-            if (!this._isContinuating && Math.random() < 0.25) {
-                this._isContinuating = true;
-                setTimeout(() => {
-                    this.continueChat(targetId);
-                    this._isContinuating = false;
-                }, 2000 + Math.random() * 2000);
-            }
         }
     },
 
@@ -142,86 +150,7 @@ window.WeChat.Services.Chat = {
      * Check if AI wants to continue speaking
      * Supports recursive calls for multi-turn chains
      */
-    async continueChat(targetId) {
-        // 1. [Concurrency & Interruption Check] 
-        if (this._isRequesting) return;
 
-        const rawMsgs = window.sysStore.getMessagesBySession(targetId);
-        if (rawMsgs.length > 0) {
-            const last = rawMsgs[rawMsgs.length - 1];
-            if (last.sender_id === 'user' || last.sender_id === 'me') {
-                console.log('[Chat] Continuation aborted: User interrupted.');
-                return;
-            }
-        }
-
-        try {
-            // 2. Fetch Character and Build System Prompt
-            // IMPORTANT: Without this, AI loses persona and status context in multi-turn mode
-            let character = window.sysStore.getCharacter(targetId);
-            if (!character) return;
-
-            let systemPrompt = '';
-            if (window.WeChat.Services.Prompts) {
-                systemPrompt = window.WeChat.Services.Prompts.constructSystemPrompt(targetId, character);
-            }
-
-            // 3. Build Context (History)
-            const history = this.buildContext(targetId);
-
-            // 4. Add Secret Instruction for Follow-up
-            const continuationContext = [
-                { role: 'system', content: systemPrompt },
-                ...history,
-                {
-                    role: 'system',
-                    content: '(System Instruction: This is a follow-up check. If you have another message to add (e.g. sticker, thought, or split text), output it now. If DONE, YOU MUST end with a final {"type":"update_thoughts", ...} to refresh your state. If truly nothing more to say, output exactly {"type":"stop"}.)'
-                }
-            ];
-
-            // 5. Call API (Silent)
-            const Api = window.Core?.Api || window.API;
-            if (!Api) return;
-
-            const responseText = await Api.chat(continuationContext);
-
-            // [Safety Check] Interrupted during generation?
-            const freshMsgs = window.sysStore.getMessagesBySession(targetId);
-            if (freshMsgs.length > 0) {
-                const freshLast = freshMsgs[freshMsgs.length - 1];
-                if (freshLast.sender_id === 'user' || freshLast.sender_id === 'me') {
-                    console.log('[Chat] Continuation discarded: User spoke during generation.');
-                    return;
-                }
-            }
-
-            let actions = this._parseAIResponse(responseText);
-
-            // 6. Check for Stop Signal
-            if (actions.length === 1 && actions[0].type === 'stop') {
-                console.log('[Chat] AI chose not to continue.');
-                return;
-            }
-            if (actions.length === 1 && actions[0].type === 'text' && (actions[0].content === 'NO' || actions[0].content === 'STOP')) {
-                return;
-            }
-
-            // 7. Execute (With Visuals)
-            console.log('[Chat] AI Continuation Triggered!', actions);
-            this.setTypingState(true);
-            await this.executeActions(targetId, actions);
-            this.setTypingState(false);
-
-            // 8. Recursive Chaining (Decaying probability)
-            if (Math.random() < 0.20) {
-                setTimeout(() => this.continueChat(targetId), 2000 + Math.random() * 2000);
-            }
-
-        } catch (e) {
-            console.warn('[Chat] Continuation check failed (silent)', e);
-            this.setTypingState(false);
-        }
-    },
 
     /**
      * 智能解析 AI 响应
@@ -292,9 +221,9 @@ window.WeChat.Services.Chat = {
         return rawHistory.map((m, index) => {
             let content = m.content;
 
-            // Vision Logic: only send real image data for the most recent messages to save tokens/bandwidth
-            // We define "recent" as the last 3 messages in the context window
-            const isRecent = index >= (rawHistory.length - 3);
+            // Vision Logic: STRICTLY follow the user's context_limit. 
+            // If the message is within the 'limit' slice (rawHistory), we send the full image payload.
+            // No secondary truncation.
 
             // Core: Transcribe non-text messages for AI
             if (m.type === 'image') {
@@ -316,16 +245,12 @@ window.WeChat.Services.Chat = {
                 if (description) {
                     content = `[图片/表情: ${description}]`;
                 } else {
-                    if (isRecent) {
-                        // Construction for Vision Models (OpenAI/Anthropic compatible format)
-                        content = [
-                            { type: "text", text: "[发送了一张图片，请根据图片内容进行交互]" },
-                            { type: "image_url", image_url: { url: m.content } }
-                        ];
-                    } else {
-                        // Fallback for older images to save tokens
-                        content = `[发送了一张图片] (系统提示: 这是之前的历史图片，不再提供视觉数据)`;
-                    }
+                    // Standard Image (Always send full payload if in history context)
+                    // Construction for Vision Models (OpenAI/Anthropic compatible format)
+                    content = [
+                        { type: "text", text: "[发送了一张图片，请根据图片内容进行交互]" },
+                        { type: "image_url", image_url: { url: m.content, detail: "auto" } }
+                    ];
                 }
             } else if (m.type === 'voice') {
                 content = `[语音消息]`;
@@ -402,12 +327,22 @@ window.WeChat.Services.Chat = {
         for (const action of actions) {
             console.log('[Chat] Executing Action:', action.type);
 
-            // 模拟输入延迟 (增强拟人感)
-            if (action.type === 'text' || action.type === 'sticker' || action.type === 'voice_message') {
-                const delay = Math.max(1000, (action.content?.length || 5) * 100);
-                await new Promise(r => setTimeout(r, Math.min(delay, 3000)));
+            // 模拟输入延迟 (增强拟人感) - User Rule: First msg 0s, others 2s 固定
+            const displayTypes = ['text', 'sticker', 'voice_message'];
+            if (displayTypes.includes(action.type)) {
+                // Calculate if this is the FIRST displayable message in the batch
+                // We must find the index of the first visual item to ensure it pops instantly
+                const firstDisplayIndex = actions.findIndex(a => displayTypes.includes(a.type));
+                const currentIndex = actions.indexOf(action);
+
+                const isFirstDisplayable = (currentIndex !== -1 && currentIndex === firstDisplayIndex);
+
+                // Rule: First message 0 delay, subsequent messages 2000ms
+                const delay = isFirstDisplayable ? 0 : 2000;
+                await new Promise(r => setTimeout(r, delay));
             } else {
-                await new Promise(r => setTimeout(r, 500));
+                // Internal parsing/thought events: Instant
+                await new Promise(r => setTimeout(r, 20));
             }
 
             switch (action.type) {
@@ -435,6 +370,9 @@ window.WeChat.Services.Chat = {
 
                         // 1. Send the cleaned text first (if any remains)
                         if (textContent) {
+                            // [Style Fix] Remove trailing periods/dots for realism
+                            textContent = textContent.replace(/[。\.]$/, '');
+
                             this.persistAndShow(targetId, textContent, 'text');
                             await new Promise(r => setTimeout(r, 400)); // Small delay between text and sticker
                         }
@@ -465,7 +403,9 @@ window.WeChat.Services.Chat = {
                         // Normal text - Filter out WorldBook citations like [1], [1, 2] etc.
                         const filteredContent = textContent.replace(/\[\d+(?:,\s*\d+)*\]/g, '').trim();
                         if (filteredContent) {
-                            this.persistAndShow(targetId, filteredContent, 'text');
+                            // [Style Fix] Remove trailing periods/dots
+                            const finalContent = filteredContent.replace(/[。\.]$/, '');
+                            this.persistAndShow(targetId, finalContent, 'text');
                         }
                     }
                     break;
@@ -548,16 +488,31 @@ window.WeChat.Services.Chat = {
                     };
 
                     // 1. 提取心声 (heartfelt_voice 或 inner_voice)
-                    statusUpdate.inner_voice = ensureStr(action.heartfelt_voice || action.inner_voice);
+                    let rawVoice = ensureStr(action.heartfelt_voice || action.inner_voice);
+
+                    // Fix: check in nested status object if not found at top level
+                    if (!rawVoice && action.status && typeof action.status === 'object') {
+                        rawVoice = ensureStr(action.status.inner_voice);
+                    }
+
+                    if (rawVoice) statusUpdate.inner_voice = rawVoice;
 
                     // 2. 提取服装与行为 (优先从 status 对象找，其次找顶层)
                     if (action.status && typeof action.status === 'object') {
-                        if (action.status.outfit) statusUpdate.outfit = ensureStr(action.status.outfit);
-                        if (action.status.behavior) statusUpdate.behavior = ensureStr(action.status.behavior);
+                        const sOutfit = ensureStr(action.status.outfit);
+                        const sBehavior = ensureStr(action.status.behavior);
+                        if (sOutfit) statusUpdate.outfit = sOutfit;
+                        if (sBehavior) statusUpdate.behavior = sBehavior;
                     }
                     // 扁平结构兜底
-                    if (!statusUpdate.outfit && action.outfit) statusUpdate.outfit = ensureStr(action.outfit);
-                    if (!statusUpdate.behavior && action.behavior) statusUpdate.behavior = ensureStr(action.behavior);
+                    if (!statusUpdate.outfit && action.outfit) {
+                        const fOutfit = ensureStr(action.outfit);
+                        if (fOutfit) statusUpdate.outfit = fOutfit;
+                    }
+                    if (!statusUpdate.behavior && action.behavior) {
+                        const fBehavior = ensureStr(action.behavior);
+                        if (fBehavior) statusUpdate.behavior = fBehavior;
+                    }
 
                     // 3. 处理好感度变化
                     if (action.affection_change !== undefined || action.affection !== undefined) {
@@ -578,11 +533,16 @@ window.WeChat.Services.Chat = {
                         if (difficulty === 'hard') maxChange = 0.1;
                         if (difficulty === 'easy') maxChange = 1.0;
 
-                        // 限制变化范围
-                        if (change > 0) change = Math.min(change, maxChange);
-                        if (change < 0) change = Math.max(change, -maxChange);
+                        // 限制变化范围 (仅限制正向涨幅，负向扣分不设限)
+                        if (change > 0) {
+                            change = Math.min(change, maxChange);
+                        } else if (change < 0) {
+                            // 负向扣分不设限 (Allow unlimited deduction)
+                            // change = change; 
+                        }
 
-                        const newAffection = Math.max(0, Math.min(100, currentAffection + change));
+                        // Allow negative scores (No Math.max(0, ...))
+                        const newAffection = Math.min(100, currentAffection + change);
                         statusUpdate.affection = newAffection.toFixed(1);
 
                         console.log(`[Affection] ${currentAffection} + ${change.toFixed(2)} = ${statusUpdate.affection} (难度: ${difficulty})`);
@@ -606,14 +566,30 @@ window.WeChat.Services.Chat = {
 
                 case 'accept_transfer':
                     // AI accepts User's transfer -> Find transfer from 'user'
-                    this._findAndUpdateTransfer(targetId, 'received', 'user');
-                    this.persistAndShow(targetId, `"${window.sysStore.getCharacter(targetId)?.name || targetId}" 已收款`, 'system');
+                    const accMsg = this._findAndUpdateTransfer(targetId, 'received', 'user');
+                    // Create a separate status bubble (visual feedback)
+                    let accAmount = '?.??';
+                    try { if (accMsg) accAmount = JSON.parse(accMsg.content).amount; } catch (e) { }
+
+                    this.persistAndShow(targetId, JSON.stringify({
+                        status: 'received',
+                        text: '已收款', // Or "已收款"
+                        amount: accAmount
+                    }), 'transfer_status');
                     break;
 
                 case 'refund_transfer':
                     // AI refunds User's transfer -> Find transfer from 'user'
-                    this._findAndUpdateTransfer(targetId, 'refunded', 'user');
-                    this.persistAndShow(targetId, `"${window.sysStore.getCharacter(targetId)?.name || targetId}" 已退还`, 'system');
+                    const refMsg = this._findAndUpdateTransfer(targetId, 'refunded', 'user');
+                    // Create a separate status bubble
+                    let refAmount = '?.??';
+                    try { if (refMsg) refAmount = JSON.parse(refMsg.content).amount; } catch (e) { }
+
+                    this.persistAndShow(targetId, JSON.stringify({
+                        status: 'refunded',
+                        text: '已退还',
+                        amount: refAmount
+                    }), 'transfer_status');
                     break;
 
                 case 'video_call_request': // 发起视频
@@ -631,6 +607,22 @@ window.WeChat.Services.Chat = {
                         detail: action.detail || action.address || ''
                     };
                     this.persistAndShow(targetId, JSON.stringify(locData), 'location');
+                    break;
+
+                case 'ignore_and_log':
+                    // 1. Show System Tip (Gray text explain why ignored)
+                    if (action.reason) {
+                        this.persistAndShow(targetId, `(${action.reason})`, 'system');
+                    }
+
+                    // 2. Perform background status update (if provided)
+                    // The 'status' update is already handled by the global parser at the top of executeActions (lines 500+),
+                    // but we ensure it's processed. The global parser extracts 'status' object from any action.
+                    // If action.status_update is passed as a separate field, we map it.
+                    if (action.status_update) {
+                        this._applyStatusUpdate(targetId, action.status_update);
+                    }
+                    console.log(`[Chat] AI ignored user: ${action.reason}`);
                     break;
 
                 case 'waimai_request': // 外卖代付
@@ -757,7 +749,10 @@ window.WeChat.Services.Chat = {
         // Auto-detect session derived from the message itself
         const activeSess = isMe ? msg.receiver_id : msg.sender_id;
         const messages = window.sysStore.getMessagesBySession(activeSess);
-        const prevMsg = messages.length >= 2 ? messages[messages.length - 2] : null;
+
+        // Find current message index
+        const currentIndex = messages.findIndex(m => m.id === msg.id);
+        const prevMsg = (currentIndex > 0) ? messages[currentIndex - 1] : null;
 
         if (!prevMsg || (bubbleData.timestamp - prevMsg.timestamp > 5 * 60 * 1000)) {
             const timeStr = window.WeChat.Views && window.WeChat.Views._formatChatTime
@@ -813,6 +808,13 @@ window.WeChat.Services.Chat = {
             // Update Data (Simulated persistence)
             transferMsg.transfer_status = status;
 
+            // [Persistence Fix] Update content JSON
+            try {
+                let payload = JSON.parse(transferMsg.content);
+                payload.status = status;
+                transferMsg.content = JSON.stringify(payload);
+            } catch (e) { }
+
             // 2. Update DOM
             const bubbleEl = document.querySelector(`.wx-bubble[data-msg-id="${transferMsg.id}"]`);
             if (bubbleEl) {
@@ -865,7 +867,10 @@ window.WeChat.Services.Chat = {
             if (window.sysStore && window.sysStore.set && window.sysStore.getAllMessages) {
                 window.sysStore.set('chara_db_messages', window.sysStore.getAllMessages());
             }
+
+            return transferMsg;
         }
+        return null; // Return null if not found
     },
 
     _applyStatusUpdate(sessionId, updates) {
@@ -885,14 +890,10 @@ window.WeChat.Services.Chat = {
         const isSame = JSON.stringify(oldStatus) === JSON.stringify(newStatus);
         if (!isSame) {
             const now = Date.now();
-            if (latest && (now - latest.timestamp < 60000)) {
-                // Merge into the last record (multi-bubble turn)
-                latest.status = newStatus;
-                // keep original timestamp to group them
-            } else {
-                // New logical turn
-                history.unshift({ timestamp: now, status: newStatus });
-            }
+            // Always create new history node for every update
+            history.unshift({ timestamp: now, status: newStatus });
+
+            // History limit kept at 5 as per user request
             window.sysStore.updateCharacter(sessionId, { status_history: history.slice(0, 5) });
         }
     },
@@ -904,9 +905,9 @@ window.WeChat.Services.Chat = {
         const char = window.sysStore.getCharacter(sessionId);
         if (!char || !char.status_history) return;
 
-        // The status grouping logic uses a 60s window (see _applyStatusUpdate)
-        // So we must look for status records that cover this message's timestamp
-        const GROUP_WINDOW = 60000;
+        // The status grouping logic is now more granular, so we reduce the window
+        // to find the relevant status update for this message.
+        const GROUP_WINDOW = 10000;
 
         // Find the status record that this message might belong to
         // RELAXED MATCH: Allow message strictly before OR after, as long as within window.

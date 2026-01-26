@@ -134,33 +134,81 @@ const Memory = {
         const char = this.store.getCharacter(targetId);
         const userName = this.store.get('user_realname') || '用户';
 
-        // 1. Prepare Prompt
-        // 提取消息文本
-        const chatLog = messages.map(m => {
+        // 1. Prepare System Prompt
+        let systemPrompt = config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第一人称视角记录。";
+        const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
+        // [CRITICAL FIX] 明确告诉 AI 两个时间的区别
+        systemPrompt += `\n\n【时间处理严格规定】：
+1. 这里的 "当前执行时间: ${nowStr}" 仅供你计算 "昨天"、"前天" 等相对概念，**绝不可作为 Summary 的时间头**！
+2. 生成的 "年份日期星期时间" 必须提取自 **下方对话记录中的实际时间戳 [YYYY/... ]**。
+3. 如果对话跨越也必须标明！不要把昨天发生的事写成今天！
+4. 例子：如果对话发生在昨天23:00，你的Summary必须写 "202x年x月x日23:00(昨天实际日期)..."，而不能写今天的日期。`;
+
+        systemPrompt += `\n\n【其它要求】：\n1. 总结精简(100字内)。\n2. 遇到表情包请描述含义。`;
+
+        // 2. Build Multimodal Content
+        let userContentParts = [];
+        let currentTextBuffer = systemPrompt + "\n\n[对话记录开始]\n";
+
+        messages.forEach(m => {
             const sender = (m.sender_id === 'user' || m.sender_id === 'me') ? userName : (char.name || '角色');
-            return `${sender}: ${m.content}`;
-        }).join('\n');
+            const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false }); // Add explicit time
 
-        const systemPrompt = config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结以下对话的重要信息，以第一人称视角记录为长期记忆。";
+            if (m.type === 'image' || m.type === 'sticker') {
+                // Flush text buffer
+                if (currentTextBuffer) {
+                    userContentParts.push({ type: 'text', text: currentTextBuffer });
+                    currentTextBuffer = "";
+                }
 
-        const prompt = `${systemPrompt}\n\n[对话记录开始]\n${chatLog}\n[对话记录结束]\n\n请输出总结：`;
+                // Add Context for Image - Explicitly label as Sticker or Image for the AI
+                const label = m.type === 'sticker' ? '[发送了表情包]' : '[发送了图片]';
+                userContentParts.push({ type: 'text', text: `\n[${timeStr}] ${sender} ${label}:\n` });
+
+                // Add Image Part
+                // Ensure it is a valid URL or Base64. 
+                // Note: Some local base64 might be too large, but we try.
+                userContentParts.push({
+                    type: 'image_url',
+                    image_url: { url: m.content }
+                });
+
+                currentTextBuffer += "\n"; // Padding after image
+            } else {
+                // Normal Text
+                currentTextBuffer += `[${timeStr}] ${sender}: ${m.content}\n`;
+            }
+        });
+
+        currentTextBuffer += "\n[对话记录结束]\n\n请输出总结：";
+        userContentParts.push({ type: 'text', text: currentTextBuffer });
 
         try {
-            // 2. Call API
-            console.log('[Memory] Calling AI for summary...');
-            const summaryText = await window.API.chat([
-                { role: 'system', content: 'You are a helpful memory assistant.' },
-                { role: 'user', content: prompt }
-            ]);
+            // 3. Call API with Multimodal payload
+            console.log('[Memory] Calling AI (Vision) for summary...');
 
-            // 3. Save Summary
+            // Construct the messages structure. 
+            // Note: We merge everything into one 'user' message with multiple parts for maximum compatibility with standard Vision APIs.
+            const messagesPayload = [
+                {
+                    role: 'user',
+                    content: userContentParts
+                }
+            ];
+
+            const summaryText = await window.API.chat(messagesPayload);
+
+            // 4. Save Summary
             if (summaryText) {
-                this.addMemory(targetId, summaryText, 'summary', false); // false to prevent recursive loop
+                this.addMemory(targetId, summaryText, 'summary', false);
                 console.log('[Memory] Summary saved successfully.');
+                if (window.os) window.os.showToast('长期记忆已更新', 'success');
             }
 
         } catch (e) {
             console.error('[Memory] Summary failed:', e);
+            if (window.os) window.os.showToast('总结失败，请检查网络或配置', 'error');
+            throw e;
         }
     },
 

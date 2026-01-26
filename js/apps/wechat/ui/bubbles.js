@@ -1,4 +1,4 @@
-/**
+﻿/**
  * js/apps/wechat/ui/bubbles.js
  * 负责渲染聊天气泡
  */
@@ -7,8 +7,8 @@ window.WeChat = window.WeChat || {};
 window.WeChat.UI = window.WeChat.UI || {};
 
 window.WeChat.UI.Bubbles = {
-    // Default Avatar (SVG Base64) to prevent broken images
-    DEFAULT_AVATAR: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00czLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg==',
+    // Default Avatar (PNG) - Changed to the grey one requested by user
+    DEFAULT_AVATAR: 'assets/images/avatar_placeholder.png',
 
     // Timer for click disambiguation
     _clickTimer: null,
@@ -75,7 +75,7 @@ window.WeChat.UI.Bubbles = {
         const isSelected = selectionState.selectedMsgIds && selectionState.selectedMsgIds.has(msg.id);
 
         const isMe = msg.sender === 'me';
-        // Use provided avatar -> fallback to Default Base64 -> Empty string (let error handler catch)
+        // Use provided avatar -> fallback to Default PNG -> Empty string (let error handler catch)
         const avatar = msg.avatar || this.DEFAULT_AVATAR;
 
         // Rich media types that shouldn't have the standard bubble background/padding
@@ -138,23 +138,33 @@ window.WeChat.UI.Bubbles = {
                         const isTransferMe = msg.sender === 'me';
 
                         // Determine Status (default: pending) - Shared logic with case 'transfer'
-                        const status = msg.transfer_status || 'pending';
+                        // [Fix] Check status from content JSON as well
+                        const status = msg.transfer_status || trans.status || 'pending';
                         const isReceived = status === 'received';
                         const isRefunded = status === 'refunded';
 
-                        const bubbleBg = isRefunded ? '#ffebd7' : '#f79e39';
-                        const iconColor = isRefunded ? '#fa9d3b' : 'white';
-                        const footerColor = isRefunded ? '#fa9d3b' : 'rgba(255,255,255,0.8)';
-                        const borderColor = isRefunded ? 'rgba(250,157,59,0.3)' : 'rgba(255,255,255,0.2)';
+                        // [Fix] White text/icons enforced
+                        const bubbleBg = (isReceived || isRefunded) ? '#f9e6cc' : '#f79e39';
+                        const iconColor = 'white';
+                        const mainTextColor = 'white';
+                        const subTextColor = 'rgba(255,255,255,0.8)';
+                        const footerColor = 'rgba(255,255,255,0.8)';
+                        const borderColor = 'rgba(255,255,255,0.2)';
 
                         let transferIcon = "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"; // Double Arrow
                         if (isReceived) transferIcon = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"; // Checkmark
                         if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"; // Return Arrow
 
                         // Subtitle Text
-                        let subText = trans.note || (isTransferMe ? '你发起了一笔转账' : '转账给你');
-                        if (isReceived) subText = "已收款";
-                        if (isRefunded) subText = "已退还";
+                        let subText = trans.note || (isTransferMe ? '请收款' : '转账给你');
+                        if (isReceived) {
+                            if (isTransferMe) subText = "已被接收";
+                            else subText = "已收款";
+                        }
+                        if (isRefunded) {
+                            if (isTransferMe) subText = "已被退还";
+                            else subText = "已退还";
+                        }
 
                         return `
                             <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
@@ -164,7 +174,7 @@ window.WeChat.UI.Bubbles = {
                                             <path d="${transferIcon}"/>
                                         </svg>
                                     </div>
-                                    <div style="display: flex; flex-direction: column; color: ${iconColor};">
+                                    <div style="display: flex; flex-direction: column; color: ${mainTextColor};">
                                         <div style="font-size: 15px; font-weight: 500;">¥${trans.amount}</div>
                                         <div style="font-size: 12px; opacity: 0.8;">${subText}</div>
                                     </div>
@@ -180,7 +190,7 @@ window.WeChat.UI.Bubbles = {
                 }
                 return msg.content ? String(msg.content).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
             case 'sticker':
-                return `<img src="${msg.content}" style="max-width: 120px; vertical-align: bottom;">`; // WeChat expressions are usually slightly smaller and no radius
+                return `<img src="${msg.content}" style="max-width: 120px; vertical-align: bottom;">`;
             case 'image':
                 return `<img src="${msg.content}" style="max-width: 140px; border-radius: 4px; vertical-align: bottom;">`;
             case 'location':
@@ -214,7 +224,6 @@ window.WeChat.UI.Bubbles = {
                         </div>
                     </div>
                 `;
-            // Orange Bubble Style
             case 'transfer': {
                 let trans = {};
                 try {
@@ -224,38 +233,52 @@ window.WeChat.UI.Bubbles = {
                 }
                 const isTransferMe = msg.sender === 'me';
 
-
-                // Determine Status (default: pending)
-                // We rely on 'msg.transfer_status' being set by the Chat Service during updates
-                const status = msg.transfer_status || 'pending';
+                // [Fix] Check status from content JSON as well (Persistence logic)
+                const status = msg.transfer_status || trans.status || 'pending';
                 const isReceived = status === 'received';
                 const isRefunded = status === 'refunded';
 
-                const bubbleBg = isRefunded ? '#ffebd7' : '#f79e39';
-                const iconColor = isRefunded ? '#fa9d3b' : 'white';
-                const footerColor = isRefunded ? '#fa9d3b' : 'rgba(255,255,255,0.8)';
-                const borderColor = isRefunded ? 'rgba(250,157,59,0.3)' : 'rgba(255,255,255,0.2)';
+                // [Fix] White text/icons enforced for ALL states
+                // Background is lighter orange for resolved states
+                const bubbleBg = (isReceived || isRefunded) ? '#f9e6cc' : '#f79e39';
+                const iconColor = 'white';
+                const mainTextColor = 'white';
+                const subTextColor = 'rgba(255,255,255,0.8)';
+                const footerColor = 'rgba(255,255,255,0.8)';
+                const borderColor = 'rgba(255,255,255,0.2)';
 
-                let transferIcon = "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"; // Double Arrow
-                if (isReceived) transferIcon = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"; // Checkmark
-                if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"; // Return Arrow
+                let transferIcon = "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z";
+                if (isReceived) transferIcon = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
+                if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z";
 
-                // Subtitle Text
-                let subText = trans.note || (isTransferMe ? '你发起了一笔转账' : '转账给你');
-                if (isReceived) subText = "已收款";
-                if (isRefunded) subText = "已退还";
+                let subText = trans.note || (isTransferMe ? '请收款' : '转账给你');
+
+                if (isReceived) {
+                    if (isTransferMe) {
+                        subText = "已被接收";
+                    } else {
+                        subText = "已收款";
+                    }
+                }
+                if (isRefunded) {
+                    if (isTransferMe) {
+                        subText = "已被退还";
+                    } else {
+                        subText = "已退还";
+                    }
+                }
 
                 return `
-                    <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
+                    <div onclick="event.stopPropagation(); window.WeChat.App.handleTransferClick('${msg.id}')" style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
                         <div style="padding: 12px; display: flex; flex-direction: row; align-items: center;">
                             <div style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 10px; box-sizing: border-box;">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="${iconColor}">
                                     <path d="${transferIcon}"/>
                                 </svg>
                             </div>
-                            <div style="display: flex; flex-direction: column; color: ${iconColor};">
-                                <div style="font-size: 15px; font-weight: 500;">¥${trans.amount}</div>
-                                <div style="font-size: 12px; opacity: 0.8;">${subText}</div>
+                            <div style="display: flex; flex-direction: column; color: ${mainTextColor};">
+                                <div style="font-size: 15px; font-weight: 500; color: ${mainTextColor}">¥${trans.amount}</div>
+                                <div style="font-size: 12px; color: ${subTextColor};">${subText}</div>
                             </div>
                         </div>
                         <div style="height: 20px; padding: 0 12px; display: flex; align-items: center; border-top: 1px solid ${borderColor};">
@@ -273,20 +296,14 @@ window.WeChat.UI.Bubbles = {
                     statusData = { status: 'unknown', text: msg.content };
                 }
                 const isRefund = statusData.status === 'refunded';
-
-                // Colors
                 const bubbleBg = isRefund ? '#ffebd7' : '#f79e39';
-                // const contentColor = isRefund ? '#fa9d3b' : 'white'; 
-                // Actually WeChat uses White text even on light orange for consistency, or standard orange text. 
-                // Let's use White for consistency with the screenshot reference if possible, otherwise Dark Orange.
-                // Screenshot 1 top bubble (Refunded) text is WHITE.
                 const txtColor = 'white';
                 const footerColor = 'rgba(255,255,255,0.8)';
                 const borderColor = 'rgba(255,255,255,0.2)';
 
                 const statusIconPath = isRefund
-                    ? "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" // Return
-                    : "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"; // Checkmark
+                    ? "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"
+                    : "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
 
                 return `
                     <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: default;">
@@ -307,6 +324,52 @@ window.WeChat.UI.Bubbles = {
                     </div>
                 `;
             }
+            case 'voice':
+                const duration = msg.duration || 5;
+                const isVoiceMe = msg.sender === 'me';
+                const barWidth = Math.min(160, 40 + duration * 6);
+                const voiceIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="transform: ${isVoiceMe ? 'rotate(180deg)' : 'none'};">
+                    <path d="M12 3v18l-6-6H3V9h3l6-6zM18 9v6h-2V9h2zm4-4v14h-2V5h2z"/>
+                </svg>`;
+                return `
+                    <div style="width: ${barWidth}px; display: flex; align-items: center; justify-content: ${isVoiceMe ? 'flex-end' : 'flex-start'}; cursor: pointer;" onclick="window.WeChat.App.playVoice('${msg.id}')">
+                        ${isVoiceMe ? `<span style="margin-right:8px; font-size:14px; opacity:0.6;">${duration}"</span>${voiceIcon}` : `${voiceIcon}<span style="margin-left:8px; font-size:14px; opacity:0.6;">${duration}"</span>`}
+                    </div>
+                `;
+
+            case 'video_call':
+                const isVideoMe = msg.sender === 'me';
+                const callStatus = msg.status || 'ended';
+                const callDuration = msg.call_duration || '';
+
+                let callText = '视频通话';
+                if (callStatus === 'ended') callText = `视频通话 结束时长 ${callDuration || '00:00'}`;
+                if (callStatus === 'declined') callText = isVideoMe ? '对方已拒绝' : '已拒绝';
+                if (callStatus === 'cancelled') callText = isVideoMe ? '已取消' : '对方已取消';
+
+                const callIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
+                    <path d="M15 10l4.55-2.27A1 1 0 0121 8.61v6.78a1 1 0 01-1.45.89L15 14v-4zM5 8h8a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2z" fill="currentColor"/>
+                </svg>`;
+
+                return `
+                    <div style="display: flex; align-items: center; padding: 2px 0;">
+                        ${isVideoMe ? `<span style="font-size: 15px;">${callText}</span>${callIcon}` : `${callIcon}<span style="font-size: 15px;">${callText}</span>`}
+                    </div>
+                `;
+
+            case 'audio_call':
+                const isAudioMe = msg.sender === 'me';
+                const aCallText = msg.status === 'ended' ? `语音通话 结束时长 ${msg.call_duration || '00:00'}` : '语音通话';
+                const audioIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
+                    <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/>
+                </svg>`;
+
+                return `
+                    <div style="display: flex; align-items: center; padding: 2px 0;">
+                        ${isAudioMe ? `<span style="font-size: 15px;">${aCallText}</span>${audioIcon}` : `${audioIcon}<span style="font-size: 15px;">${aCallText}</span>`}
+                    </div>
+                `;
+
             default:
                 return '[不支持的消息类型]';
         }

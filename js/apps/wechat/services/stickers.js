@@ -146,9 +146,25 @@ window.WeChat.Services.Stickers = {
         }
 
         if (candidates.length > 0) {
-            // Randomly pick one
-            const r = Math.floor(Math.random() * candidates.length);
-            return candidates[r].url;
+            // [Anti-Repetition] Filter out recently used stickers
+            if (!this._recentList) this._recentList = [];
+
+            // Try to find candidates not in recent list
+            const freshCandidates = candidates.filter(c => !this._recentList.includes(c.url));
+
+            // Use fresh ones if available, otherwise fallback to all to avoid breaking
+            const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+
+            const r = Math.floor(Math.random() * pool.length);
+            const chosenUrl = pool[r].url;
+
+            // Update History (Keep last 5)
+            this._recentList.push(chosenUrl);
+            if (this._recentList.length > 5) {
+                this._recentList.shift();
+            }
+
+            return chosenUrl;
         }
 
         return null;

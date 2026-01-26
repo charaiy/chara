@@ -58,11 +58,18 @@ window.WorldBookApp = {
     renderModal() {
         if (!this.modalState.visible) return '';
         const isConfirm = this.modalState.type === 'confirm';
-        const title = isConfirm ? '确认操作' : (this.modalState.type === 'add' ? '新建分组' : '重命名分组');
+        const isInfo = this.modalState.type === 'info';
+
+        let title = '标题';
+        if (isConfirm) title = '确认操作';
+        else if (isInfo) title = '世界书规则';
+        else title = this.modalState.type === 'add' ? '新建分组' : '重命名分组';
 
         let contentHtml = '';
-        if (isConfirm) {
-            contentHtml = `<div style="font-size:15px; color:var(--wb-text); line-height:1.5; padding:10px 0;">${this.escapeHtml(this.modalState.message)}</div>`;
+        if (isConfirm || isInfo) {
+            // Use message
+            // Allow basic HTML formatting for Info
+            contentHtml = `<div style="font-size:14px; color:var(--wb-text); line-height:1.6; padding:10px 4px; white-space:pre-wrap;">${this.modalState.message}</div>`;
         } else {
             contentHtml = `<input id="wb-modal-input" class="wb-modal-input" value="${this.escapeHtml(this.modalState.inputValue)}" placeholder="请输入名称..." onkeydown="if(event.key==='Enter') window.WorldBookApp.confirmModal()">`;
         }
@@ -75,12 +82,22 @@ window.WorldBookApp = {
                         ${contentHtml}
                     </div>
                     <div class="wb-modal-footer">
-                        <div class="wb-modal-btn cancel" onclick="window.WorldBookApp.closeModal()">取消</div>
-                        <div class="wb-modal-btn confirm" onclick="window.WorldBookApp.confirmModal()">确定</div>
+                        ${!isInfo ? `<div class="wb-modal-btn cancel" onclick="window.WorldBookApp.closeModal()">取消</div>` : ''}
+                        <div class="wb-modal-btn confirm" onclick="window.WorldBookApp.confirmModal()">${isInfo ? '知道了' : '确定'}</div>
                     </div>
                 </div>
             </div>
         `;
+    },
+
+    showRules() {
+        this.modalState = {
+            visible: true,
+            type: 'info',
+            message: `1. 触发机制\n\n• 关键词触发：当对话中出现设定好的“触发词”时，相关条目会被自动加载到记忆中。\n• 常驻关联：在聊天设置中手动勾选的条目，会无条件一直生效。\n\n2. 优先级\n\n• 常驻条目 > 触发条目\n• 后触发的内容优先级更高\n\n小技巧：常驻关联适合记录当前场景（如“在咖啡店”）；触发条目适合用作百科全书（如“魔法原理”）。`,
+            onConfirm: null
+        };
+        this.render();
     },
 
     renderListView() {
@@ -95,32 +112,51 @@ window.WorldBookApp = {
         const groups = {};
 
         // 1. Initialize custom groups
+        // 1. Initialize custom groups
         customGroups.forEach(g => {
             groups[g.id] = { id: g.id, name: g.name, entries: [], isCustom: true };
         });
 
-        // 2. Default Global Group
-        if (!groups['global']) groups['global'] = { id: 'global', name: '全局/通用', entries: [], isCustom: false };
+        // 2. Ensure 'uncategorized' always exists (Persistent Base Group)
+        if (!groups['uncategorized']) {
+            groups['uncategorized'] = { id: 'uncategorized', name: '未分类', entries: [], isCustom: true };
+        }
 
         // 3. Process Entries
         entries.forEach(e => {
-            let gid = e.groupId || 'global';
+            let gid = e.groupId;
+
+            // If the group ID is not in our initialized custom groups (e.g. it was a Char ID),
+            // or if it is 'global'/'uncategorized', force it to 'uncategorized'.
+            if (!groups[gid] || gid === 'global' || gid === 'uncategorized') {
+                gid = 'uncategorized';
+            }
+
+            // Initialize 'uncategorized' bucket if not exists (redundant but safe)
             if (!groups[gid]) {
-                let name = chars[gid]?.name || '其他角色';
-                groups[gid] = { id: gid, name: name, entries: [], isCustom: false };
+                groups[gid] = { id: gid, name: '未分类', entries: [], isCustom: true };
             }
             groups[gid].entries.push(e);
         });
 
-        const activeGids = Object.keys(groups).filter(gid => this.isEditMode || groups[gid].entries.length > 0);
+        // Show groups if:
+        // 1. It is a Custom Group 
+        // 2. OR It has entries
+        // 3. OR It is 'uncategorized' (Always Show)
+        const activeGids = Object.keys(groups).filter(gid => this.isEditMode || groups[gid].isCustom || groups[gid].entries.length > 0 || gid === 'uncategorized');
 
         const sortedGids = activeGids.sort((a, b) => {
-            if (a === 'global') return -1;
-            if (b === 'global') return 1;
             const ga = groups[a];
             const gb = groups[b];
+
+            // Priority: Custom Groups Top
             if (ga.isCustom && !gb.isCustom) return -1;
             if (!ga.isCustom && gb.isCustom) return 1;
+
+            // Put 'uncategorized' at the very bottom
+            if (a === 'uncategorized') return 1;
+            if (b === 'uncategorized') return -1;
+
             return ga.name.localeCompare(gb.name);
         });
 
@@ -161,7 +197,7 @@ window.WorldBookApp = {
                         </div>
                         <div style="display:flex; align-items:center;">
                             <span class="count">${group.entries.length} 条</span>
-                            ${this.isEditMode && group.isCustom ? `
+                            ${this.isEditMode && group.isCustom && group.id !== 'uncategorized' ? `
                                 <div class="wb-section-icon-btn" style="color:#ff3b30;" onclick="window.WorldBookApp.deleteCategory('${gid}', event)">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                 </div>
@@ -232,20 +268,19 @@ window.WorldBookApp = {
     renderEditView(id) {
         const entries = this.getEntries();
         const entry = entries.find(e => e.id === id) || {
-            id: null, name: '', triggers: [], content: '', enabled: true, groupId: 'global'
+            id: null, name: '', triggers: [], content: '', enabled: true, groupId: 'uncategorized'
         };
         const isNew = !entry.id;
 
         const customGroups = this.getGroups();
         const chars = window.sysStore.get('chara_db_characters', {});
 
-        let groupsHtml = `<option value="global" ${entry.groupId === 'global' ? 'selected' : ''}>全局/通用</option>`;
+        let groupsHtml = `<option value="uncategorized" ${(!entry.groupId || entry.groupId === 'global' || entry.groupId === 'uncategorized') ? 'selected' : ''}>未分类</option>`;
         customGroups.forEach(g => {
+            if (g.id === 'uncategorized' || g.id === 'global') return; // Skip duplicates
             groupsHtml += `<option value="${g.id}" ${entry.groupId === g.id ? 'selected' : ''}>${g.name}</option>`;
         });
-        Object.keys(chars).forEach(cid => {
-            groupsHtml += `<option value="${cid}" ${entry.groupId === cid ? 'selected' : ''}>[角色] ${chars[cid].name}</option>`;
-        });
+        // [Removed] Character-specific groups logic based on user request
 
         return `
             <div class="wb-edit-view">
@@ -410,9 +445,10 @@ window.WorldBookApp = {
 
     deleteCategory(id, event) {
         if (event) event.stopPropagation();
-        this.openConfirmModal('确定删除此分组吗？其中的条目将移至全局。', () => {
+        this.openConfirmModal('确定删除此分组吗？其中的条目将移至“未分类”。', () => {
             const entries = this.getEntries();
-            entries.forEach(e => { if (e.groupId === id) e.groupId = 'global'; });
+            // Move items to 'uncategorized' instead of 'global'
+            entries.forEach(e => { if (e.groupId === id) e.groupId = 'uncategorized'; });
             this.saveEntries(entries);
             let groups = this.getGroups();
             groups = groups.filter(x => x.id !== id);
@@ -436,10 +472,10 @@ window.WorldBookApp = {
     moveSelected() {
         if (this.selectedEntryIds.size === 0) return;
         const customGroups = this.getGroups();
-        const chars = window.sysStore.get('chara_db_characters', {});
+        // [Clean] No char groups in move list, only Custom + Uncategorized
         let options = customGroups.map(g => `${g.id}: ${g.name}`);
-        options.unshift('global: 全局/通用');
-        Object.keys(chars).forEach(cid => options.push(`${cid}: [角色] ${chars[cid].name}`));
+        options.push('uncategorized: 未分类');
+
         const choice = prompt('请输入目标分组 ID:\n' + options.join('\n'));
         if (choice) {
             const targetId = choice.split(':')[0].trim();

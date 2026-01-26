@@ -286,6 +286,11 @@ class Store {
         this.set('chara_db_messages', messages);
     }
 
+    // [Alias] For API compatibility
+    deleteMessagesBySession(targetId) {
+        this.clearMessagesBySession(targetId);
+    }
+
     resetCharacterState(id) {
         const db = this.get('chara_db_characters', {});
         const char = db[id];

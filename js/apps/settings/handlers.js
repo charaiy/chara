@@ -290,7 +290,7 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
             let count = 0, size = 0;
             const keys = Object.keys(localStorage);
             const standardKeys = [
-                'chara_db_messages', 'chara_db_characters', 'chara_db_world',
+                'chara_db_messages', 'chara_db_characters', 'chara_db_world', 'chara_db_worldbook', 'chara_db_worldbook_groups',
                 'main_api_key', 'main_api_url', 'main_model', 'bg_activity_enabled',
                 'user_name', 'user_avatar', 'dark_mode', 'show_status_bar',
                 'home_screen_wallpaper', 'lock_screen_wallpaper', 'active_font'
@@ -325,7 +325,7 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
             s.init(); // 触发初始化检测
             if (window.os) window.os.showToast('核心数据已修复', 'success');
         },
-        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_world'); if (window.os) window.os.showToast('已清空'); } },
+        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_worldbook'); s.remove('chara_db_worldbook_groups'); if (window.os) window.os.showToast('已清空'); } },
         'btn-reset-appearance': () => { if (confirm('确认重置所有外观设置（壁纸、字体、自定义CSS）？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font', 'show_status_bar', 'show_dynamic_island'].forEach(k => s.remove(k)); location.reload(); } },
         'btn-reset-all': () => { if (confirm('⚠️ 警告：彻底抹除所有本地数据（包括聊天记录、API Key、已保存的角色）？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
     };

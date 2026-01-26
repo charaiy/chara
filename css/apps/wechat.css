@@ -633,7 +633,7 @@ html body #os-root.light-mode {
 
     margin-right: 20px;
 
-    background-color: #eee;
+    /* background-color: #eee; */
 
     object-fit: cover;
 
@@ -762,6 +762,12 @@ html body #os-root.light-mode {
     line-height: 1.5;
     word-wrap: break-word;
     position: relative;
+    user-select: none;
+    /* Prevent text selection during long press check */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    cursor: pointer;
+    /* Hint that it is interactive */
 }
 
 .wx-bubble-me {
@@ -1370,6 +1376,12 @@ html:not(.light-mode) .wx-sticker-add-btn {
     -ms-overflow-style: none;
     padding-bottom: var(--wx-tab-height);
     box-sizing: border-box;
+    /* transition: padding-bottom 0.25s; <-- Removed to prevent scroll conflict/jumpiness */
+}
+
+.wx-view-container.panel-open {
+    padding-bottom: 370px !important;
+    /* Footer(56) + Panel(280) + Safe(34) */
 }
 
 .wx-view-container::-webkit-scrollbar {
@@ -2786,5 +2798,130 @@ html body #os-root.light-mode .wx-msg-selection-footer {
 html body #os-root.light-mode .wx-wb-checkbox {
     border-color: rgba(0, 0, 0, 0.1);
 }
+
 /* IOS Alert Styles */
-.wx-ios-alert { width: 270px; background-color: rgba(255, 255, 255, 0.95); border-radius: 14px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; overflow: hidden; animation: wx-ios-alert-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); } html body #os-root.light-mode .wx-ios-alert { background-color: rgba(255, 255, 255, 0.95); } html body #os-root:not(.light-mode) .wx-ios-alert { background-color: rgba(30, 30, 30, 0.95); border: 0.5px solid rgba(255,255,255,0.1); } .wx-ios-alert-title { padding: 20px 16px 8px 16px; font-size: 17px; font-weight: 600; text-align: center; color: var(--wx-text); } .wx-ios-alert-content { padding: 0 16px 20px 16px; font-size: 13px; color: var(--wx-text); text-align: center; line-height: 1.4; word-wrap: break-word; word-break: break-all; white-space: pre-wrap; } .wx-ios-alert-footer { display: flex; border-top: 0.5px solid var(--wx-border); height: 44px; } .wx-ios-alert-btn { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: background-color 0.2s; } .wx-ios-alert-btn:active { background-color: rgba(0,0,0,0.05); } html body #os-root:not(.light-mode) .wx-ios-alert-btn:active { background-color: rgba(255,255,255,0.1); } .wx-ios-alert-btn.cancel { color: #007aff; font-weight: 400; border-right: 0.5px solid var(--wx-border); } .wx-ios-alert-btn.confirm { color: #007aff; font-weight: 600; } .wx-ios-alert-btn.destructive { color: #fa5151; font-weight: 600; } @keyframes wx-ios-alert-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.wx-ios-alert {
+    width: 270px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 14px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: wx-ios-alert-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+html body #os-root.light-mode .wx-ios-alert {
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+html body #os-root:not(.light-mode) .wx-ios-alert {
+    background-color: rgba(30, 30, 30, 0.95);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.wx-ios-alert-title {
+    padding: 20px 16px 8px 16px;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--wx-text);
+}
+
+.wx-ios-alert-content {
+    padding: 0 16px 20px 16px;
+    font-size: 13px;
+    color: var(--wx-text);
+    text-align: center;
+    line-height: 1.4;
+    word-wrap: break-word;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+.wx-ios-alert-footer {
+    display: flex;
+    border-top: 0.5px solid var(--wx-border);
+    height: 44px;
+}
+
+.wx-ios-alert-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.wx-ios-alert-btn:active {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+html body #os-root:not(.light-mode) .wx-ios-alert-btn:active {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.wx-ios-alert-btn.cancel {
+    color: #007aff;
+    font-weight: 400;
+    border-right: 0.5px solid var(--wx-border);
+}
+
+.wx-ios-alert-btn.confirm {
+    color: #007aff;
+    font-weight: 600;
+}
+
+.wx-ios-alert-btn.destructive {
+    color: #fa5151;
+    font-weight: 600;
+}
+
+@keyframes wx-ios-alert-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Voice Bubble Animation */
+.playing svg {
+    animation: wx-voice-play 1s infinite steps(3);
+}
+
+@keyframes wx-voice-play {
+    0% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.3;
+    }
+}
+
+.wx-bubble[data-msg-id].playing {
+    filter: brightness(0.9);
+}
+
+@keyframes wx-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
