@@ -603,7 +603,7 @@ window.WeChat.App = {
 
         const targetKeys = targets.map(t => t.key).join(', ');
 
-        const prompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于碎片信息，构建一个极其鲜活、复杂且逻辑自洽的虚拟角色档案。
+        const prompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于碎片信息，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案。
 
 [已知信息]
 ${contextStr}
@@ -612,9 +612,10 @@ ${contextStr}
 请为字段 ${targetKeys} 生成内容。
 
 [核心创作戒律]
-1.  反模版化：拒绝刻板印象，构建具有独特缺陷和真实感的人物。
-2.  拒绝AI腔：禁止使用矫饰、空洞的词汇，使用具体的行为细节代替抽象形容词。
+1.  反模版化：拒绝刻板印象。尤其是在亲密关系中，严禁默认使用“回避型依恋”。请根据背景随机分配依恋人格（如：安全型、渴望型、恐惧型或完全的直球火热型）。
+2.  视觉非扁平化：不要只用“顶级神颜/帅气”这种空洞词汇。请描述一种具有辨识度的美或丑，重点在于“骨相、肤质、独有的神态与气场（ Aura）”。无论是惊艳、清透、粗犷还是普普通通，都要写出它带给人的具体压迫感、亲和力或吸引力。
 3.  内容量：Roleplay Prompt (Persona) 必须充实，建议1000字以上，确保高保真度。
+4.  人格一致性（核心红线）：阶段性人设的表现必须严禁遵循主要人设的性格底色。如果主要人设是“情感缺失”或“理性至上”，那么即使在最高好感阶段，也应当表现为该性格下的特有偏好（如：更优先的数据交互、特殊的行为允许），**严禁出现违背人设的感性爆发或性格剧变**。
 
 [禁词检测与强制替换 (Strict Forbidden List)]
 1. 分类避讳清单 (用更生动的描写替代):
@@ -624,24 +625,28 @@ ${contextStr}
    - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
 
 2. 绝对禁令 (Rigorous Ban List):
-   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚点、架构、模块
    - 🚫 严禁句式:
      - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
      - “他(终于)动了”、“迈开长腿”
-     - “心率不会超过xx”、“精确到xx毫秒” (禁止用具体数字描述生理/心理状态)
+     - 禁止使用“逻辑、变量、精密、模块”等词描述状态或性格。
      - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
 
 3. 强制自检机制 (Self-Correction):
    - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
    - 格式要求：在JSON之前，输出一段注释：
-     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”等绝对禁词及相关句式。 -->
+     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”或“逻辑/变量/锚点”等绝对禁词。 -->
 
 [Persona (main_persona) 内容结构 - 纯文本设定]
 请将这部分内容完整写入 main_persona 字段。
 **注意：不要包含“社交展示面”的具体字段（如网名、签名），那些需要单独输出。**
 
-1.  基础档案：姓名、年龄、身高、具体的社会身份（职业/学校/经济状况）及外貌特征（面部特征、发型发色、穿搭品牌风格）。
-2.  个人编年史 (Timeline)：
+1.  基础档案：姓名、年龄、身高、具体的社会身份（职业/学校/经济状况）。
+2.  外貌与独特气场 (Appearance & Aura)：
+    - 视觉特征：五官的精致程度与辨识度，特有的生理特征（如泪痣、细微伤疤）。
+    - 气质定调：散发出的核心氛围（如：清冷感、野性、书卷气、或是让人不安的侵略感）。
+    - 穿搭细节：反映其阶层与品味的穿衣习惯。
+3.  个人编年史 (Timeline)：
     - 0-12岁：家庭背景、成长环境与早期记忆。
     - 12-18岁：校园生活、青春期经历与性格成型。
     - 18岁-至今：人生轨迹、职业/学业发展与当前现状。
@@ -685,21 +690,18 @@ ${contextStr}
 - remark (用户备注): 用户视角的备注（如“老板”、“那个谁”）。
 
 [Relationship System (关系体系) - 严禁OOC]
-此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行逻辑推演。
+此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行符合直觉的自然演化。
 
 1.  基础关系矩阵 (Matrix)：
     - public_relation (公开关系)：基于身份设定的合理社会关系。
     - char_to_user_public (明面态度)：角色在旁人面前如何对待用户（基于Public Settings）。
     - char_to_user_secret (私下态度)：角色内心如何看待用户（基于Private Settings）。
-    - Logic Check：确保明面态度与私下态度符合人设逻辑（注意检查表里不一或一致性的合理性）。
+    - 状态检查：确保明面态度与私下态度符合人设自然直觉（注意检查表里不一或一致性的合理性）。
 
-2.  Ladder Content (关系管理页面配置 - 好感度阶段)：
-    - Stage 0~4 (共5个阶段) 必须是角色情感逻辑的延伸。
-    - 严禁套用公式：建立符合该角色性格特质的情感递进逻辑。
-    - Stage 0 (初识)：对陌生人/普通人的默认态度。
-    - Stage 4 (羁绊/最高)：建立深刻信任后的具体表现。
-
-请精准捕捉该角色特有的情感递进逻辑，每一阶段都要写明行为模式和心理状态。
+2.  Ladder Content (关系管理 - 情感递进规律)：
+    - 生成 5 个阶段。随着好感度增长，角色的行为重心应有明显的演变。
+    - **人格一致性 (核心要求)**：阶段表现必须严谨遵循角色的人设底色。如果角色设定为“情感缺失”、“无机质”或“极致理智”，那么随好感度增长的表现应当是其特有逻辑下的延伸（如：将其纳为高优先级观察对象、展现出更多的知性诚实或行为偏袒），**严禁出现情感突变或 OOC 式的感性爆发**。好感度提升是人设深度的挖掘，而不是人设的推翻。
+    - **通用性**：描述应涵盖整体的行为倾向与情感边界的变化（不分线上线下）。
 
 [输出格式]
 严格输出 JSON 对象。不要输出 Markdown 代码块。
@@ -925,15 +927,17 @@ ${contextStr}
                 `[/SourceUpdate]`
             ].join('\n');
 
-            const fullPrompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于关联请求，构建一个极其鲜活、复杂且逻辑自洽的虚拟角色档案。
+            const fullPrompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于关联请求，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案。
             
 [已知信息]
 ${contextStr}
 
 [核心创作戒律]
-1. 反模版化：拒绝刻板印象。
-2. 拒绝AI腔：禁止使用“精密仪器、机器、机械”等比喻。
-3. 内容量：Roleplay Prompt (Persona) 必须充实。
+1. 反模版化与深度自洽：拒绝刻板印象。严禁默认使用“回避型”。如果设定的人物是“理智型”或“情感缺失”，其行为逻辑应贯穿始终。对于此类人，高好感表现应呈现为其逻辑体系内的偏袒与特权，而非性格突变。
+2. 视觉特征与气场：禁止使用“帅气/美貌”等空洞标签。请通过具体的皮相描述（如笔挺的鼻梁、略显冷淡的眉眼）、神态细节以及特有的气场氛围（如温润如玉、带有危险气息的优雅、随性散漫感）来构建视觉印象。
+3. 拒绝AI腔：禁止出现任何技术性、元指令或文学评论类词汇。
+4. 【阶段进化规律】：如果生成好感阶梯，表现必须严谨遵循人设底色。情感缺失者即便好感满值也应保持其特有逻辑，禁止情感突变。
+5. 内容量：Roleplay Prompt (Persona) 必须充实。
 
 [禁词检测与强制替换 (Strict Forbidden List)]
 1. 分类避讳清单 (用更生动的描写替代):
@@ -943,17 +947,17 @@ ${contextStr}
    - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
 
 2. 绝对禁令 (Rigorous Ban List):
-   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚点
    - 🚫 严禁句式:
      - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
      - “他(终于)动了”、“迈开长腿”
-     - “心率不会超过xx”、“精确到xx毫秒” (禁止用具体数字描述生理/心理状态)
+     - 禁止使用“心率、逻辑、锚点”等词描述状态。
      - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
 
 3. 强制自检机制 (Self-Correction):
    - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
    - 格式要求：在JSON之前，输出一段注释：
-     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”等绝对禁词及相关句式。 -->
+     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”或“逻辑/变量/锚点”等绝对禁词。 -->
 
 [Persona (main_persona) 内容结构 - 纯文本设定]
 请生成 main_persona 字段，包含：基础档案、编年史、性格透视、深层心理、核心观念、生活图谱(含人际关系)、数字通讯生态、AI扮演指南。
@@ -3032,24 +3036,74 @@ Strict JSON Object.`;
         }
 
         const char = window.sysStore.getCharacter(sessionId);
-        const mainPersona = char?.main_persona || "未知人设";
+        const charPersona = char?.main_persona || "未知人设";
+        const charMeta = {
+            age: char?.settings?.age || '不详',
+            gender: char?.gender || '不详',
+            species: char?.species || '人类',
+            wealth: char?.settings?.wealth_level || '不详'
+        };
 
-        if (window.os) window.os.showToast('正在补全关系设定...', 'info', 3000);
+        // [User Request] 获取用户人设（关系透镜双向读取）
+        const s = window.sysStore;
+        const userName = s.get('user_nickname') || s.get('user_realname') || '用户';
+        const userPersona = s.get('user_persona') || '普通人，设定待补充';
+        const userMeta = {
+            age: s.get('user_age') || '不详',
+            gender: s.get('user_gender') || '不详',
+            species: s.get('user_species') || '人类',
+            wealth: s.get('user_wealth') || '不详'
+        };
 
-        const prompt = `你是一个顶级角色构建专家。请根据[核心人设]和[关系状态]，生成或润色两人的关系设定，确保逻辑自洽且细节落地。
+        if (window.os) window.os.showToast('正在多维度分析双向设定...', 'info', 3000);
 
-[核心人设]
-${mainPersona}
+        const prompt = `你是一个顶级角色构建专家。请基于双方的[人设档案]、[基础元数据]（年龄、性别、身份等）以及当前的[关系状态]，生成一套极具张力、自洽的关系设定。
 
-[当前状态](Locked 表示必须遵守的既定事实)
+[角色 A: ${char?.name || '角色'}]
+- 元数据: 年龄 ${charMeta.age}, 性别 ${charMeta.gender}, 族群 ${charMeta.species}, 经济状况 ${charMeta.wealth}
+- 核心人设: ${charPersona}
+
+[角色 B: ${userName} (用户)]
+- 元数据: 年龄 ${userMeta.age}, 性别 ${userMeta.gender}, 族群 ${userMeta.species}, 经济状况 ${userMeta.wealth}
+- 核心人设: ${userPersona}
+
+[关系透镜当前状态]
 ${contextParts.join('\n')}
 
-[任务要求]
-1. **深度适配**：关系设定必须与[核心人设]相辅相成。若角色由于背景或底层性格（如缺乏情感）而显得疏离，好感度阶梯的表现必须遵循此逻辑，禁止情感突变或割裂。
-2. **细节补全**：针对待生成的项，扩写为生动、有张力且符合微信聊天背景的描述（40-80字）。
-3. **关系透镜**：强化“表现”与“内心”的反差，体现人物的欲望、弱点或执念。
-4. **阶梯演进**：如果[wx-rel-ladder] 未锁定，生成5个阶段的表现，体现情感的随好感度变化的细腻递进。
-5. **格式要求**：只输出一个纯 JSON 对象，包含上述所有5个关系字段名以及 ladder_persona 数组。不要包含多余解释。
+[核心任务]
+1. **关系透镜 (深度耦合)**：结合双方的人设、年龄身份差、颜值气场对比，挖掘独特的互动张力。
+   - **拒绝套路**：禁止使用“高冷/回避”等万能模板。互动细节必须体现角色的颜值魅力与独特气质（如：对方位高权重、或者是那种清冷书卷气带来的距离感）。
+   - **人格一致性 (核心约束)**：情感缺失或理性至上者即便好感满值也应维持其底色。所谓“变温柔”应当表现为符合其人设的、隐秘的秩序打破或特权给予，而非变为另一个感性的人。
+   - public_relation: 对外的名义关系（如：合租室友、主仆、竞争对手等）。
+   - char_to_user: 角色对用户的态度（区分表现出的 public 层和内心的 secret 层）。
+   - user_to_char: 用户对角色的态度（同样区分 public 和 secret 层）。
+2. **阶段性表现 (ladder_persona)**：
+   - 生成 5 个阶段。随着好感度增长，角色的核心行为模式应有明显的演变。
+   - **人格一致性 (核心约束)**：好感度阶段的表现必须是[角色人设]逻辑的自然延伸。如果角色天生缺乏情感或极度冷酷，即使好感满值，也应表现为该性格特有的偏爱（如：更频繁的逻辑交互、将其列为唯一特例、或行为上的战术护短），**绝对禁止发生性格基调的扭转或出现不符合其设定的感性词汇。**
+   - **通用性原则**：描述应涵盖通用的行为规律与情感边界的变化（不论是线上聊天还是线下相处）。
+   - 每个阶段包含：affection_threshold (0, 20, 50, 80, 100) 和 content (该阶段的整体行为特征与情感倾向描述)。
+
+[输出格式]
+必须仅输出一个纯 JSON 对象。
+{
+  "public_relation": "40-80字描述",
+  "char_to_user_public": "40-80字描述",
+  "char_to_user_secret": "40-80字描述",
+  "user_to_char_public": "40-80字描述",
+  "user_to_char_secret": "40-80字描述",
+  "ladder_persona": [
+    {"affection_threshold": 0, "content": "阶段表现描述"},
+    {"affection_threshold": 20, "content": "..."},
+    {"affection_threshold": 50, "content": "..."},
+    {"affection_threshold": 80, "content": "..."},
+    {"affection_threshold": 100, "content": "..."}
+  ]
+}
+
+[文本风格约束]
+- 严禁出现任何技术性、元指令或文学评论类词汇。
+- 🚫 严禁词汇: 逻辑、变量、bug、锚点、精密、阶梯、设定、描写、映射、模块、架构。
+- 采用生活化、情感化的自然语言，像是真正的人在描述自己的社交圈。
 
 输出 JSON：`;
 
@@ -3060,7 +3114,9 @@ ${contextParts.join('\n')}
         }
 
         try {
+            console.log('[RelationshipGen] Sending prompt with dual personas...');
             const response = await Api.chat([{ role: 'user', content: prompt }]);
+            console.log('[RelationshipGen] Raw Response:', response);
 
             let data = null;
             const match = response.match(/\{[\s\S]*\}/);
@@ -3068,15 +3124,19 @@ ${contextParts.join('\n')}
                 try {
                     data = JSON.parse(match[0]);
                 } catch (e) {
+                    console.warn('[RelationshipGen] First JSON parse attempt failed, trying substring.', e);
                     const first = response.indexOf('{');
                     const last = response.lastIndexOf('}');
                     if (first !== -1 && last !== -1) {
-                        try { data = JSON.parse(response.substring(first, last + 1)); } catch (ee) { }
+                        try { data = JSON.parse(response.substring(first, last + 1)); } catch (ee) {
+                            console.error('[RelationshipGen] Substring JSON parse attempt also failed.', ee);
+                        }
                     }
                 }
             }
 
             if (data) {
+                console.log('[RelationshipGen] Parsed Data:', data);
                 // 4. 应用修改 (使用局部变量 rel)
                 for (const [key, id] of Object.entries(fieldMap)) {
                     if (!State.fieldLocks?.[id]) {
@@ -3092,10 +3152,13 @@ ${contextParts.join('\n')}
                 if (!State.fieldLocks?.['wx-rel-ladder']) {
                     const ladderVal = data.ladder_persona || data.ladder;
                     if (Array.isArray(ladderVal)) {
+                        console.log('[RelationshipGen] Applying ladder_persona:', ladderVal);
                         rel.ladder_persona = ladderVal.map(item => ({
                             affection_threshold: item.affection_threshold ?? item.threshold ?? 0,
                             content: item.content || item.performance || item.desc || '...'
                         }));
+                    } else {
+                        console.warn('[RelationshipGen] ladder_persona is not an array or missing.');
                     }
                 }
 
@@ -3104,11 +3167,11 @@ ${contextParts.join('\n')}
                 this.saveRelationshipChanges(true, sessionId, rel);
                 this.render();
             } else {
-                throw new Error("Invalid JSON");
+                throw new Error("Invalid JSON structure in AI response");
             }
         } catch (e) {
-            console.error('[AI Generation] Failed:', e);
-            if (window.os) window.os.showToast('生成失败，请检查 API', 'error');
+            console.error('[RelationshipGen] Failed:', e);
+            if (window.os) window.os.showToast('生成失败，详细错误请查看控制台', 'error');
         } finally {
             if (btn) {
                 btn.innerHTML = originalHtml;
