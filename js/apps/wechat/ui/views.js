@@ -742,6 +742,11 @@ window.WeChat.Views = {
                          style="background-color: #07c160; color: white; text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
                         保存设置
                     </div>
+                    
+                    <div onclick="window.WeChat.App.openAssociatedGen('USER_SELF')" 
+                         style="background-color: var(--wx-cell-bg); color: var(--wx-text); text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer; margin-top: 16px;">
+                        生成我的关联人物 (如: 我的青梅竹马)
+                    </div>
                 </div>
             </div>
         `;
@@ -994,7 +999,7 @@ window.WeChat.Views = {
                         </div>
                     </div>
 
-                    ${this._renderFieldHeader('角色网名 (角色对外展示的名号)', 'wx-edit-nickname')}
+                    ${this._renderFieldHeader('角色在网络上的名字', 'wx-edit-nickname')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <input id="wx-edit-nickname" 
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
@@ -1008,7 +1013,7 @@ window.WeChat.Views = {
                             placeholder="默认自动生成，可手动修改" value="${wxid}" />
                     </div>
 
-                    ${this._renderFieldHeader('个性签名 (Bio)', 'wx-edit-bio')}
+                    ${this._renderFieldHeader('角色在网络上的签名', 'wx-edit-bio')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-bio" 
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
@@ -1042,8 +1047,13 @@ window.WeChat.Views = {
                         wealth: document.getElementById('wx-edit-wealth').value,
                         persona: document.getElementById('wx-edit-persona').value
                     })" 
-                         style="background-color: #07c160; color: white; text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
+                         style="background-color: #07c160; color: white; text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer; margin-bottom: 16px;">
                         保存设置
+                    </div>
+                    
+                    <div onclick="window.WeChat.App.openAssociatedGen('${userId}')" 
+                         style="background-color: var(--wx-cell-bg); color: var(--wx-text); text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
+                        生成关联人物 (如: 他的朋友/宿敌)
                     </div>
                 </div>
             </div>

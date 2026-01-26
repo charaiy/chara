@@ -61,16 +61,21 @@ window.WeChat.Services.Contacts = {
     },
 
     removeContact(id) {
+        // 1. Try to remove from local cache (system contacts)
         const index = this._contacts.findIndex(c => c.id === id);
         if (index !== -1) {
             this._contacts.splice(index, 1);
-            if (window.sysStore && window.sysStore.deleteCharacter) {
-                window.sysStore.deleteCharacter(id);
-                window.sysStore.clearMessagesBySession(id); // Option: also clear messages? Yes, usually delete friend means clear chat too.
-            }
-            return true;
         }
-        return false;
+
+        // 2. Always remove from persistence (DB)
+        if (window.sysStore && window.sysStore.deleteCharacter) {
+            window.sysStore.deleteCharacter(id);
+            if (window.sysStore.clearMessagesBySession) {
+                window.sysStore.clearMessagesBySession(id);
+            }
+        }
+
+        return true;
     },
 
     persistContact(contact) {

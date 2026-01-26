@@ -594,7 +594,13 @@ window.WeChat.App = {
         if (window.os) window.os.showToast(targetFieldId ? 'AI 正在思考中...' : 'AI 正在构思全套人设...', 'info', 5000);
 
         // 3. 构建 Prompt
-        const contextStr = fields.map(f => `- ${f.key}: ${f.value || '(未填写)'}${f.isLocked ? ' [已锁定]' : ''}`).join('\n');
+        let contextStr = fields.map(f => `- ${f.key}: ${f.value || '(未填写)'}${f.isLocked ? ' [已锁定]' : ''}`).join('\n');
+
+        // [Associated Character Generation Logic]
+        if (type === 'add' && State.genContext) {
+            contextStr += `\n\n[关联人物生成上下文]\n你正在生成的人物是【${State.genContext.sourceName}】的【${State.genContext.relation}】。\n${State.genContext.sourceName}的人设概要：\n${State.genContext.sourcePersona}\n\n[关联生成特殊指令]\n1. 请在【生活图谱 - 人际关系】中，明确写出与【${State.genContext.sourceName}】的关系。\n2. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${State.genContext.sourceName}】的更新文本，格式如下：\n\n[SourceUpdate]\n在此输出一段文本，这段文本将被追加到【${State.genContext.sourceName}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。\n[/SourceUpdate]`;
+        }
+
         const targetKeys = targets.map(t => t.key).join(', ');
 
         const prompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于碎片信息，构建一个极其鲜活、复杂且逻辑自洽的虚拟角色档案。
@@ -618,18 +624,21 @@ ${contextStr}
    - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
 
 2. 绝对禁令 (Rigorous Ban List):
-   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确
    - 🚫 严禁句式:
      - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
      - “他(终于)动了”、“迈开长腿”
+     - “心率不会超过xx”、“精确到xx毫秒” (禁止用具体数字描述生理/心理状态)
+     - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
 
 3. 强制自检机制 (Self-Correction):
    - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
    - 格式要求：在JSON之前，输出一段注释：
      <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”等绝对禁词及相关句式。 -->
 
-[Persona 字段 - 人设核心 (需严格遵循)]
-请严格按照以下结构输出，每一项都必须有详实的内容：
+[Persona (main_persona) 内容结构 - 纯文本设定]
+请将这部分内容完整写入 main_persona 字段。
+**注意：不要包含“社交展示面”的具体字段（如网名、签名），那些需要单独输出。**
 
 1.  基础档案：姓名、年龄、身高、具体的社会身份（职业/学校/经济状况）及外貌特征（面部特征、发型发色、穿搭品牌风格）。
 2.  个人编年史 (Timeline)：
@@ -645,30 +654,35 @@ ${contextStr}
     - 核心欲望 (Core Desire)：角色行为背后的根本驱动力。
     - 绝对底线 (Bottom Line)：绝不妥协的道德或行为底线。
 5.  核心观念体系 (Beliefs)：
-    - 配置原则：拒绝文艺腔，用通俗的语言描述
+    - 配置原则：拒绝文艺腔
     - 世界观：对外部世界的底层认知。
     - 人生观：认为人活着的目的是什么。
     - 价值观：在利益权衡中，什么最重要（钱/名声/义气/安稳）。
     - 感情观：对待伴侣和性的真实态度。
     - 道德观：自我约束的边界在哪里。
-    - 性取向：具体的性别偏好。
+    - 性取向：异性恋/同性恋/双性恋/无性恋。和喜欢的类型。
 6.  生活图谱：
     - 日常行程：典型的一天作息与活动安排。
     - 喜好/厌恶（具体的书/影/音/食物）。
     - NSFW（性观念简述）。
-7.  社交展示面 (Social Profile)：
-    - 配置原则：根据角色的自我认知生成微信资料页内容。
-    - nickname (网名)：符合Public Persona的命名风格。
-    - bio (签名)：符合角色当下心境的签名。
-    - wealth (财富)：与社会身份逻辑闭环的经济描述。
-    - remark (用户备注)：用户单方面给角色设置的私密备注（角色不知情），反映用户视角下的亲疏或印象。
-8.  数字通讯生态 (Digital Ecology)：
+    - 人际关系：简述核心社交圈及关键人物。
+7.  数字通讯生态 (Digital Ecology)：
     - 通讯风格：打字习惯（标点/Emoji/句式）、回复速度（秒回/轮回）、语音偏好。
     - 朋友圈画风：更新频率、内容类型（生活记录/工作展示/仅三天可见）、互动习惯。
-9.  AI扮演指南 (Meta)：
+8.  AI扮演指南 (Meta)：
     - 人设理解：一句话概括角色的核心特质。
     - 避坑指南 (What NOT to do)：扮演该角色时需避免的OOC行为。
     - 口头禅/语言风格：标志性的用词习惯或句式结构。
+
+[Metadata Fields (独立元数据) - 仅输出JSON键值]
+**严禁将以下内容写入 main_persona 文本中！它们必须作为独立的 JSON key 返回。**
+
+- nickname (角色在网络上的名字): 短小精悍，符合人设（字数 < 7）。
+- bio (角色在网络上的签名): 句意通顺，切忌长篇大论（字数 < 20）。
+- region (展示地区): 微信上显示的地区（如“冰岛”、“上海 黄浦”）。
+- region_mapping (现实映射): 用于同步天气/时区的真实城市 English Name（如 "Shanghai"）。
+- wealth_level (财富标签): 简短的经济状态描述（如“负债累累”、“中产小资”）。
+- remark (用户备注): 用户视角的备注（如“老板”、“那个谁”）。
 
 [Relationship System (关系体系) - 严禁OOC]
 此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行逻辑推演。
@@ -701,15 +715,48 @@ ${contextStr}
         try {
             const response = await Api.chat([{ role: 'user', content: prompt }]);
             let data = null;
-            const match = response.match(/\{[\s\S]*\}/);
+
+            // [Source Character Update Logic] - Parse and apply source update if present
+            const sourceUpdateMatch = response.match(/\[SourceUpdate\]([\s\S]*?)\[\/SourceUpdate\]/);
+            if (sourceUpdateMatch && State.genContext && State.genContext.sourceId) {
+                const updateText = sourceUpdateMatch[1].trim();
+                const sourceChar = window.sysStore.getCharacter(State.genContext.sourceId);
+
+                if (sourceChar && updateText) {
+                    console.log('[Associated Gen] Updating source character:', sourceChar.name);
+
+                    // Append to main_persona smartly
+                    let newPersona = sourceChar.main_persona || '';
+                    if (newPersona.includes('人际关系') || newPersona.includes('Life Graph')) {
+                        // Try to append near the existing section if possible, otherwise just append to end
+                        newPersona += `\n\n【新增人际关系】\n${updateText}`;
+                    } else {
+                        // Create section if missing
+                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updateText}`;
+                    }
+
+                    // Save source character immediately
+                    window.sysStore.updateCharacter(sourceChar.id, {
+                        ...sourceChar,
+                        main_persona: newPersona
+                    });
+
+                    if (window.os) window.os.showToast(`已同步更新【${sourceChar.name || '源角色'}】的人际关系`, 'success', 4000);
+                }
+            }
+
+            // Clean response for JSON parsing (remove the special block)
+            const cleanResponse = response.replace(/\[SourceUpdate\][\s\S]*?\[\/SourceUpdate\]/, '');
+
+            const match = cleanResponse.match(/\{[\s\S]*\}/);
             if (match) {
                 try {
                     data = JSON.parse(match[0]);
                 } catch (e) {
-                    const first = response.indexOf('{');
-                    const last = response.lastIndexOf('}');
+                    const first = cleanResponse.indexOf('{');
+                    const last = cleanResponse.lastIndexOf('}');
                     if (first !== -1 && last !== -1) {
-                        try { data = JSON.parse(response.substring(first, last + 1)); } catch (ee) { }
+                        try { data = JSON.parse(cleanResponse.substring(first, last + 1)); } catch (ee) { }
                     }
                 }
             }
@@ -803,6 +850,224 @@ ${contextStr}
         if (!silent) {
             if (window.os) window.os.showToast('保存成功');
             this.goBack(); // Return to previous page
+        }
+    },
+
+
+
+    async openAssociatedGen(sourceUserId) {
+        let char = window.sysStore.getCharacter(sourceUserId);
+
+        // Support for User Self
+        if (!char && sourceUserId === 'USER_SELF') {
+            const s = window.sysStore;
+            char = {
+                id: 'USER_SELF',
+                name: s.get('user_nickname') || s.get('user_realname') || '我',
+                nickname: s.get('user_nickname') || '我',
+                main_persona: s.get('user_persona') || '',
+                avatar: s.get('user_avatar')
+            };
+        }
+
+        if (!char) return;
+
+        const relation = prompt(`想要生成一个与【${char.nickname || char.name}】什么关系的角色？\n(例如：的前女友、的宿敌、的债主)`, "的");
+        if (!relation) return;
+
+        // 1. Create Placeholder Character
+        const newCharId = 'gen_' + Date.now();
+        const placeholderName = `关联人物 (${relation})`;
+
+        // Save initial placeholder
+        window.sysStore.updateCharacter(newCharId, {
+            id: newCharId,
+            name: placeholderName,
+            avatar: 'assets/images/avatar_placeholder.png',
+            main_persona: '正在后台生成中，请稍候...\n\n(您可以离开此页面，生成完成后会自动通知您)',
+            remark: `与 ${char.name} 是 ${relation} 关系`
+        });
+
+        // 2. Navigate to New Settings Page
+        State.activeSessionId = newCharId;
+        // 2. Navigate to New Settings Page
+        State.activeSessionId = newCharId;
+        State.activeUserId = newCharId; // [Fix] Set activeUserId so render() knows which char to show
+        State.currentTab = 'persona_settings';
+
+        this.render(); // Let the main router handle the view switch
+
+        // 3. Start Background Generation
+        if (window.os) window.os.showToast(`后台任务启动：正在生成【${char.name}】的${relation}...`, 'info', 4000);
+
+        // Non-blocking call
+        this.generateAssociatedInBackground(newCharId, char, relation);
+    },
+
+    async generateAssociatedInBackground(targetId, sourceChar, relation) {
+        try {
+            // A. Construct Prompts
+            const contextStr = [
+                `[关联人物生成上下文]`,
+                `你正在生成的人物是【${sourceChar.nickname || sourceChar.name}】的【${relation}】。`,
+                `${sourceChar.nickname || sourceChar.name}的人设概要：`,
+                sourceChar.main_persona || '(无详实人设)',
+                `\n[关联生成特殊指令]`,
+                `1. 【独立性原则】：这是一个有血有肉、独立存在的人，拥有自己完整的人生轨迹、职业和社交圈。此人绝不是源人物的附庸。请确保其人设的丰富度与源人物相当。`,
+                `2. 【备注(remark)生成规则】：这是用户（玩家）在微信通讯录里给这个人打的备注。`,
+                `   - 场景：用户刚加上这个人。`,
+                `   - 格式：必须是真实的“人名”或“身份标签”（如“陈总”、“小王”、“房东太太”）。`,
+                `   - 禁止：绝对不要写成“${sourceChar.name}的朋友”或“${relation}”这种描述性句子。角色本身并不知道用户给了他什么备注。`,
+                `3. 请在【生活图谱 - 人际关系】中，明确写出与【${sourceChar.name}】的关系。`,
+                `4. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${sourceChar.name}】的更新文本，格式如下：`,
+                `[SourceUpdate]`,
+                `在此输出一段文本，这段文本将被追加到【${sourceChar.name}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。`,
+                `[/SourceUpdate]`
+            ].join('\n');
+
+            const fullPrompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于关联请求，构建一个极其鲜活、复杂且逻辑自洽的虚拟角色档案。
+            
+[已知信息]
+${contextStr}
+
+[核心创作戒律]
+1. 反模版化：拒绝刻板印象。
+2. 拒绝AI腔：禁止使用“精密仪器、机器、机械”等比喻。
+3. 内容量：Roleplay Prompt (Persona) 必须充实。
+
+[禁词检测与强制替换 (Strict Forbidden List)]
+1. 分类避讳清单 (用更生动的描写替代):
+   - 模糊陈腐: 一丝、一抹、似乎、不易察觉、闪过
+   - 侵略刻板: 不容置喙、小东西、你是我的、猎物、猎人、小妞儿、共犯
+   - 粗俗生理: 甜腻、肉刃、邪火、饥渴、哭腔、低吼
+   - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
+
+2. 绝对禁令 (Rigorous Ban List):
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确
+   - 🚫 严禁句式:
+     - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
+     - “他(终于)动了”、“迈开长腿”
+     - “心率不会超过xx”、“精确到xx毫秒” (禁止用具体数字描述生理/心理状态)
+     - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
+
+3. 强制自检机制 (Self-Correction):
+   - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
+   - 格式要求：在JSON之前，输出一段注释：
+     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”等绝对禁词及相关句式。 -->
+
+[Persona (main_persona) 内容结构 - 纯文本设定]
+请生成 main_persona 字段，包含：基础档案、编年史、性格透视、深层心理、核心观念、生活图谱(含人际关系)、数字通讯生态、AI扮演指南。
+**注意：不要包含 Social Profile 字段。**
+
+[Metadata Fields (必须严格遵守的格式)]
+请作为独立 JSON key 返回，并严格遵循以下语言和格式要求：
+- species (物种): 必须是中文 (如: 人类, 吸血鬼, AI)。
+- wealth_level (财富状况): 必须是中文短语 (如: 负债累累, 财务自由)。
+- bio (微信个性签名): 必须是角色自己写的网络签名（句子），严禁写成“高冷/霸道”这种标签！
+- region (展示地区): 必须是中文 (如: 中国 上海)。
+- region_mapping (现实映射): 必须是真实存在的城市英文名 (如: Shanghai, Tokyo, New York)，用于天气/时区同步。
+- nickname (网名): 短小精悍。
+- remark (备注): 必须是中文称呼 (如: 陈总, 房东太太)。
+- real_name: 真名。
+- age: 数字。
+- gender: male/female/other。
+- birthday: 格式如 "7月7日"。
+
+[输出格式]
+Strict JSON Object.`;
+
+            const Api = window.Core?.Api || window.API;
+            if (!Api) throw new Error('API not ready');
+
+            // B. Call API
+            const response = await Api.chat([{ role: 'user', content: fullPrompt }]);
+
+            // C. Source Update
+            // Try to separate based on [SourceUpdate] tag
+            const parts = response.split('[SourceUpdate]');
+            const jsonPart = parts[0];
+            const updatePart = parts.length > 1 ? parts[1].replace('[/SourceUpdate]', '').trim() : null;
+
+            if (updatePart) {
+                if (sourceChar.id === 'USER_SELF') {
+                    // Special handling for User Self
+                    const s = window.sysStore;
+                    const currentPersona = s.get('user_persona') || '';
+                    let newPersona = currentPersona;
+                    if (newPersona.includes('人际关系') || newPersona.includes('Life Graph')) {
+                        newPersona += `\n\n【新增人际关系】\n${updatePart}`;
+                    } else {
+                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updatePart}`;
+                    }
+                    s.set('user_persona', newPersona);
+                    if (window.os) window.os.showToast(`双向同步：已更新【我】的记忆`, 'success');
+                } else {
+                    // Standard Character handling
+                    const freshSource = window.sysStore.getCharacter(sourceChar.id);
+                    if (freshSource) {
+                        let newPersona = freshSource.main_persona || '';
+                        if (newPersona.includes('人际关系') || newPersona.includes('Life Graph')) {
+                            newPersona += `\n\n【新增人际关系】\n${updatePart}`;
+                        } else {
+                            newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updatePart}`;
+                        }
+                        window.sysStore.updateCharacter(freshSource.id, { ...freshSource, main_persona: newPersona });
+                        if (window.os) window.os.showToast(`双向同步：已更新【${freshSource.name}】的记忆`, 'success');
+                    }
+                }
+            }
+
+            const cleanResponse = jsonPart; // Use jsonPart directly
+            let data = null;
+            try {
+                const match = cleanResponse.match(/\{[\s\S]*\}/);
+                if (match) data = JSON.parse(match[0]);
+                else {
+                    const first = cleanResponse.indexOf('{');
+                    const last = cleanResponse.lastIndexOf('}');
+                    if (first !== -1 && last !== -1) {
+                        data = JSON.parse(cleanResponse.substring(first, last + 1));
+                    }
+                }
+            } catch (e) {
+                console.error('Background Gen JSON Error', e);
+            }
+
+            // D. Save & Update
+            if (data) {
+                window.sysStore.updateCharacter(targetId, {
+                    id: targetId,
+                    name: data.remark || data.nickname || data.realName || 'New Character',
+                    real_name: data.real_name || data.real_name, // Fix key
+                    remark: data.remark,
+                    nickname: data.nickname, // Important
+                    bio: data.bio,
+                    main_persona: data.persona || data.main_persona,
+                    species: data.species,
+                    gender: data.gender,
+                    region: data.region,
+                    wxid: 'wxid_' + Math.random().toString(36).substring(2, 10),
+                    settings: {
+                        age: data.age,
+                        birthday: data.birthday,
+                        wealth_level: data.wealth || data.wealth_level,
+                        region_mapping: data.region_mapping || data.regionMapping
+                    }
+                });
+
+                if (window.os) window.os.showToast(`关联人物生成完成！已存入通讯录。`, 'success', 5000);
+
+                // E. Refresh if user is still watching
+                if (State.activeSessionId === targetId) {
+                    this.render(); // Trigger full page refresh to update View
+                }
+            } else {
+                if (window.os) window.os.showToast('生成格式解析失败，请重试', 'error');
+            }
+
+        } catch (err) {
+            console.error(err);
+            if (window.os) window.os.showToast('后台生成任务出错', 'error');
         }
     },
 
