@@ -147,36 +147,193 @@ const Service = {
     // === 4. AI 与 语音 核心逻辑 ===
     async pullModels(baseUrl, apiKey) {
         try {
-            const cleanUrl = baseUrl.replace(/\/$/, '');
-            const targetUrl = cleanUrl.endsWith('/v1') ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
-            const res = await fetch(targetUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-            if (!res.ok) return null;
-            const data = await res.json();
-            return data.data || [];
-        } catch (e) { return null; }
-    },
+            let cleanUrl = baseUrl.replace(/\/$/, '');
 
-    async testVoice({ type, domain, groupId, apiKey, model, text }) {
-        try {
-            const baseUrl = `https://${domain.replace(/\/$/, '')}`;
-            let url, body;
-
-            if (type === 'domestic') {
-                url = `${baseUrl}/v1/tts/stream?GroupId=${groupId}`;
-                body = JSON.stringify({ model, text, voice_id: 'female-tianmei' });
-            } else {
-                url = `${baseUrl}/v1/audio/speech`;
-                body = JSON.stringify({ model, input: text, voice: 'alloy' });
+            // 1. 智能清洗：移除常见的 /chat/completions 后缀
+            if (cleanUrl.includes('/chat/completions')) {
+                cleanUrl = cleanUrl.split('/chat/completions')[0];
             }
 
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                body: body
-            });
-            if (!res.ok) return null;
-            return await res.blob();
-        } catch (e) { return null; }
+            // 2. 构造尝试列表
+            // 优先尝试标准 OpenAI 路径，然后是根路径
+            const candidates = [];
+
+            if (cleanUrl.endsWith('/v1')) {
+                candidates.push(`${cleanUrl}/models`);
+                candidates.push(`${cleanUrl.slice(0, -3)}/models`); // Remove /v1 and try root
+            } else {
+                candidates.push(`${cleanUrl}/v1/models`);
+                candidates.push(`${cleanUrl}/models`);
+            }
+
+            console.log('[Settings] Attempting to pull models from:', candidates);
+
+            for (const url of candidates) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        // 兼容部分格式差异
+                        const list = data.data || data.models || data;
+                        if (Array.isArray(list)) {
+                            console.log('[Settings] Success pulling from:', url);
+                            return list;
+                        }
+                    } else {
+                        console.warn(`[Settings] Failed to pull from ${url}: ${res.status}`);
+                    }
+                } catch (innerE) {
+                    console.warn(`[Settings] Network error hitting ${url}:`, innerE);
+                }
+            }
+            return null;
+        } catch (e) {
+            console.error('[Settings] Pull models fatal error:', e);
+            return null;
+        }
+    },
+
+    async testVoice({ type, domain, groupId, apiKey, model, text, voiceId, speed, pitch }) {
+        try {
+            let baseUrl = domain.trim();
+            if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
+            baseUrl = baseUrl.replace(/\/$/, '');
+
+            // Default params
+            const spd = speed || 1.0;
+            const pit = pitch || 0;
+
+            // Helper for OpenAI format request
+            const fetchOpenAIStyle = async () => {
+                const url = `${baseUrl}/v1/audio/speech`;
+                const effectiveVoice = voiceId || 'alloy'; // OpenAI default
+                console.log(`[TestVoice] Trying OpenAI format: ${url}, model: ${model}`);
+                return fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, input: text, voice: effectiveVoice, speed: spd })
+                });
+            };
+
+            let res;
+
+            if (type === 'domestic') {
+                const effectiveVoice = voiceId || 'male-qn-qingse'; // Minimax 2.0 Default
+                // Minimax T2A V2 (Standard, e.g. speech-01)
+                if (model.includes('speech') || model.includes('T2A')) {
+                    const url = `${baseUrl}/v1/t2a_v2?GroupId=${groupId}`;
+                    const body = JSON.stringify({
+                        model: model,
+                        text: text,
+                        stream: false,
+                        voice_setting: { voice_id: effectiveVoice, speed: spd, vol: 1.0, pitch: pit },
+                        audio_setting: { sample_rate: 32000, bitrate: 128000, format: "mp3", channel: 1 }
+                    });
+
+                    console.log(`[TestVoice] Trying Minimax Native: ${url}`);
+                    res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                        body: body
+                    });
+
+                    // [Fallback] If Native fails (e.g. 404 on proxy, or 400), try OpenAI format
+                    if (!res.ok) {
+                        console.warn(`[TestVoice] Minimax Native failed (${res.status}), trying OpenAI format fallback...`);
+                        const fallbackRes = await fetchOpenAIStyle();
+                        if (fallbackRes.ok) {
+                            res = fallbackRes;
+                        } else {
+                            // If fallback also fails, keep the original error from Native to show user (often more descriptive for config issues)
+                            // or maybe show fallback error? Let's verify.
+                            // Usually if Proxy doesn't support /v1/t2a_v2, it returns 404. 
+                            // If it supports OpenAI, fallback works.
+                            console.warn(`[TestVoice] Fallback also failed (${fallbackRes.status})`);
+                        }
+                    }
+                } else {
+                    // Legacy Fallback (Rarely used now)
+                    const url = `${baseUrl}/v1/tts/stream?GroupId=${groupId}`;
+                    res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model, text, voice_id: effectiveVoice })
+                    });
+                }
+            } else {
+                res = await fetchOpenAIStyle();
+            }
+
+            // [Robustness] Check if response is actually JSON masquerading as 200 OK (Common Proxy Issue)
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                // If we got JSON during "domestic" native attempt, it implies failure (Native usually returns stream/audio)
+                if (type === 'domestic' && model.includes('speech')) {
+                    console.warn(`[TestVoice] Native returned JSON (likely error), forcing fallback to OpenAI format...`);
+                    const fallbackRes = await fetchOpenAIStyle();
+
+                    // Check fallback result
+                    const fbType = fallbackRes.headers.get('content-type');
+                    if (fallbackRes.ok && (!fbType || !fbType.includes('application/json'))) {
+                        res = fallbackRes;
+                    } else {
+                        // Fallback also failed or returned JSON
+                        console.warn(`[TestVoice] Fallback also failed or returned JSON`);
+                    }
+                }
+            }
+
+            if (!res.ok) {
+                const errText = await res.text();
+                if (window.os && window.os.alert) window.os.alert('试听失败', `API 返回错误: ${res.status}\n${errText.substring(0, 100)}...`);
+                return null;
+            }
+
+            // Final check: If it's still JSON, it means we failed to get audio
+            // Final check: Handle JSON responses (Error OR Hex Audio)
+            const finalType = res.headers.get('content-type');
+            if (finalType && finalType.includes('application/json')) {
+                const json = await res.json();
+
+                // [Compatibility] Handle Minimax T2A v2 non-stream response (Hex Audio)
+                // Structure: { base_resp: {...}, data: { audio: "494433...", ... } }
+                if (json.data && json.data.audio) {
+                    console.log('[TestVoice] Detected Hex Audio in JSON, converting...');
+                    const hexStr = json.data.audio;
+
+                    // Hex to Uint8Array
+                    const len = hexStr.length;
+                    const bytes = new Uint8Array(len / 2);
+                    for (let i = 0; i < len; i += 2) {
+                        bytes[i / 2] = parseInt(hexStr.substring(i, i + 2), 16);
+                    }
+
+                    return new Blob([bytes], { type: 'audio/mpeg' });
+                }
+
+                // If no audio data found, assume it's an error message
+                console.error('[Voice Error] Received JSON error:', json);
+                const errStr = JSON.stringify(json, null, 2);
+                if (window.os && window.os.alert) window.os.alert('合成失败', `服务端返回了错误信息：\n${errStr.substring(0, 150)}`);
+                return null;
+            }
+
+            const blob = await res.blob();
+            // Verify blob size
+            if (blob.size < 100) {
+                if (window.os && window.os.alert) window.os.alert('合成异常', '返回的音频数据过小，可能是无效数据。');
+                return null;
+            }
+            return blob;
+        } catch (e) {
+            console.error('[Voice Network Error]', e);
+            if (window.os && window.os.alert) window.os.alert('网络错误', e.message);
+            return null;
+        }
     },
 
     async testNovelAI(apiKey, model) {
@@ -211,11 +368,39 @@ const Service = {
     },
 
     playAudio(blobOrUrl, volume = 1) {
-        const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
-        const audio = new Audio(url);
-        audio.volume = volume;
-        audio.play();
-        return audio;
+        try {
+            // 1. Singleton: Stop previous audio if playing
+            if (this._currentAudio) {
+                try { this._currentAudio.pause(); } catch (e) { }
+                this._currentAudio = null;
+            }
+
+            const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
+            const audio = new Audio(url);
+            audio.volume = volume;
+
+            // 2. Track current
+            this._currentAudio = audio;
+            audio.onended = () => {
+                if (this._currentAudio === audio) {
+                    this._currentAudio = null;
+                }
+            };
+
+            const promise = audio.play();
+            if (promise !== undefined) {
+                promise.catch(error => {
+                    console.error('[Audio Playback Error]', error);
+                    // Detect Auto-play blocking
+                    if (error.name === 'NotAllowedError') {
+                        if (window.os && window.os.showToast) window.os.showToast('自动播放被浏览器拦截，请点击页面重试', 'error');
+                    }
+                });
+            }
+            return audio;
+        } catch (e) {
+            console.error('[Audio Init Error]', e);
+        }
     }
 };
 

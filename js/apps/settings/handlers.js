@@ -9,6 +9,13 @@ const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
 });
 
 /**
+ * 内部辅助：系统对话框适配
+ */
+const osAlert = (title, content) => window.os ? window.os.alert(title, content) : alert(content);
+const osConfirm = (title, content) => window.os ? window.os.confirm(title, content) : confirm(content);
+const osPrompt = (title, content, def) => window.os ? window.os.prompt(title, content, def) : prompt(content, def);
+
+/**
  * 内部辅助：处理图片上传逻辑 (支持 ImgBB)
  */
 const handleImageUpload = async (file, useCloud = false) => {
@@ -172,8 +179,8 @@ window.SettingsHandlers.openProfilePage = (page) => {
 
     const nameBtn = page.querySelector('#edit-profile-name');
     if (nameBtn) {
-        nameBtn.onclick = () => {
-            const n = prompt('新名字:', s.get('user_name') || 'User');
+        nameBtn.onclick = async () => {
+            const n = await osPrompt('名字', '请输入新名字:', s.get('user_name') || 'User');
             if (n) {
                 s.set('user_name', n);
                 nameBtn.innerText = n;
@@ -187,7 +194,10 @@ window.SettingsHandlers.openProfilePage = (page) => {
     // GitHub
     page.querySelector('#btn-backup-upload').onclick = async () => {
         const cfg = { token: s.get('github_token'), user: s.get('github_user'), repo: s.get('github_repo'), filename: 'chara_backup.json', content: JSON.stringify(localStorage) };
-        if (!cfg.token || !cfg.user || !cfg.repo) return alert('请完整配置 GitHub 信息 (Token, 用户名, 仓库名)');
+        if (!cfg.token || !cfg.user || !cfg.repo) {
+            await osAlert('配置错误', '请完整配置 GitHub 信息 (Token, 用户名, 仓库名)');
+            return;
+        }
         const btn = page.querySelector('#btn-backup-upload');
         const oldText = btn.innerText;
         btn.innerText = '正在上传...';
@@ -197,18 +207,21 @@ window.SettingsHandlers.openProfilePage = (page) => {
     };
     page.querySelector('#btn-backup-download').onclick = async () => {
         const cfg = { token: s.get('github_token'), user: s.get('github_user'), repo: s.get('github_repo'), filename: 'chara_backup.json' };
-        if (!cfg.token || !cfg.user || !cfg.repo) return alert('请完整配置 GitHub 信息');
+        if (!cfg.token || !cfg.user || !cfg.repo) {
+            await osAlert('配置错误', '请完整配置 GitHub 信息');
+            return;
+        }
         const btn = page.querySelector('#btn-backup-download');
         const oldText = btn.innerText;
         btn.innerText = '正在拉取...';
         const data = await window.SettingsState.Service.githubAction('download', cfg);
         btn.innerText = oldText;
-        if (data && confirm('成功拉取云端数据，是否立即恢复并重启？\n注意：这将覆盖所有现有本地聊天记录和设置。')) {
+        if (data && await osConfirm('数据恢复', '成功拉取云端数据，是否立即恢复并重启？\n注意：这将覆盖所有现有本地聊天记录和设置。')) {
             localStorage.clear();
             Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
             location.reload();
         } else if (!data) {
-            alert('未找到备份文件或下载失败');
+            await osAlert('错误', '未找到备份文件或下载失败');
         }
     };
 
@@ -226,7 +239,7 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
     if (sizeEl) sizeEl.innerText = (JSON.stringify(localStorage).length / 1024 / 1024).toFixed(2) + ' MB';
 
     page.querySelector('#btn-compress-images').onclick = async () => {
-        if (!confirm('压缩将降低本地图片质量以节省空间，确定？')) return;
+        if (!await osConfirm('存储', '压缩将降低本地图片质量以节省空间，确定？')) return;
         const btn = page.querySelector('#btn-compress-images');
         const oldText = btn.innerText;
         btn.innerText = '···';
@@ -308,8 +321,8 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
             });
             if (window.os) window.os.showToast(`清理完成: ${count} 碎片`);
         },
-        'btn-advanced-clean': () => {
-            if (!confirm('高级清理将扫描并移除已失效的角色聊天记录，是否继续？')) return;
+        'btn-advanced-clean': async () => {
+            if (!await osConfirm('清理', '高级清理将扫描并移除已失效的角色聊天记录，是否继续？')) return;
             const msgs = s.get('chara_db_messages') || [];
             const chars = s.get('chara_db_characters') || {};
             const standardIds = ['file_helper', 'chara_assistant', 'pay', 'system', 'user', 'me', 'my'];
@@ -325,9 +338,9 @@ window.SettingsHandlers.bindDataManagementEvents = function (page) {
             s.init(); // 触发初始化检测
             if (window.os) window.os.showToast('核心数据已修复', 'success');
         },
-        'btn-delete-worldbook': () => { if (confirm('确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_worldbook'); s.remove('chara_db_worldbook_groups'); if (window.os) window.os.showToast('已清空'); } },
-        'btn-reset-appearance': () => { if (confirm('确认重置所有外观设置（壁纸、字体、自定义CSS）？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font', 'show_status_bar', 'show_dynamic_island'].forEach(k => s.remove(k)); location.reload(); } },
-        'btn-reset-all': () => { if (confirm('⚠️ 警告：彻底抹除所有本地数据（包括聊天记录、API Key、已保存的角色）？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
+        'btn-delete-worldbook': async () => { if (await osConfirm('确认', '确认删除所有世界书数据？此操作不可撤销。')) { s.remove('chara_db_worldbook'); s.remove('chara_db_worldbook_groups'); if (window.os) window.os.showToast('已清空'); } },
+        'btn-reset-appearance': async () => { if (await osConfirm('确认', '确认重置所有外观设置（壁纸、字体、自定义CSS）？')) { ['custom_css', 'lock_screen_wallpaper', 'home_screen_wallpaper', 'active_font', 'show_status_bar', 'show_dynamic_island'].forEach(k => s.remove(k)); location.reload(); } },
+        'btn-reset-all': async () => { if (await osConfirm('⚠️ 警告', '彻底抹除所有本地数据（包括聊天记录、API Key、已保存的角色）？此操作不可逆！')) { localStorage.clear(); location.reload(); } }
     };
     Object.keys(extra).forEach(id => { const el = page.querySelector('#' + id); if (el) el.onclick = extra[id]; });
 };
@@ -371,16 +384,16 @@ window.SettingsHandlers.openWifiPage = (page) => {
                     s.set(modelK, it.dataset.id); m.remove();
                 });
                 m.querySelector('.modal-close').onclick = () => m.remove();
-            } else alert('暂时无法连接 API\n请检查地址和 Key 是否正确');
+            } else await osAlert('连接失败', '暂时无法连接 API\n请检查地址和 Key 是否正确');
         };
     };
     bindPull('btn-pull-models', 'main_api_url', 'main_api_key', 'main_model');
     bindPull('btn-pull-sub-models', 'sub_api_url', 'sub_api_key', 'sub_model');
 
     // 预设管理
-    page.querySelector('#preset-row').onclick = () => {
+    page.querySelector('#preset-row').onclick = async () => {
         const ps = JSON.parse(s.get('api_presets') || '{}');
-        const ks = Object.keys(ps); if (!ks.length) return alert('尚无预设');
+        const ks = Object.keys(ps); if (!ks.length) { await osAlert('提示', '尚无预设'); return; }
         const modal = document.createElement('div');
         modal.innerHTML = window.SettingsUI.renderSelectionModal({ title: '加载预设', items: ks.map(k => ({ id: k, label: k })), isDark: s.get('dark_mode') !== 'false' });
         document.getElementById('os-root').appendChild(modal.firstElementChild);
@@ -393,16 +406,16 @@ window.SettingsHandlers.openWifiPage = (page) => {
         m.querySelector('.modal-close').onclick = () => m.remove();
     };
 
-    page.querySelector('#btn-save-preset').onclick = () => {
-        const name = page.querySelector('#new-preset-name').value.trim(); if (!name) return alert('请输入预设名');
+    page.querySelector('#btn-save-preset').onclick = async () => {
+        const name = page.querySelector('#new-preset-name').value.trim(); if (!name) { await osAlert('提示', '请输入预设名'); return; }
         const ps = JSON.parse(s.get('api_presets') || '{}');
         const data = {}; page.querySelectorAll('[data-key]').forEach(i => data[i.dataset.key] = i.value);
         ps[name] = data; s.set('api_presets', JSON.stringify(ps)); if (window.os) window.os.showToast('预设已保存');
     };
 
-    page.querySelector('#btn-del-preset').onclick = () => {
+    page.querySelector('#btn-del-preset').onclick = async () => {
         const name = page.querySelector('#preset-display').innerText;
-        if (name === "选择预设..." || !confirm('删除 "' + name + '"？')) return;
+        if (name === "选择预设..." || !await osConfirm('删除确认', '删除 "' + name + '"？')) return;
         const ps = JSON.parse(s.get('api_presets') || '{}'); delete ps[name];
         s.set('api_presets', JSON.stringify(ps));
         page.querySelector('#preset-display').innerText = "选择预设...";
@@ -531,10 +544,10 @@ window.SettingsHandlers.openAppearancePage = (page) => {
         const display = page.querySelector('#' + displayId);
         const saveBtn = page.querySelector('#' + saveBtnId);
 
-        if (row) row.onclick = () => {
+        if (row) row.onclick = async () => {
             const ps = JSON.parse(s.get(storeKey) || '{}');
             const ks = Object.keys(ps);
-            if (!ks.length) return alert('尚无预设');
+            if (!ks.length) { await osAlert('提示', '尚无预设'); return; }
             const modal = document.createElement('div');
             modal.innerHTML = window.SettingsUI.renderSelectionModal({ title: '加载预设', items: ks.map(k => ({ id: k, label: k })), isDark: s.get('dark_mode') !== 'false', canDelete: true });
             document.getElementById('os-root').appendChild(modal.firstElementChild);
@@ -549,10 +562,10 @@ window.SettingsHandlers.openAppearancePage = (page) => {
                 };
             });
             m.querySelectorAll('.modal-item-delete').forEach(it => {
-                it.onclick = (ex) => {
+                it.onclick = async (ex) => {
                     ex.stopPropagation();
                     const id = it.dataset.id;
-                    if (confirm(`删除预设 "${id}"?`)) {
+                    if (await osConfirm('删除确认', `删除预设 "${id}"?`)) {
                         delete ps[id];
                         s.set(storeKey, JSON.stringify(ps));
                         it.closest('.modal-selection-item').remove();
@@ -562,8 +575,8 @@ window.SettingsHandlers.openAppearancePage = (page) => {
             m.querySelector('.modal-close').onclick = () => m.remove();
         };
 
-        if (saveBtn) saveBtn.onclick = () => {
-            const name = prompt('保存当前方案为:');
+        if (saveBtn) saveBtn.onclick = async () => {
+            const name = await osPrompt('保存预设', '保存当前方案为:');
             if (!name) return;
             const ps = JSON.parse(s.get(storeKey) || '{}');
             const data = {};
@@ -651,9 +664,9 @@ window.SettingsHandlers.openFontPage = (page) => {
         m.querySelector('.modal-close').onclick = () => m.remove();
     };
 
-    page.querySelector('#btn-save-preset').onclick = () => {
-        if (!urlI.value) return alert('请先输入或上传字体');
-        const name = prompt('为当前字体命名:');
+    page.querySelector('#btn-save-preset').onclick = async () => {
+        if (!urlI.value) { await osAlert('提示', '请先输入或上传字体'); return; }
+        const name = await osPrompt('命名', '为当前字体命名:');
         if (!name) return;
         const ps = JSON.parse(s.get('custom_fonts') || '[]');
         ps.push({ name, value: urlI.value });
@@ -661,9 +674,9 @@ window.SettingsHandlers.openFontPage = (page) => {
         if (window.os) window.os.showToast('已存入预设库');
     };
 
-    page.querySelector('#btn-delete-preset').onclick = () => {
+    page.querySelector('#btn-delete-preset').onclick = async () => {
         const name = display.innerText;
-        if (name.includes('系统默认') || !confirm(`删除预设 "${name}"?`)) return;
+        if (name.includes('系统默认') || !await osConfirm('删除确认', `删除预设 "${name}"?`)) return;
         const ps = JSON.parse(s.get('custom_fonts') || '[]');
         const newPs = ps.filter(f => f.name !== name);
         s.set('custom_fonts', JSON.stringify(newPs));
@@ -672,16 +685,16 @@ window.SettingsHandlers.openFontPage = (page) => {
         if (window.os) window.os.showToast('已删除');
     };
 
-    page.querySelectorAll('.btn-apply-font-trigger').forEach(btn => btn.onclick = () => {
-        if (!urlI.value) return alert('当前没有选中的字体源');
+    page.querySelectorAll('.btn-apply-font-trigger').forEach(btn => btn.onclick = async () => {
+        if (!urlI.value) { await osAlert('提示', '当前没有选中的字体源'); return; }
         const data = { type: 'custom', value: urlI.value, name: display.innerText };
         s.set('active_font', JSON.stringify(data));
         window.os?.applyFont?.(data);
         if (window.os) window.os.showToast('字体配置已生效');
     });
 
-    page.querySelector('#btn-reset-font').onclick = () => {
-        if (confirm('确认还原为系统原生字体吗？')) {
+    page.querySelector('#btn-reset-font').onclick = async () => {
+        if (await osConfirm('还原', '确认还原为系统原生字体吗？')) {
             s.remove('active_font');
             location.reload();
         }
@@ -754,8 +767,8 @@ window.SettingsHandlers.openNotificationPage = (page) => {
             play(list[idx].value); s.set('notification_sound', 'custom_' + idx);
             page.querySelectorAll('.preset-sound, .custom-sound').forEach(el => el.classList.remove('selected')); it.classList.add('selected');
         };
-        it.querySelector('.custom-sound-delete').onclick = (e) => {
-            e.stopPropagation(); if (confirm('删除此声音？')) {
+        it.querySelector('.custom-sound-delete').onclick = async (e) => {
+            e.stopPropagation(); if (await osConfirm('删除确认', '删除此声音？')) {
                 const list = JSON.parse(s.get('custom_notification_sounds') || '[]'); list.splice(it.dataset.index, 1);
                 s.set('custom_notification_sounds', JSON.stringify(list)); location.reload();
             }
@@ -781,6 +794,80 @@ window.SettingsHandlers.openBluetoothPage = (page) => {
     page.querySelector('#bluetooth-back').onclick = () => { page.classList.remove('active'); setTimeout(() => page.remove(), 350); };
     page.querySelector('[data-key="voice_interface_type"]').onchange = updateVisibility;
 
+    // 模型列表/拉取逻辑
+    const pullBtn = page.querySelector('#btn-pull-voice-models');
+    if (pullBtn) {
+        pullBtn.onclick = async () => {
+            let url = page.querySelector('[data-key="voice_domain"]').value.trim();
+            const key = page.querySelector('[data-key="voice_api_key"]').value.trim();
+            const type = page.querySelector('[data-key="voice_interface_type"]').value; // Obtain latest type
+
+            // 简单补全协议
+            if (url && !url.startsWith('http')) url = 'https://' + url;
+
+            s.set('voice_domain', url);
+            s.set('voice_api_key', key);
+
+            let ms = [];
+
+            // 策略：统一尝试从接口拉取实时模型列表 (支持反代列出 speech-01-turbo 等)
+            // Visual feedback via opacity
+            pullBtn.style.opacity = '0.5';
+            try {
+                // 尝试拉取所有模型
+                const allModels = await window.SettingsState.Service.pullModels(url, key);
+                if (allModels && Array.isArray(allModels)) {
+                    // 智能过滤：只显示作为 "Audio/Voice" 的模型
+                    // Minimax: speech-01-turbo, speech-01-hd
+                    // OpenAI: tts-1, tts-1-hd
+                    ms = allModels.filter(m => {
+                        const id = (m.id || '').toLowerCase();
+                        return id.includes('speech') || id.includes('tts') || id.includes('voice') || id.includes('audio');
+                    });
+                }
+            } catch (e) {
+                console.warn('Voice model pull failed:', e);
+            }
+            pullBtn.style.opacity = '1';
+
+            // Fallback (保底逻辑，防止拉取失败什么都没有)
+            if (!ms || !ms.length) {
+                if (type === 'domestic') {
+                    // Minimax 常见列表补全
+                    ms = [
+                        { id: 'dt-base-01', label: 'dt-base-01' },
+                        { id: 'speech-01', label: 'speech-01' },
+                        { id: 'speech-01-turbo', label: 'speech-01-turbo' },
+                        { id: 'speech-01-hd', label: 'speech-01-hd' },
+                        { id: 'speech-02-turbo', label: 'speech-02-turbo' },
+                        { id: 'speech-02-hd', label: 'speech-02-hd' },
+                        { id: 'speech-2.6-turbo', label: 'speech-2.6-turbo' },
+                        { id: 'speech-2.6-hd', label: 'speech-2.6-hd' }
+                    ];
+                } else {
+                    ms = [
+                        { id: 'tts-1', label: 'TTS-1 (标准)' },
+                        { id: 'tts-1-hd', label: 'TTS-1-HD (高清)' }
+                    ];
+                }
+            }
+
+            if (ms && ms.length) {
+                const modal = document.createElement('div');
+                modal.innerHTML = window.SettingsUI.renderSelectionModal({ title: '选择模型', items: ms.map(m => ({ id: m.id || m.label, label: m.label || m.id })), isDark: s.get('dark_mode') !== 'false' });
+                document.getElementById('os-root').appendChild(modal.firstElementChild);
+                const m = document.querySelector('.modal-mask');
+                m.querySelectorAll('.modal-selection-item').forEach(it => it.onclick = () => {
+                    page.querySelector('[data-key="voice_model"]').value = it.dataset.id;
+                    s.set('voice_model', it.dataset.id); m.remove();
+                });
+                m.querySelector('.modal-close').onclick = () => m.remove();
+            } else {
+                await osAlert('提示', '未找到可用模型');
+            }
+        };
+    }
+
     page.querySelector('#bluetooth-save').onclick = () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
         if (window.os) window.os.showToast('语音配置已保存');
@@ -788,19 +875,30 @@ window.SettingsHandlers.openBluetoothPage = (page) => {
 
     page.querySelector('#btn-test-voice').onclick = async () => {
         const type = page.querySelector('[data-key="voice_interface_type"]').value;
+        const testVoiceId = page.querySelector('[data-key="voice_test_id"]').value.trim();
+
+        // Save test ID for convenience
+        if (testVoiceId) s.set('voice_test_id', testVoiceId);
+
         const cfg = {
             type: type,
             domain: page.querySelector('[data-key="voice_domain"]').value,
             apiKey: page.querySelector('[data-key="voice_api_key"]').value,
             model: page.querySelector('[data-key="voice_model"]').value,
             groupId: type === 'domestic' ? page.querySelector('[data-key="voice_group_id"]').value : null,
-            text: "语音合成功能测试成功。Chara OS 正在为您服务。"
+            voiceId: testVoiceId || 'male-qn-qingse',
+            text: "你好，有什么可以帮到你吗"
         };
-        if (!cfg.apiKey) return alert('请先配置 API Key');
-        if (type === 'domestic' && !cfg.groupId) return alert('国内接口需要 Group ID');
+        if (!cfg.apiKey) { await osAlert('配置错误', '请先配置 API Key'); return; }
+        if (type === 'domestic' && !cfg.groupId) { await osAlert('配置错误', '国内接口需要 Group ID'); return; }
 
         const blob = await window.SettingsState.Service.testVoice(cfg);
-        if (blob) window.SettingsState.Service.playAudio(blob); else { if (window.os) window.os.showToast('合成失败', 'error'); }
+        if (blob) {
+            if (window.os) window.os.showToast('正在播放...', 'info');
+            window.SettingsState.Service.playAudio(blob);
+        } else {
+            if (window.os) window.os.showToast('合成失败', 'error');
+        }
     };
     updateVisibility(); // Initial call to set visibility
 };
@@ -836,15 +934,15 @@ window.SettingsHandlers.openCellularPage = (page) => {
         m.querySelector('.modal-close').onclick = () => m.remove();
     };
 
-    page.querySelector('#cellular-save').onclick = () => {
+    page.querySelector('#cellular-save').onclick = async () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
         page.querySelectorAll('.ios-switch').forEach(sw => { if (sw.dataset.switch) s.set(sw.dataset.switch, sw.classList.contains('on')); });
-        alert('图像中心配置已保存');
+        await osAlert('系统', '图像中心配置已保存');
     };
 
     page.querySelector('#btn-novelai-test').onclick = async () => {
         const key = s.get('novelai_key');
-        if (!key) return alert('请先配置 NovelAI API Key');
+        if (!key) { await osAlert('提示', '请先配置 NovelAI API Key'); return; }
         const btn = page.querySelector('#btn-novelai-test');
         btn.innerText = '正在生成测试图...';
         const blob = await window.SettingsState.Service.testNovelAI(key, s.get('novelai_model'));
@@ -853,7 +951,7 @@ window.SettingsHandlers.openCellularPage = (page) => {
             const url = URL.createObjectURL(blob);
             const win = window.open();
             win.document.write(`<img src="${url}" style="max-width:100%;">`);
-        } else alert('生成失败，请检查 Key 或模型设置');
+        } else await osAlert('错误', '生成失败，请检查 Key 或模型设置');
     };
 
     page.querySelectorAll('.ios-switch').forEach(sw => sw.onclick = () => sw.classList.toggle('on'));
@@ -882,22 +980,22 @@ window.SettingsHandlers.openHotspotPage = (page) => {
         };
     });
 
-    page.querySelector('#hotspot-save').onclick = () => {
+    page.querySelector('#hotspot-save').onclick = async () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
-        alert('后台配置已更新');
+        await osAlert('系统', '后台配置已更新');
     };
 };
 window.SettingsHandlers.openChatPage = (page) => {
     const s = window.sysStore;
     genericBind('chat')(page);
-    page.querySelector('#chat-save-btn').onclick = () => {
+    page.querySelector('#chat-save-btn').onclick = async () => {
         page.querySelectorAll('[data-key]').forEach(i => s.set(i.dataset.key, i.value));
-        alert('聊天设置已更新');
+        await osAlert('系统', '聊天设置已更新');
     };
-    page.querySelector('#btn-clear-all-messages').onclick = () => {
-        if (confirm('⚠️ 确定要清空所有角色的聊天历史吗？此操作不可撤销。')) {
+    page.querySelector('#btn-clear-all-messages').onclick = async () => {
+        if (await osConfirm('警告', '⚠️ 确定要清空所有角色的聊天历史吗？此操作不可撤销。')) {
             s.set('chara_db_messages', []);
-            alert('消息记录已全部清空');
+            await osAlert('系统', '消息记录已全部清空');
         }
     };
 };
@@ -909,14 +1007,14 @@ window.SettingsHandlers.openDeveloperPage = (page) => {
     const s = window.sysStore;
     genericBind('developer')(page);
 
-    page.querySelector('#btn-view-system-info').onclick = () => {
+    page.querySelector('#btn-view-system-info').onclick = async () => {
         const info = {
             os_version: '1.0.4 Platinum',
             user_agent: navigator.userAgent,
             storage_usage: (JSON.stringify(localStorage).length / 1024).toFixed(2) + ' KB',
             timestamp: new Date().toISOString()
         };
-        alert('系统详细信息:\n' + JSON.stringify(info, null, 2));
+        await osAlert('系统详细信息', JSON.stringify(info, null, 2));
     };
 
     // 可以在这里添加更多调试逻辑，比如清除缓存等

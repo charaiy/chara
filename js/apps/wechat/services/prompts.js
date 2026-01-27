@@ -43,7 +43,7 @@ window.WeChat.Services.Prompts = {
       realName: char.real_name || char.name,
       nickname: char.nickname || '无',
       gender: char.gender || '未知',
-      wxid: char.wxid || 'wxid_' + char.id.slice(0, 6),
+      wxid: char.wxid || 'wxid_' + (char.id ? char.id.slice(0, 6) : 'unknown'),
       region: char.region || '未知城市',
       persona: char.main_persona || '一个独立、真实、拥有完整社会关系的现代人。',
       wealth: char.settings?.wealth_level || '工薪阶层',
@@ -148,12 +148,27 @@ window.WeChat.Services.Prompts = {
       .map(m => `> [${new Date(m.timestamp).toLocaleDateString()}] ${m.content}`)
       .join('\n');
 
+    // [Voice Call Context Injection]
+    let voiceModeInstructions = "";
+    if (window.State && window.State.voiceCallState && window.State.voiceCallState.open) {
+      voiceModeInstructions = `
+### ⚠️ SPECIAL MODE: VOICE CALL (语音通话中)
+**You are currently on a phone call with the user.**
+1.  **Format Constraints**: 
+    - You MUST describe your voice tone, pauses, breathing, or background sounds in parentheses.
+    - Examples: "(hums softly)", "(silence for a moment) Well...", "(laughs nervously)".
+2.  **Interaction Style**:
+    - Use spoken language features (shorter sentences, natural fillers like 'um', 'uh').
+    - Respond as if you are *hearing* the user, not reading text.
+`;
+    }
 
     // ==================================================================================
     // 2. PROMPT CONSTRUCTION (核心指令构建)
     // ==================================================================================
     return `
 # System Integrity: Commercial Roleplay Engine v3.0 (Detail Optimized)
+${voiceModeInstructions}
 > **Directives**: 
 > 1. You are "${charData.realName}". Your WeChat Nickname is "${charData.nickname}". (You live in ${charData.region}).
 > 2. This is WeChat (微信). Simulate real-time IM messaging behavior.

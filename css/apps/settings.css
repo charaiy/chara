@@ -4,7 +4,7 @@
 
 /* --- Settings Main Structure --- */
 .settings-header {
-    padding: 50px 16px 10px 16px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px 16px;
     background: #000;
     position: relative;
     z-index: 100;
@@ -261,7 +261,7 @@
 
 /* --- Profile Styling --- */
 .profile-header {
-    padding: 50px 20px 25px 20px;
+    padding: calc(10px + env(safe-area-inset-top)) 20px 25px 20px;
     background: #000;
     text-align: center;
 }
@@ -598,7 +598,7 @@
    Fullscreen Overrides (Settings App Only)
    ========================================= */
 #os-root.fullscreen-mode .settings-header {
-    padding-top: 54px !important;
+    padding-top: calc(10px + env(safe-area-inset-top)) !important;
 }
 
 /* =========================================

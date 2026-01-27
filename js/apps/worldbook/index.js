@@ -239,7 +239,7 @@ window.WorldBookApp = {
     renderEmptyState() {
         return `
             ${this.renderHeader()}
-            <div class="wb-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:80%;">
+            <div class="wb-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
                 <div style="font-size:64px; margin-bottom:16px; opacity:0.5;">📖</div>
                 <div style="font-size:17px; font-weight:600; color:var(--wb-text); margin-bottom:8px;">世界书还是一片空白</div>
                 <div style="font-size:14px; color:var(--wb-text-sec); margin-bottom:30px; text-align:center; padding:0 40px; line-height:1.5;">记录下每一个设定，AI 将在聊天中自动同步这些知识。</div>
@@ -409,9 +409,10 @@ window.WorldBookApp = {
             return;
         }
 
-        const value = document.getElementById('wb-modal-input').value.trim();
+        const inputEl = document.getElementById('wb-modal-input');
+        const value = inputEl ? inputEl.value.trim() : '';
         if (!value) {
-            alert('请输入名称'); // Safe fallback or show error on modal
+            if (window.os) window.os.showToast('请输入名称', 'error');
             return;
         }
 
@@ -472,20 +473,20 @@ window.WorldBookApp = {
     moveSelected() {
         if (this.selectedEntryIds.size === 0) return;
         const customGroups = this.getGroups();
-        // [Clean] No char groups in move list, only Custom + Uncategorized
-        let options = customGroups.map(g => `${g.id}: ${g.name}`);
-        options.push('uncategorized: 未分类');
+        const options = customGroups.map(g => ({ id: g.id, name: g.name }));
+        options.push({ id: 'uncategorized', name: '未分类' });
 
-        const choice = prompt('请输入目标分组 ID:\n' + options.join('\n'));
-        if (choice) {
-            const targetId = choice.split(':')[0].trim();
-            let entries = this.getEntries();
-            entries.forEach(e => { if (this.selectedEntryIds.has(e.id)) e.groupId = targetId; });
-            this.saveEntries(entries);
-            this.selectedEntryIds.clear();
-            this.expandedGroupIds.add(targetId);
-            this.render();
-        }
+        this.openConfirmModal(`将选中的条目移动到哪个分组？<br><div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">${options.map(opt => `<div onclick="window.WorldBookApp.executeMove('${opt.id}')" style="padding:10px; background:var(--wb-active-bg); border-radius:8px; color:var(--wb-accent); cursor:pointer;">${opt.name}</div>`).join('')}</div>`, null);
+    },
+
+    executeMove(targetId) {
+        let entries = this.getEntries();
+        entries.forEach(e => { if (this.selectedEntryIds.has(e.id)) e.groupId = targetId; });
+        this.saveEntries(entries);
+        this.selectedEntryIds.clear();
+        this.expandedGroupIds.add(targetId);
+        this.closeModal();
+        if (window.os) window.os.showToast('移动成功');
     },
 
     createNew() { this.editingId = null; this.currentView = 'edit'; this.render(); },
@@ -497,7 +498,10 @@ window.WorldBookApp = {
         const content = document.getElementById('wb-edit-content').value;
         const enabled = document.getElementById('wb-edit-enabled').checked;
         const groupId = document.getElementById('wb-edit-group').value;
-        if (!name) { alert('请输入条目名称'); return; }
+        if (!name) {
+            if (window.os) window.os.showToast('请输入条目名称', 'error');
+            return;
+        }
         const triggers = triggersStr.split(/[,，]/).map(s => s.trim()).filter(s => s);
         const entries = this.getEntries();
         if (this.editingId) {
@@ -512,13 +516,13 @@ window.WorldBookApp = {
         this.render();
     },
     deleteCurrent(id) {
-        if (confirm('确定要删除此条目吗？')) {
+        this.openConfirmModal('确定要删除此条目吗？', () => {
             let entries = this.getEntries();
             entries = entries.filter(e => e.id !== id);
             this.saveEntries(entries);
             this.currentView = 'list';
             this.render();
-        }
+        });
     },
     escapeHtml(str) {
         if (!str) return '';

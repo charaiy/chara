@@ -22,8 +22,9 @@ class CharaOS {
         this._initLockScreenModule();
         this._loadSystemConfigs();
 
-        // Initialize Toast Container
+        // Initialize Toast & Modal Containers
         this._initToastModule();
+        this._initModalModule();
 
         console.log('CharaOS Initialized (Refactored)');
     }
@@ -32,8 +33,127 @@ class CharaOS {
         if (!document.getElementById('os-toast-container')) {
             const container = document.createElement('div');
             container.id = 'os-toast-container';
-            document.body.appendChild(container); // Append to body to ensure it's on top
+            document.body.appendChild(container);
         }
+    }
+
+    _initModalModule() {
+        if (!document.getElementById('os-modal-root')) {
+            const root = document.createElement('div');
+            root.id = 'os-modal-root';
+            const osRoot = document.getElementById('os-root') || document.body;
+            osRoot.appendChild(root);
+        }
+    }
+
+    /**
+     * 系统级确认对话框 (iOS 风格)
+     */
+    confirm(title, content) {
+        return new Promise((resolve) => {
+            const root = document.getElementById('os-modal-root');
+            const overlay = document.createElement('div');
+            overlay.className = 'os-modal-overlay active';
+
+            overlay.innerHTML = `
+                <div class="os-ios-alert">
+                    <div class="os-ios-alert-title">${title}</div>
+                    <div class="os-ios-alert-content">${content}</div>
+                    <div class="os-ios-alert-footer">
+                        <div class="os-ios-alert-btn cancel" id="os-modal-cancel">取消</div>
+                        <div class="os-ios-alert-btn confirm" id="os-modal-confirm">确定</div>
+                    </div>
+                </div>
+            `;
+
+            root.appendChild(overlay);
+
+            overlay.querySelector('#os-modal-cancel').onclick = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 200);
+                resolve(false);
+            };
+
+            overlay.querySelector('#os-modal-confirm').onclick = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 200);
+                resolve(true);
+            };
+        });
+    }
+
+    /**
+     * 系统级输入对话框 (iOS 风格)
+     */
+    prompt(title, content, defaultValue = '') {
+        return new Promise((resolve) => {
+            const root = document.getElementById('os-modal-root');
+            const overlay = document.createElement('div');
+            overlay.className = 'os-modal-overlay active';
+
+            overlay.innerHTML = `
+                <div class="os-ios-alert">
+                    <div class="os-ios-alert-title">${title}</div>
+                    <div class="os-ios-alert-content">${content}</div>
+                    <input type="text" class="os-ios-alert-input" id="os-modal-prompt-input" value="${defaultValue}">
+                    <div class="os-ios-alert-footer">
+                        <div class="os-ios-alert-btn cancel" id="os-modal-cancel">取消</div>
+                        <div class="os-ios-alert-btn confirm" id="os-modal-confirm">确定</div>
+                    </div>
+                </div>
+            `;
+
+            root.appendChild(overlay);
+            const input = overlay.querySelector('#os-modal-prompt-input');
+            setTimeout(() => input.focus(), 100);
+
+            overlay.querySelector('#os-modal-cancel').onclick = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 200);
+                resolve(null);
+            };
+
+            overlay.querySelector('#os-modal-confirm').onclick = () => {
+                const val = input.value;
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 200);
+                resolve(val);
+            };
+
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') overlay.querySelector('#os-modal-confirm').click();
+                if (e.key === 'Escape') overlay.querySelector('#os-modal-cancel').click();
+            };
+        });
+    }
+
+    /**
+     * 系统级警告框 (iOS 风格)
+     */
+    alert(title, content) {
+        return new Promise((resolve) => {
+            const root = document.getElementById('os-modal-root');
+            const overlay = document.createElement('div');
+            overlay.className = 'os-modal-overlay active';
+
+            overlay.innerHTML = `
+                <div class="os-ios-alert">
+                    <div class="os-ios-alert-title">${title}</div>
+                    <div class="os-ios-alert-content">${content}</div>
+                    <div class="os-ios-alert-footer">
+                        <div class="os-ios-alert-btn confirm" id="os-modal-confirm" style="border-left:none;">确定</div>
+                    </div>
+                </div>
+            `;
+
+            root.appendChild(overlay);
+
+            overlay.querySelector('#os-modal-confirm').onclick = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 200);
+                resolve();
+            };
+        });
     }
 
     /**
@@ -397,12 +517,12 @@ class CharaOS {
             });
         });
 
-        this.dom.menuRename.addEventListener('click', (e) => {
+        this.dom.menuRename.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (!this.activeElement) return;
             const id = this.activeElement.dataset.id || this.activeElement.id;
             const nameEl = this.activeElement.querySelector('.name');
-            const newName = prompt("请输入新名称:", nameEl?.textContent || "");
+            const newName = await this.prompt("重命名", "请输入新名称:", nameEl?.textContent || "");
             if (newName) {
                 if (nameEl) nameEl.textContent = newName;
                 window.sysStore.set(`name_${id}`, newName);
@@ -545,8 +665,8 @@ class CharaOS {
                         // Bind click to refresh
                         const locEl = this.dom.weatherDisplay.querySelector('.weather-location');
                         if (locEl) {
-                            locEl.onclick = () => {
-                                if (confirm('重新获取当前定位？')) {
+                            locEl.onclick = async () => {
+                                if (await this.confirm('天气', '重新获取当前定位？')) {
                                     window.sysStore.remove('last_lat');
                                     window.sysStore.remove('last_lon');
                                     window.sysStore.remove('last_location_name');
@@ -613,15 +733,15 @@ class CharaOS {
     }
 
 
-    openApp(appName) {
+    async openApp(appName) {
         console.log('Opening App:', appName);
 
         if (appName === 'dock-settings' || appName === 'settings' || appName === 'app-appearance') {
-            this.openSettings();
+            await this.openSettings();
         } else if (appName === 'app-wechat' || appName === '微信') {
-            this.openWeChat();
+            await this.openWeChat();
         } else if (appName === 'app-worldbook' || appName === '世界书') {
-            this.openWorldBook();
+            await this.openWorldBook();
         }
     }
 
@@ -651,7 +771,7 @@ class CharaOS {
             document.head.appendChild(script);
         } catch (e) {
             console.error(e);
-            alert('无法加载世界书模块');
+            await this.alert('系统', '无法加载世界书模块');
         }
     }
 
@@ -680,7 +800,7 @@ class CharaOS {
         // 检查微信模块是否加载
         if (!window.WeChat || !window.WeChat.App || !window.WeChat.App.init) {
             console.error('[OS] WeChat module not loaded!');
-            alert('微信模块未正确加载，请刷新页面重试。');
+            await this.alert('系统', '微信模块未正确加载，请刷新页面重试。');
             return;
         }
 
@@ -692,7 +812,7 @@ class CharaOS {
         if (!app) {
             // 创建新窗口
             console.log('[OS] Creating new WeChat window...');
-            this._initWeChatDOM();
+            await this._initWeChatDOM();
         } else {
             // 窗口已存在，重新显示
             console.log('[OS] WeChat window exists, bringing to front...');
@@ -714,7 +834,7 @@ class CharaOS {
         }
     }
 
-    _initWeChatDOM() {
+    async _initWeChatDOM() {
         console.log('[OS] _initWeChatDOM called');
 
         let app = document.getElementById('app-wechat-window');
@@ -727,7 +847,7 @@ class CharaOS {
             const osRoot = document.getElementById('os-root');
             if (!osRoot) {
                 console.error('[OS] os-root element not found!');
-                alert('系统错误：找不到根元素');
+                await this.alert('错误', '系统错误：找不到根元素');
                 return;
             }
             osRoot.appendChild(app);
@@ -749,7 +869,7 @@ class CharaOS {
                 console.log('[OS] WeChat.App.init completed');
             } catch (e) {
                 console.error("[OS] WeChat Init Failed:", e);
-                alert('微信初始化失败：' + e.message + '\n请刷新页面重试。');
+                await this.alert('启动失败', '微信初始化失败：' + e.message + '\n请刷新页面重试。');
                 if (app && app.parentNode) {
                     app.parentNode.removeChild(app);
                 }
@@ -772,11 +892,11 @@ class CharaOS {
         console.log('[OS] _initWeChatDOM completed successfully');
     }
 
-    openSettings() {
+    async openSettings() {
         // Check if SettingsApp module is loaded
         if (!window.SettingsApp) {
             console.error('SettingsApp module not loaded yet.');
-            alert('设置应用尚未加载，请检查控制台错误或刷新页面。');
+            await this.alert('系统', '设置应用尚未加载，请检查控制台错误或刷新页面。');
             return;
         }
 
@@ -790,7 +910,7 @@ class CharaOS {
                 app = document.getElementById('app-settings');
             } catch (e) {
                 console.error('Failed to init SettingsApp:', e);
-                alert('启动设置失败: ' + e.message);
+                await this.alert('启动失败', '启动设置失败: ' + e.message);
                 return;
             }
         }

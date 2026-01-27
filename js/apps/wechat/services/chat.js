@@ -55,6 +55,8 @@ window.WeChat.Services.Chat = {
 
         if (this._activeSession !== 'me' && this._activeSession !== 'file_helper') {
             // [Manual Mode] Auto-reply disabled. User must click the button.
+            // this.triggerAIReply(); 
+
             // Priority 2: Memory Summarization (Background)
             if (window.Core && window.Core.Memory) {
                 window.Core.Memory.checkAndSummarize(this._activeSession);
@@ -89,6 +91,8 @@ window.WeChat.Services.Chat = {
                     main_persona: "你是一个乐于助人的 AI 助手。"
                 };
             }
+            // [Robustness] Ensure char object has an ID before passing to Prompts service
+            if (!character.id) character.id = targetId;
 
             // 2. 构建超级 System Prompt
             let systemPrompt = '';
@@ -462,7 +466,7 @@ window.WeChat.Services.Chat = {
                     break;
 
                 case 'voice_message':
-                    this.persistAndShow(targetId, `[语音: ${action.content}]`, 'text');
+                    this.persistAndShow(targetId, action.content, 'voice');
                     break;
 
                 case 'send_and_recall':
@@ -601,6 +605,7 @@ window.WeChat.Services.Chat = {
                     this.persistAndShow(targetId, `[链接] ${action.title}\n${action.description}`, 'text');
                     break;
 
+
                 case 'location_share':
                     const locData = {
                         name: action.content || action.name || '未知位置',
@@ -636,6 +641,108 @@ window.WeChat.Services.Chat = {
                     // this.persistAndShow('system', `(AI 尝试使用功能: ${action.type})`, 'system');
                     break;
             }
+        }
+    },
+
+    /**
+     * Play Voice Message (TTS Synthesis)
+     * Called by UI Bubble click
+     */
+    async playVoiceMessage(msgId) {
+        console.log('[Chat] Playing voice for message:', msgId);
+
+        // 1. Find Message
+        const msgs = window.sysStore.getAllMessages(); // Ideally optimize this fetch
+        const msg = msgs.find(m => m.id === msgId); // Simplified lookup
+
+        if (!msg || !msg.content) return;
+
+        // 2. Prepare UI (Loading State)
+        const bubble = document.getElementById(`wx-voice-bubble-${msgId}`);
+        if (bubble) bubble.style.opacity = '0.5';
+
+        // [User Correction] User's own voice messages should NOT trigger TTS.
+        if (msg.sender_id === 'user' || msg.sender_id === 'me' || msg.sender_id === 'my') {
+            if (bubble) bubble.style.opacity = '1';
+            const t = document.getElementById(`wx-voice-text-${msgId}`);
+            if (t) t.style.display = (t.style.display === 'none' ? 'block' : 'none');
+            return;
+        }
+
+        // 1.5 Check Cache (Data URL persistence)
+        if (msg.audio_data) {
+            console.log('[Chat] Playing voice from cache');
+            if (window.SettingsState && window.SettingsState.Service) {
+                window.SettingsState.Service.playAudio(msg.audio_data);
+            } else {
+                const audio = new Audio(msg.audio_data);
+                audio.play();
+            }
+            if (bubble) bubble.style.opacity = '1';
+            return;
+        }
+
+        try {
+            // 3. Gather Config
+            const s = window.sysStore;
+            const senderId = msg.sender_id;
+            const char = s.getCharacter(senderId);
+
+            // Global Settings
+            const domain = s.get('voice_domain');
+            const apiKey = s.get('voice_api_key');
+            const type = s.get('voice_interface_type'); // domestic | global
+            const model = s.get('voice_model');
+            const groupId = s.get('voice_group_id');
+
+            if (!domain || !apiKey) {
+                if (window.os) window.os.showToast('语音服务未配置', 'error');
+                return;
+            }
+
+            // Character Specific Settings
+            let voiceId = null;
+            let speed = 1.0;
+            let pitch = 0;
+
+            if (char && char.voice_settings) {
+                voiceId = char.voice_settings.voiceId;
+                // speed = char.voice_settings.speed ... (if implemented)
+            }
+
+            // 4. Synthesize
+            const blob = await window.SettingsState.Service.testVoice({
+                type, domain, groupId, apiKey, model,
+                text: msg.content,
+                voiceId, speed, pitch
+            });
+
+            if (blob) {
+                // 5. Play Immediately
+                window.SettingsState.Service.playAudio(blob);
+
+                // 6. Persist Cache (Background)
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    if (reader.result) {
+                        msg.audio_data = reader.result;
+                        // Try persistence
+                        if (window.sysStore && window.sysStore.updateMessage) {
+                            window.sysStore.updateMessage(msg.id, msg);
+                            console.log('[Chat] Voice audio cached for msg:', msgId);
+                        }
+                    }
+                };
+            } else {
+                if (window.os) window.os.showToast('语音合成失败', 'error');
+            }
+
+        } catch (e) {
+            console.error('[Chat] Play Voice Error:', e);
+            if (window.os) window.os.showToast('播放错误: ' + e.message, 'error');
+        } finally {
+            if (bubble) bubble.style.opacity = '1';
         }
     },
 
@@ -750,6 +857,11 @@ window.WeChat.Services.Chat = {
         }
 
         cnt.insertAdjacentHTML('beforeend', window.WeChat.UI.Bubbles.render(bubbleData));
+
+        // [Voice Call Integration]
+        if (window.State && window.State.voiceCallState && window.State.voiceCallState.open && window.WeChat.App) {
+            window.WeChat.App.render();
+        }
         setTimeout(() => {
             view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' });
         }, 50);

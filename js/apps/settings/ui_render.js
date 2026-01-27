@@ -573,7 +573,18 @@ window.SettingsUI.renderBluetoothPageContent = function () {
                 </div>
                 <div class="settings-item no-icon">
                     <div class="settings-label" style="${labelStyle}">模型 (Model)</div>
-                    <input type="text" class="settings-input" data-key="voice_model" placeholder="如: speech-01" value="${s.get('voice_model') || (voiceMode === 'domestic' ? 'speech-01' : 'tts-1')}" style="${inputStyle}">
+                    <div style="flex: 0 0 auto; display:flex; gap:8px; align-items: center; width: 60%; justify-content: flex-end;">
+                        <input type="text" class="settings-input" data-key="voice_model" placeholder="如: speech-01" value="${s.get('voice_model') || (voiceMode === 'domestic' ? 'speech-01' : 'tts-1')}" style="${inputStyle} width: auto; flex: 1;">
+                        <div id="btn-pull-voice-models" style="width: 28px; height: 28px; background: rgba(0,122,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #007aff;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item no-icon">
+                    <div class="settings-label" style="${labelStyle}">Voice ID (试听)</div>
+                    <input type="text" class="settings-input" data-key="voice_test_id" placeholder="如: male-qn-qingse" value="${s.get('voice_test_id') || ''}" style="${inputStyle}">
                 </div>
                 <div class="settings-item no-icon" id="voice-group-row" style="display: ${voiceMode === 'domestic' ? 'flex' : 'none'};">
                     <div class="settings-label" style="${labelStyle}">Group ID</div>

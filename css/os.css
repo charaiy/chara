@@ -83,96 +83,7 @@ body {
     /* Default dark wallpaper */
 }
 
-/* Status Bar */
-.status-bar {
-    height: 48px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 24px;
-    font-size: 16px;
-    font-weight: 600;
-    position: relative;
-    z-index: 100;
-}
 
-/* Dynamic Island */
-.dynamic-island {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 120px;
-    height: 35px;
-    background: #000;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.dynamic-island .camera {
-    width: 12px;
-    height: 12px;
-    background: #0f0f15;
-    border-radius: 50%;
-    opacity: 0.5;
-}
-
-/* Status Icons */
-.status-icons {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.signal {
-    display: flex;
-    gap: 2px;
-    align-items: flex-end;
-    height: 12px;
-}
-
-.signal .bar {
-    width: 3px;
-    background: #fff;
-    border-radius: 1px;
-}
-
-.signal .bar:nth-child(1) {
-    height: 40%;
-}
-
-.signal .bar:nth-child(2) {
-    height: 60%;
-}
-
-.signal .bar:nth-child(3) {
-    height: 80%;
-}
-
-.signal .bar:nth-child(4) {
-    height: 100%;
-}
-
-.battery {
-    width: 24px;
-    height: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    padding: 1px;
-    display: flex;
-    align-items: center;
-    position: relative;
-}
-
-.battery-body {
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    border-radius: 2px;
-    overflow: hidden;
-}
 
 /* --- Global Theme Sync --- */
 :root {
@@ -194,134 +105,11 @@ body {
     background: #ffffff;
 }
 
-/* --- Status Bar --- */
-.status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: calc(44px + env(safe-area-inset-top));
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: env(safe-area-inset-top) 24px 0 24px;
-    box-sizing: border-box;
-    z-index: 1000;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ui-color);
-    transition: color 0.3s ease;
-}
 
-.status-bar .time {
-    width: 60px;
-    text-align: center;
-}
-
-.status-bar-right {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-}
-
-/* Signal Icon */
-.status-icon.signal {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 11px;
-}
-
-.status-icon.signal span {
-    width: 3.5px;
-    background: var(--ui-color);
-    border-radius: 1px;
-    transition: background 0.3s;
-}
-
-.status-icon.signal span:nth-child(1) {
-    height: 40%;
-}
-
-.status-icon.signal span:nth-child(2) {
-    height: 60%;
-}
-
-.status-icon.signal span:nth-child(3) {
-    height: 80%;
-}
-
-.status-icon.signal span:nth-child(4) {
-    height: 100%;
-}
-
-/* Wifi Icon */
-.status-icon.wifi {
-    width: 20px;
-    height: 14px;
-    background: var(--ui-color);
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14'%3E%3Cpath d='M10 14l-10-9.5c4-4 16-4 20 0z'/%3E%3C/svg%3E");
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14'%3E%3Cpath d='M10 14l-10-9.5c4-4 16-4 20 0z'/%3E%3C/svg%3E");
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    transition: background 0.3s;
-}
-
-/* Battery Icon */
-.status-icon.battery {
-    display: flex;
-    align-items: center;
-    position: relative;
-    padding-right: 2px;
-}
-
-.battery-shell {
-    width: 24px;
-    height: 12px;
-    border: 1px solid var(--ui-color);
-    border-radius: 3px;
-    padding: 1.5px;
-    box-sizing: border-box;
-    opacity: 0.5;
-    transition: border-color 0.3s;
-}
-
-.battery-level {
-    width: 85%;
-    height: 100%;
-    background: var(--ui-color);
-    border-radius: 1px;
-    transition: background 0.3s;
-}
-
-.battery-tip {
-    position: absolute;
-    right: 0;
-    width: 2px;
-    height: 4px;
-    background: var(--ui-color);
-    opacity: 0.5;
-    border-radius: 0 1px 1px 0;
-    transition: background 0.3s;
-}
-
-/* --- Dynamic Island --- */
-.dynamic-island {
-    width: 126px;
-    height: 36px;
-    background: #000;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    /* Visible Border */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    /* Shadow for depth */
-    z-index: 200;
-    /* Ensure on top */
-}
 
 /* --- Big Time Widget --- */
 .system-time-widget {
-    margin-top: 65px;
+    margin-top: calc(20px + env(safe-area-inset-top));
     text-align: center;
     color: var(--ui-color);
     transition: color 0.3s ease;
@@ -666,8 +454,8 @@ body {
     overflow: visible;
     background: transparent !important;
     backdrop-filter: none !important;
-    margin-top: 80px;
-    /* Added margin to avoid dynamic island */
+    margin-top: calc(20px + env(safe-area-inset-top));
+    /* Added margin due to removed dynamic island */
 }
 
 .polaroid {

@@ -7,7 +7,7 @@ window.WeChat = window.WeChat || {};
 window.WeChat.UI = window.WeChat.UI || {};
 
 window.WeChat.UI.Bubbles = {
-    // Default Avatar (PNG) - Changed to the grey one requested by user
+    // Default Avatar (PNG)
     DEFAULT_AVATAR: 'assets/images/avatar_placeholder.png',
 
     // Timer for click disambiguation
@@ -23,12 +23,10 @@ window.WeChat.UI.Bubbles = {
                 if (type === 'me') {
                     window.WeChat.App.openMyProfileSettings();
                 } else {
-                    // Need to resolve the actual character ID if possible, or pass it down
-                    // senderId is raw from store, so it should be the ID
                     window.WeChat.App.openUserProfile(senderId);
                 }
             }
-        }, 220); // 300ms is standard, but 220 feels snappier
+        }, 220);
     },
 
     handleAvatarDblClick(type, msgId) {
@@ -75,16 +73,14 @@ window.WeChat.UI.Bubbles = {
         const isSelected = selectionState.selectedMsgIds && selectionState.selectedMsgIds.has(msg.id);
 
         const isMe = msg.sender === 'me';
-        // Use provided avatar -> fallback to Default PNG -> Empty string (let error handler catch)
+        // Use provided avatar -> fallback to Default PNG
         const avatar = msg.avatar || this.DEFAULT_AVATAR;
 
         // Rich media types that shouldn't have the standard bubble background/padding
-        // Also detect text that looks like a transfer (fallback)
         const looksLikeTransfer = msg.type === 'text' && msg.content && typeof msg.content === 'string' && msg.content.includes('"amount"');
-        const isRich = ['image', 'sticker', 'location', 'transfer', 'transfer_status'].includes(msg.type) || looksLikeTransfer;
+        const isRich = ['image', 'sticker', 'location', 'voice', 'transfer', 'transfer_status'].includes(msg.type) || looksLikeTransfer;
 
         // 气泡样式类
-        // If rich media, do NOT apply the standard me/other bubble classes that force bg color and padding
         let bubbleClass = '';
         if (!isRich) {
             bubbleClass = isMe ? 'wx-bubble-me' : 'wx-bubble-other';
@@ -111,7 +107,6 @@ window.WeChat.UI.Bubbles = {
                      onclick="window.WeChat.UI.Bubbles.handleAvatarClick('${msg.senderId}', '${isMe ? 'me' : 'other'}')"
                      ondblclick="window.WeChat.UI.Bubbles.handleAvatarDblClick('${isMe ? 'me' : 'other'}', '${msg.id}')">
                 <div class="wx-msg-content">
-                    <!-- 名称 (仅群聊显示，这里简化不显示) -->
                     <div class="wx-bubble ${bubbleClass}" 
                          style="${richStyle}"
                          data-msg-id="${msg.id}"
@@ -131,19 +126,14 @@ window.WeChat.UI.Bubbles = {
     _renderContent(msg) {
         switch (msg.type) {
             case 'text':
-                // Panic Fallback: If text looks like transfer JSON, render as transfer
                 if (msg.content && msg.content.includes('"amount"')) {
                     try {
                         const trans = JSON.parse(msg.content);
                         const isTransferMe = msg.sender === 'me';
-
-                        // Determine Status (default: pending) - Shared logic with case 'transfer'
-                        // [Fix] Check status from content JSON as well
                         const status = msg.transfer_status || trans.status || 'pending';
                         const isReceived = status === 'received';
                         const isRefunded = status === 'refunded';
 
-                        // [Fix] White text/icons enforced
                         const bubbleBg = (isReceived || isRefunded) ? '#f9e6cc' : '#f79e39';
                         const iconColor = 'white';
                         const mainTextColor = 'white';
@@ -151,20 +141,13 @@ window.WeChat.UI.Bubbles = {
                         const footerColor = 'rgba(255,255,255,0.8)';
                         const borderColor = 'rgba(255,255,255,0.2)';
 
-                        let transferIcon = "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"; // Double Arrow
-                        if (isReceived) transferIcon = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"; // Checkmark
-                        if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"; // Return Arrow
+                        let transferIcon = "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z";
+                        if (isReceived) transferIcon = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
+                        if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z";
 
-                        // Subtitle Text
                         let subText = trans.note || (isTransferMe ? '请收款' : '转账给你');
-                        if (isReceived) {
-                            if (isTransferMe) subText = "已被接收";
-                            else subText = "已收款";
-                        }
-                        if (isRefunded) {
-                            if (isTransferMe) subText = "已被退还";
-                            else subText = "已退还";
-                        }
+                        if (isReceived) subText = isTransferMe ? "已被接收" : "已收款";
+                        if (isRefunded) subText = isTransferMe ? "已被退还" : "已退还";
 
                         return `
                             <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
@@ -184,24 +167,19 @@ window.WeChat.UI.Bubbles = {
                                 </div>
                             </div>
                         `;
-                    } catch (e) {
-                        // ignore parse error, render as text
-                    }
+                    } catch (e) { }
                 }
                 return msg.content ? String(msg.content).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+
             case 'sticker':
                 return `<img src="${msg.content}" style="max-width: 120px; vertical-align: bottom;">`;
+
             case 'image':
                 return `<img src="${msg.content}" style="max-width: 140px; border-radius: 4px; vertical-align: bottom;">`;
+
             case 'location':
                 let loc = {};
-                try {
-                    loc = JSON.parse(msg.content);
-                } catch (e) {
-                    loc = { name: msg.content, detail: '' };
-                }
-                const isLocationMe = msg.sender === 'me';
-                // Location bubble style: Ultra Compact
+                try { loc = JSON.parse(msg.content); } catch (e) { loc = { name: msg.content, detail: '' }; }
                 return `
                     <div style="width: 210px; background: white; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
                         <div style="padding: 8px 10px; display: flex; flex-direction: column;">
@@ -209,12 +187,9 @@ window.WeChat.UI.Bubbles = {
                             <div style="font-size: 10px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${loc.detail || ''}</div>
                         </div>
                         <div style="height: 75px; background: #e0e0e0; position: relative; overflow: hidden;">
-                            <!-- Fake Map Pattern -->
                             <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 15px 15px; opacity: 0.5;"></div>
                             <div style="position: absolute; top: 40%; left: -10%; width: 150px; height: 6px; background: #dcdcdc; transform: rotate(20deg);"></div>
                             <div style="position: absolute; top: 20%; right: -20%; width: 200px; height: 8px; background: #fff; border: 1px solid #e0e0e0; transform: rotate(-5deg);"></div>
-                            
-                            <!-- Red Pin -->
                             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%);">
                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#fa5151">
                                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -224,22 +199,15 @@ window.WeChat.UI.Bubbles = {
                         </div>
                     </div>
                 `;
+
             case 'transfer': {
                 let trans = {};
-                try {
-                    trans = JSON.parse(msg.content);
-                } catch (e) {
-                    trans = { amount: '0.00', note: '' };
-                }
+                try { trans = JSON.parse(msg.content); } catch (e) { trans = { amount: '0.00', note: '' }; }
                 const isTransferMe = msg.sender === 'me';
-
-                // [Fix] Check status from content JSON as well (Persistence logic)
                 const status = msg.transfer_status || trans.status || 'pending';
                 const isReceived = status === 'received';
                 const isRefunded = status === 'refunded';
 
-                // [Fix] White text/icons enforced for ALL states
-                // Background is lighter orange for resolved states
                 const bubbleBg = (isReceived || isRefunded) ? '#f9e6cc' : '#f79e39';
                 const iconColor = 'white';
                 const mainTextColor = 'white';
@@ -252,21 +220,8 @@ window.WeChat.UI.Bubbles = {
                 if (isRefunded) transferIcon = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z";
 
                 let subText = trans.note || (isTransferMe ? '请收款' : '转账给你');
-
-                if (isReceived) {
-                    if (isTransferMe) {
-                        subText = "已被接收";
-                    } else {
-                        subText = "已收款";
-                    }
-                }
-                if (isRefunded) {
-                    if (isTransferMe) {
-                        subText = "已被退还";
-                    } else {
-                        subText = "已退还";
-                    }
-                }
+                if (isReceived) subText = isTransferMe ? "已被接收" : "已收款";
+                if (isRefunded) subText = isTransferMe ? "已被退还" : "已退还";
 
                 return `
                     <div onclick="event.stopPropagation(); window.WeChat.App.handleTransferClick('${msg.id}')" style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
@@ -290,20 +245,13 @@ window.WeChat.UI.Bubbles = {
 
             case 'transfer_status': {
                 let statusData = {};
-                try {
-                    statusData = JSON.parse(msg.content);
-                } catch (e) {
-                    statusData = { status: 'unknown', text: msg.content };
-                }
+                try { statusData = JSON.parse(msg.content); } catch (e) { statusData = { status: 'unknown', text: msg.content }; }
                 const isRefund = statusData.status === 'refunded';
                 const bubbleBg = isRefund ? '#ffebd7' : '#f79e39';
                 const txtColor = 'white';
                 const footerColor = 'rgba(255,255,255,0.8)';
                 const borderColor = 'rgba(255,255,255,0.2)';
-
-                const statusIconPath = isRefund
-                    ? "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"
-                    : "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
+                const statusIconPath = isRefund ? "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" : "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
 
                 return `
                     <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: default;">
@@ -324,16 +272,62 @@ window.WeChat.UI.Bubbles = {
                     </div>
                 `;
             }
+
             case 'voice':
-                const duration = msg.duration || 5;
+                const voiceText = msg.content || '';
+                const calcDuration = Math.max(1, Math.min(60, Math.ceil(voiceText.length / 3)));
+                const duration = msg.duration || calcDuration;
+
                 const isVoiceMe = msg.sender === 'me';
-                const barWidth = Math.min(160, 40 + duration * 6);
-                const voiceIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="transform: ${isVoiceMe ? 'rotate(180deg)' : 'none'};">
-                    <path d="M12 3v18l-6-6H3V9h3l6-6zM18 9v6h-2V9h2zm4-4v14h-2V5h2z"/>
+                const barWidth = Math.min(200, 60 + duration * 4);
+
+                // CSS Variables for Colors and Dark Mode
+                const bgVar = isVoiceMe ? 'var(--wx-bubble-me)' : 'var(--wx-bubble-other)';
+                const transcriptBg = 'var(--wx-cell-bg)';
+                const transcriptColor = 'var(--wx-text)';
+                const iconColor = isVoiceMe ? '#111' : 'var(--wx-text)';
+
+                // Icon: Strict "(( <" Style
+                const voiceIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="display: block; transform: ${isVoiceMe ? 'rotate(180deg)' : 'none'}; opacity: 0.9; color: ${iconColor};">
+                    <circle cx="6" cy="12" r="2.5" fill="currentColor"/>
+                    <path d="M11 8.5C12 9.5 12.5 10.7 12.5 12C12.5 13.3 12 14.5 11 15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 5.5C17 7.5 18 9.7 18 12C18 14.3 17 16.5 15 18.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>`;
+
+                const toggleScript = `
+                    const t = document.getElementById('wx-voice-text-${msg.id}');
+                    if(t.style.display === 'none') {
+                        t.style.display = 'block';
+                    } else {
+                        t.style.display = 'none';
+                    }
+                `;
+
+                // Arrow Styles (Dynamic Colors)
+                const arrowStyle = isVoiceMe
+                    ? `position: absolute; top: 11px; right: -6px; width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 6px solid ${bgVar};`
+                    : `position: absolute; top: 11px; left: -6px; width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-right: 6px solid ${bgVar};`;
+
                 return `
-                    <div style="width: ${barWidth}px; display: flex; align-items: center; justify-content: ${isVoiceMe ? 'flex-end' : 'flex-start'}; cursor: pointer;" onclick="window.WeChat.App.playVoice('${msg.id}')">
-                        ${isVoiceMe ? `<span style="margin-right:8px; font-size:14px; opacity:0.6;">${duration}"</span>${voiceIcon}` : `${voiceIcon}<span style="margin-left:8px; font-size:14px; opacity:0.6;">${duration}"</span>`}
+                    <div style="display: flex; flex-direction: column; align-items: ${isVoiceMe ? 'flex-end' : 'flex-start'}; position: relative;">
+                        <!-- Voice Bar -->
+                        <div id="wx-voice-bubble-${msg.id}" 
+                             onclick="if(window.WeChat.Services.Chat && window.WeChat.Services.Chat.playVoiceMessage) { window.WeChat.Services.Chat.playVoiceMessage('${msg.id}'); } event.stopPropagation();"
+                             style="position: relative; width: ${barWidth}px; background: ${bgVar}; border-radius: 4px; padding: 9px 12px; display: flex; align-items: center; justify-content: ${isVoiceMe ? 'flex-end' : 'flex-start'}; cursor: pointer;">
+                            <!-- Arrow -->
+                            <div style="${arrowStyle}"></div>
+                            
+                            <!-- Content -->
+                            ${isVoiceMe ?
+                        `<span style="margin-right:4px; font-size:15px; color:${iconColor}; user-select:none;">${duration}"</span>${voiceIcon}` :
+                        `${voiceIcon}<span style="margin-left:4px; font-size:15px; color:${iconColor}; user-select:none;">${duration}"</span>`
+                    }
+                        </div>
+                        
+                        <!-- Hidden Transcript -->
+                        <div id="wx-voice-text-${msg.id}" style="display: block; background: ${transcriptBg}; color: ${transcriptColor}; border-radius: 4px; padding: 10px; margin-top: 6px; border: none; max-width: 260px; word-break: break-all; font-size: 15px; line-height: 1.5;">
+                            ${voiceText}
+                        </div>
                     </div>
                 `;
 
@@ -341,16 +335,13 @@ window.WeChat.UI.Bubbles = {
                 const isVideoMe = msg.sender === 'me';
                 const callStatus = msg.status || 'ended';
                 const callDuration = msg.call_duration || '';
-
                 let callText = '视频通话';
                 if (callStatus === 'ended') callText = `视频通话 结束时长 ${callDuration || '00:00'}`;
                 if (callStatus === 'declined') callText = isVideoMe ? '对方已拒绝' : '已拒绝';
                 if (callStatus === 'cancelled') callText = isVideoMe ? '已取消' : '对方已取消';
-
                 const callIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
                     <path d="M15 10l4.55-2.27A1 1 0 0121 8.61v6.78a1 1 0 01-1.45.89L15 14v-4zM5 8h8a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2z" fill="currentColor"/>
                 </svg>`;
-
                 return `
                     <div style="display: flex; align-items: center; padding: 2px 0;">
                         ${isVideoMe ? `<span style="font-size: 15px;">${callText}</span>${callIcon}` : `${callIcon}<span style="font-size: 15px;">${callText}</span>`}
@@ -363,10 +354,26 @@ window.WeChat.UI.Bubbles = {
                 const audioIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
                     <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/>
                 </svg>`;
-
                 return `
                     <div style="display: flex; align-items: center; padding: 2px 0;">
                         ${isAudioMe ? `<span style="font-size: 15px;">${aCallText}</span>${audioIcon}` : `${audioIcon}<span style="font-size: 15px;">${aCallText}</span>`}
+                    </div>
+                `;
+
+            case 'call_summary':
+                // New Call Summary Bubble
+                let sumData = {};
+                try { sumData = JSON.parse(msg.content); } catch (e) { sumData = { duration: '00:00', summary: '' }; }
+
+                return `
+                    <div style="width: 220px; background: #07c160; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;"
+                         onclick="window.WeChat.App.openCallSummary('${msg.id}')">
+                         <div style="display: flex; align-items: center; color: white;">
+                             <span style="font-size: 16px; margin-right: 8px;">通话时长 ${sumData.duration}</span>
+                         </div>
+                         <div style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid white; display:flex; align-items:center; justify-content:center;">
+                             <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                         </div>
                     </div>
                 `;
 

@@ -1,0 +1,129 @@
+/* OS Level iOS Style Modals */
+.os-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.os-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.os-ios-alert {
+    width: 270px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: osModalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark mode for OS modal */
+#os-root.dark-mode .os-ios-alert,
+#os-root.dark-theme .os-ios-alert {
+    background: rgba(45, 45, 45, 0.95);
+    color: white;
+}
+
+@keyframes osModalPop {
+    from {
+        transform: scale(1.1);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.os-ios-alert-title {
+    padding: 20px 16px 8px;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.os-ios-alert-content {
+    padding: 0 16px 20px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #000;
+}
+
+#os-root.dark-mode .os-ios-alert-content,
+#os-root.dark-theme .os-ios-alert-content {
+    color: #ccc;
+}
+
+.os-ios-alert-footer {
+    display: flex;
+    border-top: 0.5px solid rgba(60, 60, 67, 0.29);
+    height: 44px;
+}
+
+#os-root.dark-mode .os-ios-alert-footer,
+#os-root.dark-theme .os-ios-alert-footer {
+    border-top-color: rgba(84, 84, 88, 0.65);
+}
+
+.os-ios-alert-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: #007aff;
+    cursor: pointer;
+    font-weight: 400;
+}
+
+.os-ios-alert-btn:active {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+#os-root.dark-mode .os-ios-alert-btn:active,
+#os-root.dark-theme .os-ios-alert-btn:active {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.os-ios-alert-btn.confirm {
+    font-weight: 600;
+    border-left: 0.5px solid rgba(60, 60, 67, 0.29);
+}
+
+#os-root.dark-mode .os-ios-alert-btn.confirm,
+#os-root.dark-theme .os-ios-alert-btn.confirm {
+    border-left-color: rgba(84, 84, 88, 0.65);
+}
+
+.os-ios-alert-input {
+    width: calc(100% - 32px);
+    margin: 0 16px 16px;
+    padding: 6px 8px;
+    border: 0.5px solid rgba(60, 60, 67, 0.29);
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    outline: none;
+}
+
+#os-root.dark-mode .os-ios-alert-input,
+#os-root.dark-theme .os-ios-alert-input {
+    background: #1c1c1e;
+    color: #fff;
+    border-color: rgba(84, 84, 88, 0.65);
+}
