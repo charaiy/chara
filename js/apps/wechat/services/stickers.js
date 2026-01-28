@@ -62,6 +62,26 @@ window.WeChat.Services.Stickers = {
 
     getKey() { return 'wx_custom_stickers_v2'; }, // Upgraded key for new version
 
+    _readRawCustom() {
+        const key = this.getKey();
+        // Primary: sysStore (IndexedDB-backed)
+        const fromStore = window.sysStore && window.sysStore.get ? window.sysStore.get(key) : null;
+        if (fromStore) return fromStore;
+
+        // Compatibility: older builds may have stored directly into localStorage under the same key (no prefix).
+        // If found, migrate into sysStore to persist in the new storage engine.
+        try {
+            const fromLS = localStorage.getItem(key);
+            if (fromLS && window.sysStore && window.sysStore.set) {
+                window.sysStore.set(key, fromLS);
+                return fromLS;
+            }
+            return fromLS;
+        } catch (e) {
+            return null;
+        }
+    },
+
     /**
      * 获取所有表情 (URLs only for legacy UI compatibility)
      */
@@ -73,7 +93,7 @@ window.WeChat.Services.Stickers = {
      * 获取所有完整表情对象
      */
     getAll() {
-        const stored = window.sysStore.get(this.getKey());
+        const stored = this._readRawCustom();
         let custom = [];
         try {
             const parsed = stored ? JSON.parse(stored) : [];
@@ -217,17 +237,65 @@ window.WeChat.Services.Stickers = {
     },
 
     getExcluded() {
-        const stored = window.sysStore.get(this.getKey() + '_excluded');
-        try { return stored ? JSON.parse(stored) : []; } catch (e) { return []; }
+        const key = this.getKey() + '_excluded';
+        const stored = window.sysStore && window.sysStore.get ? window.sysStore.get(key) : null;
+        try {
+            if (!stored) return [];
+            if (Array.isArray(stored)) return stored;
+            if (typeof stored === 'string') return JSON.parse(stored);
+            return [];
+        } catch (e) { return []; }
+    },
+
+    resetExcluded() {
+        const key = this.getKey() + '_excluded';
+        if (window.sysStore && window.sysStore.set) window.sysStore.set(key, JSON.stringify([]));
+        try { localStorage.removeItem(key); } catch (e) { }
+        return true;
     },
 
     getCustomOnly() {
-        const stored = window.sysStore.get(this.getKey());
+        const stored = this._readRawCustom();
         try {
             const parsed = stored ? JSON.parse(stored) : [];
             // Ensure object structure
             return parsed.map(item => typeof item === 'string' ? { url: item, tags: ['自定义'] } : item);
         } catch (e) { return []; }
+    },
+
+    exportCustomJSON() {
+        // Export ONLY custom stickers (not defaults), as an array of {url,tags}
+        const current = this.getCustomOnly();
+        return JSON.stringify(current);
+    },
+
+    importCustomJSON(jsonText) {
+        if (!jsonText) return { ok: false, count: 0, error: 'empty' };
+        let parsed = null;
+        try {
+            parsed = JSON.parse(String(jsonText).trim());
+        } catch (e) {
+            return { ok: false, count: 0, error: 'invalid_json' };
+        }
+        if (!Array.isArray(parsed)) return { ok: false, count: 0, error: 'not_array' };
+
+        const normalized = parsed
+            .map(item => {
+                if (typeof item === 'string') return { url: item, tags: ['自定义', '收藏'] };
+                if (item && typeof item === 'object') {
+                    const url = String(item.url || '').trim();
+                    if (!url) return null;
+                    const tags = Array.isArray(item.tags) ? item.tags.map(t => String(t)) : ['自定义', '收藏'];
+                    return { url, tags };
+                }
+                return null;
+            })
+            .filter(Boolean);
+
+        if (window.sysStore && window.sysStore.set) {
+            window.sysStore.set(this.getKey(), JSON.stringify(normalized));
+        }
+        return { ok: true, count: normalized.length, error: null };
     },
 
     // Legacy support for older code calling getAll (return string[]?)

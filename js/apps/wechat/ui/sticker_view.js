@@ -27,7 +27,18 @@ window.WeChat.Views.Stickers = {
                         color:var(--wx-text); font-size:15px; resize:none; outline:none;
                     " placeholder="https://example.com/image.jpg"></textarea>
                     
-                    <div style="display:flex; gap:16px; margin-top:20px;">
+                    <div style="display:flex; gap:12px; margin-top:14px;">
+                        <button onclick="window.WeChat.App.importStickerBackupFromTextarea()" style="
+                            flex:1; height:40px; border-radius:8px; border:none;
+                            background:var(--wx-cell-bg); color:var(--wx-text); font-size:14px; font-weight:500; cursor:pointer;
+                        ">导入备份</button>
+                        <button onclick="window.WeChat.App.exportStickerBackupToTextarea()" style="
+                            flex:1; height:40px; border-radius:8px; border:none;
+                            background:var(--wx-cell-bg); color:var(--wx-text); font-size:14px; font-weight:500; cursor:pointer;
+                        ">导出备份</button>
+                    </div>
+
+                    <div style="display:flex; gap:16px; margin-top:14px;">
                         <button onclick="window.WeChat.App.switchStickerTab('heart')" style="
                             flex:1; height:44px; border-radius:8px; border:none; 
                             background:var(--wx-cell-bg); color:var(--wx-text); font-size:16px; font-weight:500; cursor:pointer;
@@ -120,12 +131,18 @@ window.WeChat.Views.Stickers = {
                  onclick="window.WeChat.App.handleStickerClick('${url}')">
                 
                 <div class="wx-sticker-check-btn"></div>
-                <img src="${url}" loading="lazy" style="pointer-events:none;" />
+                <img src="${url}" loading="lazy" style="pointer-events:none;" onerror="this.style.display='none'; this.parentElement.style.background='rgba(255,255,255,0.06)';" />
             </div>
             `;
         }).join('');
 
-        grid.innerHTML = addBtn + stickerItems;
+        const emptyHint = `
+            <div style="grid-column: 1 / -1; padding: 10px 6px; color: var(--wx-text-sec); font-size: 13px; line-height: 1.5;">
+                默认表情未加载出来时，可以点这里重置：<span style="color: var(--wx-green); font-weight:600; cursor:pointer;" onclick="window.WeChat.App.resetDefaultStickers()">重置默认表情</span>
+            </div>
+        `;
+
+        grid.innerHTML = addBtn + (stickerItems || emptyHint);
 
         // Apply Selection Mode Styles
         if (selectionMode) {

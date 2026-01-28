@@ -1,6 +1,6 @@
 /**
  * js/apps/wechat/ui/views.js
- * 负责渲染四大主页面 + 聊天会话
+ * 负责渲染四大主页�?+ 聊天会话
  * [Refactor] Use .wx-nav-spacer instead of padding-top
  */
 
@@ -13,7 +13,7 @@ window.WeChat.Views = {
     renderChatSession(sessionId, startHidden = false) {
         // Fetch real messages from sysStore
         const messages = (window.sysStore && window.sysStore.getMessagesBySession)
-            ? window.sysStore.getMessagesBySession(sessionId)
+            ? window.sysStore.getMessagesBySession(sessionId).filter(m => m.type !== 'voice_text')
             : [];
 
         const character = (window.sysStore && window.sysStore.getCharacter)
@@ -42,9 +42,6 @@ window.WeChat.Views = {
 
         let lastTime = 0;
         const listHtml = messages.map(m => {
-            // [Fix] Skip voice_text messages in main chat
-            if (m.type === 'voice_text') return '';
-
             let html = '';
             // Time Logic: 5-minute rule
             if (m.timestamp && (m.timestamp - lastTime > 5 * 60 * 1000 || lastTime === 0)) {
@@ -189,18 +186,9 @@ window.WeChat.Views = {
             chats = sessionIds.filter(id => id !== 'system').map(id => {
                 const char = window.sysStore.getCharacter(id);
                 const msgs = window.sysStore.getMessagesBySession(id);
-                // Safe find last valid message
-                let lastMsg = null;
-                if (msgs && msgs.length > 0) {
-                    for (let i = msgs.length - 1; i >= 0; i--) {
-                        if (msgs[i].type !== 'voice_text') {
-                            lastMsg = msgs[i];
-                            break;
-                        }
-                    }
-                }
+                const lastMsg = msgs[msgs.length - 1];
 
-                // 获取预览文案与更新时间
+                // 获取预览文案与更新时�?
                 const notifService = window.WeChat.Services.Notifications;
                 let previewText = '';
                 if (lastMsg) {
@@ -308,7 +296,7 @@ window.WeChat.Views = {
                 let html = this._renderSwitchCell('启动独立后台活动', isBgOn, `window.WeChat.App.toggleIndependentBgActivity('${sessionId}', !${isBgOn})`);
                 if (isBgOn) {
                     html += this._renderCell({
-                        text: '独立活动分钟阀值',
+                        text: '独立活动分钟阀�?,
                         extra: `<input type="number" value="${threshold}" style="width:60px; text-align:right; border:none; background:transparent; color:var(--wx-text-sec); font-size:15px; outline:none;" onchange="window.WeChat.App.setIndependentBgThreshold('${sessionId}', this.value)">`,
                         onClick: ''
                     });
@@ -332,14 +320,14 @@ window.WeChat.Views = {
                 const linkedIds = char?.settings?.world_book_ids || [];
                 const count = linkedIds.length;
                 return this._renderCell({
-                    text: '关联世界书',
+                    text: '关联世界�?,
                     showArrow: true,
-                    extra: `<span style="font-size:15px; color:var(--wx-text-sec); margin-right:4px;">${count > 0 ? `已关联 ${count} 条` : '无'}</span>`,
+                    extra: `<span style="font-size:15px; color:var(--wx-text-sec); margin-right:4px;">${count > 0 ? `已关�?${count} 条` : '�?}</span>`,
                     onClick: `window.WeChat.App.openWorldBookSelection('${sessionId}')`
                 });
             })()}
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '语音与视频', showArrow: true, onClick: `window.WeChat.App.openVoiceVideoSettings('${sessionId}')` })}
+                    ${this._renderCell({ text: '语音与视�?, showArrow: true, onClick: `window.WeChat.App.openVoiceVideoSettings('${sessionId}')` })}
                 </div>
 
                 <div class="wx-cell-group">
@@ -357,7 +345,7 @@ window.WeChat.Views = {
                 
                 <!-- Footer Info Pills -->
                 <div style="display: flex; justify-content: center; gap: 10px; padding: 20px 0 40px 0;">
-                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">总消息: ${(window.sysStore && window.sysStore.getMessagesBySession(sessionId).length) || 0}</div>
+                    <div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">总消�? ${(window.sysStore && window.sysStore.getMessagesBySession(sessionId).length) || 0}</div>
                     ${(() => {
                 const tokenCount = this._calculateTotalTokens(sessionId);
                 return `<div style="padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; font-size: 11px; color: #999;">Token: ${tokenCount}</div>`;
@@ -529,7 +517,7 @@ window.WeChat.Views = {
             id: userId,
             name: char?.name || name,
             avatar: char?.avatar || 'assets/images/avatar_placeholder.png',
-            nickname: char?.nickname || '无',
+            nickname: char?.nickname || '�?,
             realName: char?.real_name || '未知',
             // Default display if not set: generate consistent hash-based ID for viewing, or random? 
             // User requested default logic. Since we changed save logic, let's just display what is there.
@@ -553,10 +541,10 @@ window.WeChat.Views = {
                         <div style="font-size: 20px; font-weight: 500; color: var(--wx-text); margin-bottom: 6px; display: flex; align-items: center; line-height: 1.1;">
                             ${user.name}
                             ${genderHtml}
-                            ${user.age ? `<span style="font-size: 12px; color: var(--wx-text-sec); background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; margin-left: 6px; font-weight: normal;">${user.age}岁</span>` : ''}
+                            ${user.age ? `<span style="font-size: 12px; color: var(--wx-text-sec); background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; margin-left: 6px; font-weight: normal;">${user.age}�?/span>` : ''}
                         </div>
                         <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 3px; opacity: 0.8;">微信号：${user.wxid}</div>
-                        <div style="font-size: 13px; color: var(--wx-text-sec); opacity: 0.8;">真名：${user.realName}</div>
+                        <div style="font-size: 13px; color: var(--wx-text-sec); opacity: 0.8;">真名�?{user.realName}</div>
                     </div>
                 </div>
 
@@ -579,14 +567,14 @@ window.WeChat.Views = {
                     <div style="height: 1px; background-color: rgba(0,0,0,0.05); width: 100%;"></div>
                     <!-- Text container with padding -->
                     <div style="padding: 10px 24px 16px 24px; font-size: 12px; color: var(--wx-text-sec); line-height: 1.4;">
-                        添加朋友的备注名、电话、标签、备忘、照片等，并设置朋友权限。
+                        添加朋友的备注名、电话、标签、备忘、照片等，并设置朋友权限�?
                     </div>
                 </div>
 
                 <!-- Moments Cell (With Gap) -->
                 <div class="wx-cell-group" style="margin-top: 8px;">
                     <div class="wx-cell wx-hairline-bottom" style="padding: 12px 24px;">
-                         <div class="wx-cell-content" style="font-size: 17px; font-weight: 400; color: var(--wx-text);">朋友圈</div>
+                         <div class="wx-cell-content" style="font-size: 17px; font-weight: 400; color: var(--wx-text);">朋友�?/div>
                          <div class="wx-cell-arrow-custom" style="margin-left: 4px; display: flex; align-items: center;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                 <path d="M9 19l6.5-7L9 5" stroke="#B2B2B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -608,7 +596,7 @@ window.WeChat.Views = {
                                  <circle cx="12" cy="11.5" r="1.2" fill="#576b95"/>
                                  <circle cx="16" cy="11.5" r="1.2" fill="#576b95"/>
                             </svg>
-                            <span style="font-size: 17px; font-weight: 400; color: #576b95;">发消息</span>
+                            <span style="font-size: 17px; font-weight: 400; color: #576b95;">发消�?/span>
                         </div>
                     </div>
                     <!-- Video Call (Outline Camera) -->
@@ -655,17 +643,17 @@ window.WeChat.Views = {
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-real-name" ${this._lockAttr('wx-my-real-name')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：陈晓明" value="${realName}" />
+                            placeholder="如：陈晓�? value="${realName}" />
                     </div>
 
-                    ${this._renderFieldHeader('所在地 (影响角色的感应)', 'wx-my-region')}
+                    ${this._renderFieldHeader('所在地 (影响角色的感�?', 'wx-my-region')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-region" ${this._lockAttr('wx-my-region')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：上海、东京、云端" value="${s.get('user_region') || ''}" />
+                            placeholder="如：上海、东京、云�? value="${s.get('user_region') || ''}" />
                     </div>
 
-                    ${this._renderFieldHeader('财富/社会地位 (自定义)', 'wx-my-wealth')}
+                    ${this._renderFieldHeader('财富/社会地位 (自定�?', 'wx-my-wealth')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-wealth" ${this._lockAttr('wx-my-wealth')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
@@ -682,9 +670,9 @@ window.WeChat.Views = {
                     <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">性别</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <select id="wx-my-gender" ${this._lockAttr('wx-my-gender')} onchange="document.getElementById('wx-my-period-box').style.display = (this.value === 'female' ? 'block' : 'none')" style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;">
-                            <option value="">未设置</option>
-                            <option value="male" ${gender === 'male' ? 'selected' : ''}>男</option>
-                            <option value="female" ${gender === 'female' ? 'selected' : ''}>女</option>
+                            <option value="">未设�?/option>
+                            <option value="male" ${gender === 'male' ? 'selected' : ''}>�?/option>
+                            <option value="female" ${gender === 'female' ? 'selected' : ''}>�?/option>
                             <option value="other" ${gender === 'other' ? 'selected' : ''}>其他</option>
                         </select>
                     </div>
@@ -693,7 +681,7 @@ window.WeChat.Views = {
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-birthday" ${this._lockAttr('wx-my-birthday')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：10月24日" value="${s.get('user_birthday') || ''}" />
+                            placeholder="如：10�?4�? value="${s.get('user_birthday') || ''}" />
                     </div>
 
                     ${this._renderFieldHeader('我的年龄', 'wx-my-age')}
@@ -719,14 +707,14 @@ window.WeChat.Views = {
                             placeholder="如：Kitten" value="${nickname}" />
                     </div>
 
-                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信号 (WeChat ID)</div>
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信�?(WeChat ID)</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-wxid" ${this._lockAttr('wx-my-wxid')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="留空则自动生成" value="${wxid}" />
+                            placeholder="留空则自动生�? value="${wxid}" />
                     </div>
 
-                    ${this._renderFieldHeader('个性签名 (Bio)', 'wx-my-bio')}
+                    ${this._renderFieldHeader('个性签�?(Bio)', 'wx-my-bio')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-my-bio" ${this._lockAttr('wx-my-bio')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
@@ -762,7 +750,7 @@ window.WeChat.Views = {
                     
                     <div onclick="window.WeChat.App.openAssociatedGen('USER_SELF')" 
                          style="background-color: var(--wx-cell-bg); color: var(--wx-text); text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer; margin-top: 16px;">
-                        生成我的关联人物 (如: 我的青梅竹马)
+                        生成我的关联人物 (�? 我的青梅竹马)
                     </div>
                 </div>
             </div>
@@ -793,7 +781,7 @@ window.WeChat.Views = {
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="margin-right: 12px; color: #576b95;">
                                 <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/>
                             </svg>
-                            <span style="font-size: 18px; font-weight: 600; color: var(--wx-text);">语音与视频</span>
+                            <span style="font-size: 18px; font-weight: 600; color: var(--wx-text);">语音与视�?/span>
                         </div>
 
                         <div style="margin-bottom: 20px;">
@@ -807,10 +795,10 @@ window.WeChat.Views = {
 
                         <div style="margin-bottom: 20px;">
                             <div style="font-size: 15px; color: #888; margin-bottom: 8px;">Minimax 语言增强</div>
-                            <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">增强对特定语言或方言的识别能力。通常选择“自动判断”即可。</div>
+                            <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">增强对特定语言或方言的识别能力。通常选择“自动判断”即可�?/div>
                             <div style="background: var(--wx-bg); border-radius: 8px; padding: 12px; border: 1px solid #333; display: flex; align-items: center;">
                                 <select id="wx-vs-lang-boost" style="flex: 1; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none; appearance: none;">
-                                    <option value="none" ${vs.languageBoost === 'none' ? 'selected' : ''}>无（默认）</option>
+                                    <option value="none" ${vs.languageBoost === 'none' ? 'selected' : ''}>无（默认�?/option>
                                     <option value="zh" ${vs.languageBoost === 'zh' ? 'selected' : ''}>中文增强</option>
                                     <option value="en" ${vs.languageBoost === 'en' ? 'selected' : ''}>英文增强</option>
                                 </select>
@@ -819,7 +807,7 @@ window.WeChat.Views = {
                         </div>
 
                         <div style="margin-bottom: 20px;">
-                            <div style="font-size: 15px; color: #888; margin-bottom: 12px;">语音语速: <span id="wx-vs-speed-val">${vs.speechRate || 0.9}</span></div>
+                            <div style="font-size: 15px; color: #888; margin-bottom: 12px;">语音语�? <span id="wx-vs-speed-val">${vs.speechRate || 0.9}</span></div>
                             <input id="wx-vs-speed" type="range" min="0.5" max="2.0" step="0.1" value="${vs.speechRate || 0.9}" 
                                 oninput="document.getElementById('wx-vs-speed-val').innerText = this.value"
                                 style="width: 100%; height: 24px; appearance: none; background: #ffe4e6; border-radius: 12px; outline: none;" />
@@ -872,14 +860,14 @@ window.WeChat.Views = {
                         </div>
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <span style="font-size: 16px; color: var(--wx-text);">我的画面使用真实摄像头</span>
+                            <span style="font-size: 16px; color: var(--wx-text);">我的画面使用真实摄像�?/span>
                             <div class="wx-switch ${vs.useRealCamera ? 'checked' : ''}" id="wx-vs-real-camera" onclick="this.classList.toggle('checked')">
                                 <div class="wx-switch-node"></div>
                             </div>
                         </div>
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span style="font-size: 16px; color: var(--wx-text);">开启语音接入</span>
+                            <span style="font-size: 16px; color: var(--wx-text);">开启语音接�?/span>
                             <div class="wx-switch ${vs.voiceAccessEnabled ? 'checked' : ''}" id="wx-vs-voice-access" onclick="this.classList.toggle('checked')">
                                 <div class="wx-switch-node"></div>
                             </div>
@@ -944,35 +932,35 @@ window.WeChat.Views = {
                              style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
                         <div style="font-size: 13px; color: var(--wx-text-sec); margin-top: 8px;">点击更换头像</div>
                     </div>
-                    ${this._renderFieldHeader('角色备注 (只有你知道)', 'wx-edit-remark')}
+                    ${this._renderFieldHeader('角色备注 (只有你知�?', 'wx-edit-remark')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-remark" ${this._lockAttr('wx-edit-remark')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：呆毛王" value="${remark}" />
+                            placeholder="如：呆毛�? value="${remark}" />
                     </div>
 
-                    ${this._renderFieldHeader('角色真名 (系统识别用)', 'wx-edit-real-name')}
+                    ${this._renderFieldHeader('角色真名 (系统识别�?', 'wx-edit-real-name')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-real-name" ${this._lockAttr('wx-edit-real-name')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：阿尔托莉雅·潘德拉贡" value="${realName}" />
+                            placeholder="如：阿尔托莉雅·潘德拉�? value="${realName}" />
                     </div>
 
-                    ${this._renderFieldHeader('所在地 (展示名)', 'wx-edit-region')}
+                    ${this._renderFieldHeader('所在地 (展示�?', 'wx-edit-region')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-region" ${this._lockAttr('wx-edit-region')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：云深不知处" value="${char?.region || ''}" />
+                            placeholder="如：云深不知�? value="${char?.region || ''}" />
                     </div>
 
                     ${this._renderFieldHeader('现实映射地区 (影响时差/天气)', 'wx-edit-region-mapping')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-region-mapping" ${this._lockAttr('wx-edit-region-mapping')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：上海、东京、伦敦" value="${char?.settings?.region_mapping || ''}" />
+                            placeholder="如：上海、东京、伦�? value="${char?.settings?.region_mapping || ''}" />
                     </div>
 
-                    ${this._renderFieldHeader('财富状况 (自定义词条)', 'wx-edit-wealth')}
+                    ${this._renderFieldHeader('财富状况 (自定义词�?', 'wx-edit-wealth')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-wealth" ${this._lockAttr('wx-edit-wealth')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
@@ -989,9 +977,9 @@ window.WeChat.Views = {
                     <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">性别</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <select id="wx-edit-gender" ${this._lockAttr('wx-edit-gender')} onchange="document.getElementById('wx-edit-period-box').style.display = (this.value === 'female' ? 'block' : 'none')" style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;">
-                            <option value="">未设置</option>
-                            <option value="male" ${gender === 'male' ? 'selected' : ''}>男</option>
-                            <option value="female" ${gender === 'female' ? 'selected' : ''}>女</option>
+                            <option value="">未设�?/option>
+                            <option value="male" ${gender === 'male' ? 'selected' : ''}>�?/option>
+                            <option value="female" ${gender === 'female' ? 'selected' : ''}>�?/option>
                             <option value="other" ${gender === 'other' ? 'selected' : ''}>其他</option>
                         </select>
                     </div>
@@ -1000,7 +988,7 @@ window.WeChat.Views = {
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-birthday" ${this._lockAttr('wx-edit-birthday')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：7月7日" value="${char?.settings?.birthday || ''}" />
+                            placeholder="如：7�?�? value="${char?.settings?.birthday || ''}" />
                     </div>
 
                     ${this._renderFieldHeader('角色年龄', 'wx-edit-age')}
@@ -1019,25 +1007,25 @@ window.WeChat.Views = {
                         </div>
                     </div>
 
-                    ${this._renderFieldHeader('角色在网络上的名字', 'wx-edit-nickname')}
+                    ${this._renderFieldHeader('角色在网络上的名�?, 'wx-edit-nickname')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <input id="wx-edit-nickname" 
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：大不列颠小厨娘" value="${nickname}" />
+                            placeholder="如：大不列颠小厨�? value="${nickname}" />
                     </div>
 
-                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信号 (WeChat ID)</div>
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信�?(WeChat ID)</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-wxid" 
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
                             placeholder="默认自动生成，可手动修改" value="${wxid}" />
                     </div>
 
-                    ${this._renderFieldHeader('角色在网络上的签名', 'wx-edit-bio')}
+                    ${this._renderFieldHeader('角色在网络上的签�?, 'wx-edit-bio')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-edit-bio" 
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="在此输入角色的签名" value="${char?.bio || ''}" />
+                            placeholder="在此输入角色的签�? value="${char?.bio || ''}" />
                     </div>
 
                     ${this._renderFieldHeader('角色人设 (System Prompt)', 'wx-edit-persona')}
@@ -1073,7 +1061,7 @@ window.WeChat.Views = {
                     
                     <div onclick="window.WeChat.App.openAssociatedGen('${userId}')" 
                          style="background-color: var(--wx-cell-bg); color: var(--wx-text); text-align: center; padding: 12px; border-radius: 8px; font-size: 17px; font-weight: 500; cursor: pointer;">
-                        生成关联人物 (如: 他的朋友/宿敌)
+                        生成关联人物 (�? 他的朋友/宿敌)
                     </div>
                 </div>
             </div>
@@ -1098,32 +1086,32 @@ window.WeChat.Views = {
                              style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
                         <div style="font-size: 13px; color: var(--wx-text-sec); margin-top: 8px;">点击更换头像</div>
                     </div>
-                    ${this._renderFieldHeader('角色备注 (只有你知道)', 'wx-add-friend-remark')}
+                    ${this._renderFieldHeader('角色备注 (只有你知�?', 'wx-add-friend-remark')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-remark" ${this._lockAttr('wx-add-friend-remark')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：呆毛王" />
+                            placeholder="如：呆毛�? />
                     </div>
 
-                    ${this._renderFieldHeader('角色真名 (系统识别用)', 'wx-add-friend-real-name')}
+                    ${this._renderFieldHeader('角色真名 (系统识别�?', 'wx-add-friend-real-name')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-real-name" ${this._lockAttr('wx-add-friend-real-name')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：阿尔托莉雅·潘德拉贡" />
+                            placeholder="如：阿尔托莉雅·潘德拉�? />
                     </div>
 
-                    ${this._renderFieldHeader('所在地 (展示名)', 'wx-add-friend-region')}
+                    ${this._renderFieldHeader('所在地 (展示�?', 'wx-add-friend-region')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-region" ${this._lockAttr('wx-add-friend-region')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：赛博朋克城" />
+                            placeholder="如：赛博朋克�? />
                     </div>
 
                     ${this._renderFieldHeader('现实映射地区 (影响时差/天气)', 'wx-add-friend-region-mapping')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-region-mapping" ${this._lockAttr('wx-add-friend-region-mapping')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：上海、伦敦、纽约" />
+                            placeholder="如：上海、伦敦、纽�? />
                     </div>
 
                     ${this._renderFieldHeader('财富状况', 'wx-add-friend-wealth')}
@@ -1133,19 +1121,19 @@ window.WeChat.Views = {
                             placeholder="如：豪门、月光族" />
                     </div>
 
-                    ${this._renderFieldHeader('物物种', 'wx-add-friend-species')}
+                    ${this._renderFieldHeader('物物�?, 'wx-add-friend-species')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-species" ${this._lockAttr('wx-add-friend-species')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：人类、猫娘" />
+                            placeholder="如：人类、猫�? />
                     </div>
 
                     <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">性别</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <select id="wx-add-friend-gender" ${this._lockAttr('wx-add-friend-gender')} onchange="document.getElementById('wx-add-period-box').style.display = (this.value === 'female' ? 'block' : 'none')" style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;">
-                            <option value="">未设置</option>
-                            <option value="male">男</option>
-                            <option value="female">女</option>
+                            <option value="">未设�?/option>
+                            <option value="male">�?/option>
+                            <option value="female">�?/option>
                             <option value="other">其他</option>
                         </select>
                     </div>
@@ -1154,7 +1142,7 @@ window.WeChat.Views = {
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-birthday" ${this._lockAttr('wx-add-friend-birthday')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：7月7日" />
+                            placeholder="如：7�?�? />
                     </div>
 
                     ${this._renderFieldHeader('角色年龄', 'wx-add-friend-age')}
@@ -1173,25 +1161,25 @@ window.WeChat.Views = {
                         </div>
                     </div>
 
-                    ${this._renderFieldHeader('角色网名 (角色对外展示的名号)', 'wx-add-friend-nickname')}
+                    ${this._renderFieldHeader('角色网名 (角色对外展示的名�?', 'wx-add-friend-nickname')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
                         <input id="wx-add-friend-nickname" ${this._lockAttr('wx-add-friend-nickname')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                        placeholder="如：大不列颠小厨娘" />
+                        placeholder="如：大不列颠小厨�? />
                     </div>
 
-                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信号 (WeChat ID)</div>
+                    <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">微信�?(WeChat ID)</div>
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-wxid" ${this._lockAttr('wx-add-friend-wxid')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="留空则自动生成" />
+                            placeholder="留空则自动生�? />
                     </div>
 
-                    ${this._renderFieldHeader('个性签名 (Bio)', 'wx-add-friend-bio')}
+                    ${this._renderFieldHeader('个性签�?(Bio)', 'wx-add-friend-bio')}
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-bio" ${this._lockAttr('wx-add-friend-bio')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="在此输入角色的签名" />
+                            placeholder="在此输入角色的签�? />
                     </div>
 
                     ${this._renderFieldHeader('角色人设 (System Prompt)', 'wx-add-friend-persona')}
@@ -1250,8 +1238,8 @@ window.WeChat.Views = {
                 <div class="wx-cell-group">
                     ${this._renderCell({ text: '设置朋友资料', showArrow: true, onClick: `window.WeChat.App.openPersonaSettings('${userId}')` })}
                     ${this._renderCell({ text: '朋友权限', showArrow: true })}
-                    ${this._renderCell({ text: '把他(她)推荐给朋友', showArrow: true })}
-                    ${this._renderCell({ text: '添加到桌面', showArrow: true })}
+                    ${this._renderCell({ text: '把他(�?推荐给朋�?, showArrow: true })}
+                    ${this._renderCell({ text: '添加到桌�?, showArrow: true })}
                 </div>
 
                 <div class="wx-cell-group">
@@ -1259,7 +1247,7 @@ window.WeChat.Views = {
                 </div>
 
                 <div class="wx-cell-group">
-                     ${this._renderSwitchCell('加入黑名单', isBlacklisted, `window.WeChat.App.toggleBlacklist('${userId}', !${isBlacklisted})`)}
+                     ${this._renderSwitchCell('加入黑名�?, isBlacklisted, `window.WeChat.App.toggleBlacklist('${userId}', !${isBlacklisted})`)}
                      ${this._renderCell({ text: '投诉', showArrow: true })}
                 </div>
                 
@@ -1273,7 +1261,7 @@ window.WeChat.Views = {
     },
 
     /**
-     * Tab 1: 通讯录
+     * Tab 1: 通讯�?
      */
     renderContactList() {
         const contacts = (window.WeChat.Services && window.WeChat.Services.Contacts)
@@ -1327,7 +1315,7 @@ window.WeChat.Views = {
                     ${this._renderSimpleCell('新的朋友', '#fa9d3b', 'contact_add')}
                     ${this._renderSimpleCell('群聊', '#07c160', 'group')}
                     ${this._renderSimpleCell('标签', '#2782d7', 'tag')}
-                    ${this._renderSimpleCell('公众号', '#2782d7', 'offical')}
+                    ${this._renderSimpleCell('公众�?, '#2782d7', 'offical')}
                     ${listHtml}
                </div>
             </div>
@@ -1342,25 +1330,25 @@ window.WeChat.Views = {
             <div class="wx-view-container" id="wx-view-discover" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer" style="height: calc(var(--wx-nav-height) - 10px);"></div>
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '朋友圈', iconColor: '#e0e0e0', iconType: 'moments', showArrow: true })}
+                    ${this._renderCell({ text: '朋友�?, iconColor: '#e0e0e0', iconType: 'moments', showArrow: true })}
                 </div>
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '视频号', iconColor: '#fa9d3b', iconType: 'video', showArrow: true })}
+                    ${this._renderCell({ text: '视频�?, iconColor: '#fa9d3b', iconType: 'video', showArrow: true })}
                     ${this._renderCell({ text: '直播', iconColor: '#fa9d3b', iconType: 'live', showArrow: true })}
                 </div>
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '扫一扫', iconColor: '#2782d7', iconType: 'scan', showArrow: true })}
-                    ${this._renderCell({ text: '听一听', iconColor: '#fbeb4d', iconType: 'listen', showArrow: true })}
+                    ${this._renderCell({ text: '扫一�?, iconColor: '#2782d7', iconType: 'scan', showArrow: true })}
+                    ${this._renderCell({ text: '听一�?, iconColor: '#fbeb4d', iconType: 'listen', showArrow: true })}
                 </div>
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '小程序', iconColor: '#7d90a9', iconType: 'mini', showArrow: true })}
+                    ${this._renderCell({ text: '小程�?, iconColor: '#7d90a9', iconType: 'mini', showArrow: true })}
                 </div>
             </div>
         `;
     },
 
     /**
-     * Tab 3: 我
+     * Tab 3: �?
      */
     renderMe_OLD() {
         const s = window.sysStore;
@@ -1401,7 +1389,7 @@ window.WeChat.Views = {
 
                 <div class="wx-cell-group">
                      ${this._renderCell({ text: '收藏', iconColor: '#fa9d3b', iconType: 'fav', showArrow: true })}
-                     ${this._renderCell({ text: '朋友圈', iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true })}
+                     ${this._renderCell({ text: '朋友�?, iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true })}
                      ${this._renderCell({ text: '卡包', iconColor: '#2782d7', iconType: 'card', showArrow: true })}
                      ${this._renderCell({ text: '表情', iconColor: '#ffc300', iconType: 'sticker', showArrow: true })}
                 </div>
@@ -1414,7 +1402,7 @@ window.WeChat.Views = {
     },
 
     /**
-     * Tab 3: 我
+     * Tab 3: �?
      */
     renderMe() {
         const s = window.sysStore;
@@ -1453,7 +1441,7 @@ window.WeChat.Views = {
 
                 <div class="wx-cell-group">
                      ${this._renderCell({ text: '收藏', iconColor: '#fa9d3b', iconType: 'fav', showArrow: true })}
-                     ${this._renderCell({ text: '朋友圈', iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true })}
+                     ${this._renderCell({ text: '朋友�?, iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true })}
                      ${this._renderCell({ text: '卡包', iconColor: '#2782d7', iconType: 'card', showArrow: true })}
                      ${this._renderCell({ text: '表情', iconColor: '#ffc300', iconType: 'sticker', showArrow: true })}
                 </div>
@@ -1593,10 +1581,10 @@ window.WeChat.Views = {
         const pad = (n) => n < 10 ? '0' + n : n;
         const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`; // 24h format
 
-        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+        const weekDays = ['�?, '一', '�?, '�?, '�?, '�?, '�?];
 
         if (full) {
-            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 星期${weekDays[date.getDay()]} ${timeStr}`;
+            return `${date.getFullYear()}�?{date.getMonth() + 1}�?{date.getDate()}�?星期${weekDays[date.getDay()]} ${timeStr}`;
         }
 
         // Logic based on requirements
@@ -1620,9 +1608,9 @@ window.WeChat.Views = {
         } else if (isWithinWeek) {
             return `星期${weekDays[date.getDay()]} ${timeStr}`;
         } else if (isSameYear) {
-            return `${date.getMonth() + 1}月${date.getDate()}日 ${timeStr}`;
+            return `${date.getMonth() + 1}�?{date.getDate()}�?${timeStr}`;
         } else {
-            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${timeStr}`;
+            return `${date.getFullYear()}�?{date.getMonth() + 1}�?{date.getDate()}�?${timeStr}`;
         }
     },
 
@@ -1709,15 +1697,15 @@ window.WeChat.Views = {
         const difficulty = rel.difficulty;
 
         const diffText = {
-            'hard': '困难模式，难加易减，每次好感度增加上限 0.1',
+            'hard': '困难模式，难加易减，每次好感度增加上�?0.1',
             'normal': '普通模式，平衡增减，每次好感度增加上限 0.5',
-            'easy': '容易模式，易加难减，每次好感度增加上限 1.0'
+            'easy': '容易模式，易加难减，每次好感度增加上�?1.0'
         };
 
         const ladderHtml = rel.ladder_persona.map((lp, idx) => `
             <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; position: relative;">
                 <div style="display: flex; align-items: center; margin-bottom: 8px; gap: 8px;">
-                    <span style="font-size: 11px; color: #999;">解锁阈值</span>
+                    <span style="font-size: 11px; color: #999;">解锁阈�?/span>
                     <input type="number" value="${lp.affection_threshold}" 
                         style="width: 50px; height: 28px; background: #fff; border: 1px solid #eee; border-radius: 6px; text-align: center; font-size: 13px; outline: none;"
                         oninput="window.WeChat.App.updateLadderPersona(${idx}, 'affection_threshold', parseFloat(this.value), true)">
@@ -1728,7 +1716,7 @@ window.WeChat.Views = {
                 </div>
                 ${this._renderFieldHeader(`阶段 ${idx + 1} 表现`, `wx-rel-ladder-content-${idx}`)}
                 <textarea id="wx-rel-ladder-content-${idx}" ${this._lockAttr(`wx-rel-ladder-content-${idx}`)} style="width: 100%; min-height: 50px; background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 8px; box-sizing: border-box; font-size: 13px; outline: none; resize: none; line-height: 1.4; color: #333;"
-                    placeholder="输入该好感阶段下的角色表现..."
+                    placeholder="输入该好感阶段下的角色表�?.."
                     oninput="window.WeChat.App.updateLadderPersona(${idx}, 'content', this.value, true)">${lp.content}</textarea>
             </div>
         `).join('');
@@ -1751,7 +1739,7 @@ window.WeChat.Views = {
                         <!-- Right: Actions -->
                         <div style="margin-left: auto; z-index: 2; display: flex; gap: 12px; align-items: center;">
                             <!-- Clear/Trash Icon -->
-                            <div onclick="window.WeChat.App.openConfirmationModal({title: '清空关系', content: '确定要清空所有关系设定吗？', onConfirm: () => window.WeChat.App.clearRelationshipSettings()})" style="cursor: pointer; color: #ff3b30; display: flex; align-items: center;">
+                            <div onclick="window.WeChat.App.openConfirmationModal({title: '清空关系', content: '确定要清空所有关系设定吗�?, onConfirm: () => window.WeChat.App.clearRelationshipSettings()})" style="cursor: pointer; color: #ff3b30; display: flex; align-items: center;">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1777,9 +1765,9 @@ window.WeChat.Views = {
                     <!-- Scrollable Content -->
                     <div class="wx-char-panel-scrollable" style="flex: 1; overflow-y: auto; padding: 0 24px 24px 24px;">
                         
-                        <!-- 好感度数值 -->
+                        <!-- 好感度数�?-->
                         <div style="margin-top: 15px;">
-                            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">好感度数值</div>
+                            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">好感度数�?/div>
                             <div style="background: #fff; border-radius: 16px; padding: 20px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                     <span style="font-weight: 700; font-size: 14px; color: #333;">当前该角色好感度</span>
@@ -1801,7 +1789,7 @@ window.WeChat.Views = {
                                 </div>
                                 <div onclick="window.WeChat.App.updatePendingRelationship('difficulty', 'normal')" 
                                      style="flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: ${difficulty === 'normal' ? '600' : '400'}; color: ${difficulty === 'normal' ? '#0052d9' : '#999'}; background: ${difficulty === 'normal' ? '#fff' : 'transparent'}; border-radius: 12px; box-shadow: ${difficulty === 'normal' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'}; cursor: pointer;">
-                                     普通
+                                     普�?
                                 </div>
                                 <div onclick="window.WeChat.App.updatePendingRelationship('difficulty', 'easy')" 
                                      style="flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: ${difficulty === 'easy' ? '600' : '400'}; color: ${difficulty === 'easy' ? '#00a870' : '#999'}; background: ${difficulty === 'easy' ? '#fff' : 'transparent'}; border-radius: 12px; box-shadow: ${difficulty === 'easy' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'}; cursor: pointer;">
@@ -1815,12 +1803,12 @@ window.WeChat.Views = {
 
                         <!-- 关系透镜 -->
                         <div style="margin-top: 20px;">
-                            <div style="font-size: 13px; color: #999; margin-bottom: 12px; font-weight: 500; padding-left: 4px;">关系透镜 (决定AI如何思考)</div>
+                            <div style="font-size: 13px; color: #999; margin-bottom: 12px; font-weight: 500; padding-left: 4px;">关系透镜 (决定AI如何思�?</div>
                             <div style="background: #fff; border-radius: 18px; padding: 24px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #f2f2f2;">
                                 
                                 <!-- Objective Relation -->
                                 <div style="margin-bottom: 24px; border-bottom: 1px dashed #eee; padding-bottom: 24px;">
-                                    ${this._renderFieldHeader('表面 / 客观关系 (对外的名义)', 'wx-rel-public_relation')}
+                                    ${this._renderFieldHeader('表面 / 客观关系 (对外的名�?', 'wx-rel-public_relation')}
                                     <div style="font-size: 11px; color: #999; margin-bottom: 10px;">
                                         例如：兄妹、师生、同事、死对头...
                                     </div>
@@ -1831,7 +1819,7 @@ window.WeChat.Views = {
                                 
                                 <!-- Character View (Merged Dual Layer) -->
                                 <div style="margin-bottom: 24px;">
-                                    <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px;">角色对用户</div>
+                                    <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px;">角色对用�?/div>
                                     
                                     <!-- Surface Layer -->
                                     <div style="margin-bottom: 12px;">
@@ -1844,7 +1832,7 @@ window.WeChat.Views = {
                                     <!-- Inner Layer -->
                                     <div>
                                         ${this._renderFieldHeader('内心真实想法 (秘密)', 'wx-rel-char_to_user_secret')}
-                                        <textarea id="wx-rel-char_to_user_secret" placeholder="例如：其实觉得那样很可爱，只是不好意思承认..." ${this._lockAttr('wx-rel-char_to_user_secret')}
+                                        <textarea id="wx-rel-char_to_user_secret" placeholder="例如：其实觉得那样很可爱，只是不好意思承�?.." ${this._lockAttr('wx-rel-char_to_user_secret')}
                                             style="width: 100%; height: 70px; background: #fffafa; border: 1px solid #ffebea; border-radius: 10px; padding: 10px; box-sizing: border-box; font-size: 14px; resize: none; outline: none; line-height: 1.5; color: #333;"
                                             oninput="window.WeChat.App.updatePendingRelationship('char_to_user_secret', this.value, null, true)">${rel.char_to_user_secret || ''}</textarea>
                                     </div>
@@ -1852,12 +1840,12 @@ window.WeChat.Views = {
 
                                 <!-- User View (Merged Dual Layer) -->
                                 <div style="margin-bottom: 24px;">
-                                    <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px;">用户对角色</div>
+                                    <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px;">用户对角�?/div>
                                     
                                     <!-- Surface Layer -->
                                     <div style="margin-bottom: 12px;">
                                         ${this._renderFieldHeader('表现出的态度', 'wx-rel-user_to_char_public')}
-                                        <textarea id="wx-rel-user_to_char_public" placeholder="例如：总是表现得很听话，顺着TA的意思..." ${this._lockAttr('wx-rel-user_to_char_public')}
+                                        <textarea id="wx-rel-user_to_char_public" placeholder="例如：总是表现得很听话，顺着TA的意�?.." ${this._lockAttr('wx-rel-user_to_char_public')}
                                             style="width: 100%; height: 70px; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px; box-sizing: border-box; font-size: 14px; resize: none; outline: none; line-height: 1.5; color: #333;"
                                             oninput="window.WeChat.App.updatePendingRelationship('user_to_char_public', this.value, null, true)">${rel.user_to_char_public || ''}</textarea>
                                     </div>
@@ -1868,7 +1856,7 @@ window.WeChat.Views = {
                                         <textarea id="wx-rel-user_to_char_secret" placeholder="例如：其实只是在敷衍，并没有真正认同..." ${this._lockAttr('wx-rel-user_to_char_secret')}
                                             style="width: 100%; height: 70px; background: #fffafa; border: 1px solid #ffebea; border-radius: 10px; padding: 10px; box-sizing: border-box; font-size: 14px; resize: none; outline: none; line-height: 1.5; color: #333;"
                                             oninput="window.WeChat.App.updatePendingRelationship('user_to_char_secret', this.value, null, true)">${rel.user_to_char_secret || ''}</textarea>
-                                        <div style="font-size: 11px; color: #999; margin-top: 6px;">* 角色不知道你有这个想法。</div>
+                                        <div style="font-size: 11px; color: #999; margin-top: 6px;">* 角色不知道你有这个想法�?/div>
                                     </div>
                                 </div>
 
@@ -1903,7 +1891,7 @@ window.WeChat.Views = {
     },
 
     /**
-     * 渲染状态历史记录面板
+     * 渲染状态历史记录面�?
      */
     renderStatusHistoryPanel(sessionId) {
         const char = window.sysStore.getCharacter(sessionId) || {};
@@ -1922,7 +1910,7 @@ window.WeChat.Views = {
                         </div>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        <div style="font-size: 12px; color: gold; line-height: 1.5; width: 100%;">❤️ 好感度: ${record.status?.affection || '0.0'}</div>
+                        <div style="font-size: 12px; color: gold; line-height: 1.5; width: 100%;">❤️ 好感�? ${record.status?.affection || '0.0'}</div>
                         <div style="font-size: 12px; color: var(--wx-text); line-height: 1.5; width: 100%;">
                             👕 服装: ${record.status?.outfit || '暂无描述'}
                         </div>
@@ -1930,7 +1918,7 @@ window.WeChat.Views = {
                             🏃 行为: ${record.status?.behavior || '暂无描述'}
                         </div>
                         <div style="font-size: 11px; color: #999; line-height: 1.4; background: var(--wx-bg-alt); padding: 8px 12px; border-radius: 12px; width: 100%; margin-top: 4px; font-style: italic;">
-                            心声: ${record.status?.inner_voice || '无'}
+                            心声: ${record.status?.inner_voice || '�?}
                         </div>
                     </div>
                 </div>
@@ -1941,7 +1929,7 @@ window.WeChat.Views = {
             listHtml = `
                 <div style="text-align: center; padding: 60px 20px; color: #ccc;">
                     <div style="font-size: 40px; margin-bottom: 16px; opacity: 0.5;">🕒</div>
-                    <div style="font-size: 14px;">暂无历史状态记录</div>
+                    <div style="font-size: 14px;">暂无历史状态记�?/div>
                 </div>
             `;
         }
@@ -1954,7 +1942,7 @@ window.WeChat.Views = {
                         <div style="cursor: pointer; padding: 4px; margin-left: -4px;" onclick="window.WeChat.App.openCharacterPanel()">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         </div>
-                        <div style="font-size: 18px; font-weight: 700; color: #333;">状态历史</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #333;">状态历�?/div>
                         <div style="width: 24px;"></div>
                     </div>
 
@@ -1997,7 +1985,7 @@ window.WeChat.Views = {
 
         // 2. Ensure 'uncategorized' exists
         if (!groups['uncategorized']) {
-            groups['uncategorized'] = { name: '未分类', entries: [], isCustom: true };
+            groups['uncategorized'] = { name: '未分�?, entries: [], isCustom: true };
         }
 
         entries.forEach(e => {
@@ -2010,7 +1998,7 @@ window.WeChat.Views = {
 
             // Fallback Init (Safe)
             if (!groups[gid]) {
-                groups[gid] = { name: '未分类', entries: [], isCustom: true };
+                groups[gid] = { name: '未分�?, entries: [], isCustom: true };
             }
             groups[gid].entries.push(e);
         });
@@ -2035,7 +2023,7 @@ window.WeChat.Views = {
                     <div class="wx-wb-select-item" onclick="window.WeChat.App.toggleWorldBookSelection('${e.id}')">
                          <div style="flex:1;">
                             <div style="font-size:16px; color:var(--wx-text); font-weight:500;">${e.name}</div>
-                            <div style="font-size:13px; color:var(--wx-text-sec); margin-top:2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${e.content || '无内容'}</div>
+                            <div style="font-size:13px; color:var(--wx-text-sec); margin-top:2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${e.content || '无内�?}</div>
                          </div>
                          <div class="wx-wb-checkbox ${checked ? 'checked' : ''}">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -2059,7 +2047,7 @@ window.WeChat.Views = {
         return `
             <div class="wx-scroller" id="wx-view-worldbook-select" style="background-color: ${pageBg}; padding-top: calc(var(--wx-nav-height) - 20px);">
                 <!-- <div class="wx-nav-spacer"></div> -->
-                ${sectionsHtml || '<div style="padding:100px 20px; text-align:center; color:#999;">暂无世界书条目</div>'}
+                ${sectionsHtml || '<div style="padding:100px 20px; text-align:center; color:#999;">暂无世界书条�?/div>'}
                 <div style="height: 60px;"></div>
             </div>
         `;
@@ -2070,7 +2058,7 @@ window.WeChat.Views = {
 
         const avatar = state.avatar || 'assets/images/avatar_placeholder.png';
         const name = state.name || '未知用户';
-        const statusText = state.status === 'connected' ? (state.durationStr || '00:00') : (state.status === 'ended' ? '通话结束' : '正在等待对方接受邀请...');
+        const statusText = state.status === 'connected' ? (state.durationStr || '00:00') : (state.status === 'ended' ? '通话结束' : '正在等待对方接受邀�?..');
         const isConnected = state.status === 'connected';
 
         const pulseClass = (state.status === 'dialing' || state.status === 'waiting') ? 'pulsing' : '';
@@ -2190,7 +2178,7 @@ window.WeChat.Views = {
 
         const avatar = state.avatar || 'assets/images/avatar_placeholder.png';
         const name = state.name || 'Unknown';
-        const statusText = state.status === 'dialing' ? '正在等待对方接受邀请...' :
+        const statusText = state.status === 'dialing' ? '正在等待对方接受邀�?..' :
             state.status === 'connected' ? (state.durationStr || '00:00') :
                 state.status === 'ended' ? '通话结束' : '...';
 
@@ -2317,47 +2305,17 @@ window.WeChat.Views = {
     renderCallSummaryModal(state) {
         if (!state.open) return '';
 
-        const duration = state.duration || '00:00';
-        const transcript = Array.isArray(state.transcript) ? state.transcript : [];
-        const hasSummary = !!(state.summary && String(state.summary).trim());
-
-        const transcriptHtml = transcript.length
-            ? transcript.map(item => {
-                const isMe = !!item.isMe;
-                const text = String(item.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return `<div class="wx-call-subtitle-item ${isMe ? 'me' : ''}">${text}</div>`;
-            }).join('')
-            : `<div style="padding: 12px; color: #999; font-size: 13px; text-align: center;">本次通话没有记录</div>`;
-
         return `
-            <div class="wx-modal-overlay active" style="z-index: 20006;" onclick="if(event.target===this) window.WeChat.App.closeCallSummaryModal()">
-                <div class="wx-modal-container show" style="width: 330px; padding: 0; background: white; border-radius: 12px; overflow: hidden;" onclick="event.stopPropagation()">
-                    <div style="padding: 14px 14px 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display:flex; flex-direction:column;">
-                            <div style="font-size: 16px; font-weight: 600; color:#111;">通话记录</div>
-                            <div style="font-size: 12px; color: #888; margin-top: 2px;">时长: ${duration}</div>
-                        </div>
-                        <div style="font-size: 14px; font-weight: 600; color: #07c160; cursor: pointer;"
-                             onclick="window.WeChat.App.generateCallSummaryForMsg('${state.msgId}')">${hasSummary ? '重新总结' : '总结'}</div>
+            <div class="wx-modal-overlay show" style="z-index: 10001;">
+                <div class="wx-modal-container show" style="width: 300px; padding: 0; background: white; border-radius: 12px; overflow: hidden;">
+                    <div style="padding: 24px 24px 12px 24px;">
+                        <div style="font-size: 18px; font-weight: 600; text-align: center; margin-bottom: 8px;">通话总结</div>
+                        <div style="font-size: 14px; color: #888; text-align: center; margin-bottom: 20px;">时长: ${state.duration}</div>
+                        <div style="font-size: 15px; color: #333; line-height: 1.6; max-height: 300px; overflow-y: auto; white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 8px;">${state.summary}</div>
                     </div>
-
-                    <div style="padding: 12px 14px 10px 14px;">
-                        ${hasSummary ? `
-                            <div style="font-size: 13px; color:#666; margin-bottom: 8px;">总结(≤200字)</div>
-                            <div style="font-size: 14px; color: #333; line-height: 1.6; white-space: pre-wrap; background: #f5f5f5; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; max-height: 140px; overflow-y: auto;">${String(state.summary).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                        ` : `
-                            <div style="font-size: 13px; color:#999; margin-bottom: 10px;">未生成总结，点击右上角「总结」即可生成</div>
-                        `}
-
-                        <div style="font-size: 13px; color:#666; margin-bottom: 8px;">通话期间记录</div>
-                        <div class="wx-call-subtitles" style="max-height: 320px; margin: 0; padding: 0; mask-image: none; -webkit-mask-image: none;">
-                            ${transcriptHtml}
-                        </div>
-                    </div>
-
-                    <div style="display: flex; border-top: 1px solid rgba(0,0,0,0.08);">
-                        <div style="flex: 1; text-align: center; padding: 14px; font-size: 16px; font-weight: 600; color: #07c160; cursor: pointer;"
-                             onclick="window.WeChat.App.closeCallSummaryModal()">关闭</div>
+                    <div style="display: flex; border-top: 1px solid rgba(0,0,0,0.1);">
+                        <div style="flex: 1; text-align: center; padding: 16px; font-size: 17px; font-weight: 600; color: #07c160; cursor: pointer;" 
+                             onclick="window.State.callSummaryModal.open = false; window.WeChat.App.render();">关闭</div>
                     </div>
                 </div>
             </div>
@@ -2371,8 +2329,8 @@ window.WeChat.Views = {
     renderPromptModal(state) {
         if (!state || !state.open) return '';
 
-        const title = state.title || '请输入';
-        const placeholder = state.placeholder || '请输入...';
+        const title = state.title || '请输�?;
+        const placeholder = state.placeholder || '请输�?..';
         const value = state.value || '';
         const content = state.content || '';
 
@@ -2408,10 +2366,10 @@ window.WeChat.Views = {
 
     /**
      * 渲染 Confirmation 确认模态框（备用）
-     * 主逻辑在 index.js 的 renderModals 中已处理
+     * 主逻辑�?index.js �?renderModals 中已处理
      */
     renderConfirmationModal() {
-        // 主要的确认模态框逻辑在 index.js 的 renderModals 中，这里返回空
+        // 主要的确认模态框逻辑�?index.js �?renderModals 中，这里返回�?
         return '';
     }
 };

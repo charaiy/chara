@@ -74,7 +74,7 @@ const API = {
     async chat(messages, options = {}) {
         const {
             retries = 2,
-            timeout = 60000, // 默认 60 秒超时 (LLM 生成可能较慢)
+            timeout = 180000, // 增加到 180 秒，人设补全任务需要较长时间才能完整输出
             silent = false,
             useSub = false
         } = options;

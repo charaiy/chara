@@ -859,7 +859,7 @@ window.WeChat.Services.Chat = {
         cnt.insertAdjacentHTML('beforeend', window.WeChat.UI.Bubbles.render(bubbleData));
 
         // [Voice Call Integration]
-        if (window.State && window.State.voiceCallState && window.State.voiceCallState.open && window.WeChat.App) {
+        if (window.WeChat.App && window.WeChat.App.State && window.WeChat.App.State.voiceCallState && window.WeChat.App.State.voiceCallState.open) {
             window.WeChat.App.render();
         }
         setTimeout(() => {

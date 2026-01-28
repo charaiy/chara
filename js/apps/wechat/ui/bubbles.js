@@ -115,7 +115,7 @@ window.WeChat.UI.Bubbles = {
                          onmouseleave="window.WeChat.App.handleMsgPressEnd(event, '${msg.id}')"
                          ontouchstart="window.WeChat.App.handleMsgPressStart(event, '${msg.id}')"
                          ontouchend="window.WeChat.App.handleMsgPressEnd(event, '${msg.id}')"
-                         oncontextmenu="return false;">
+                         oncontextmenu="window.WeChat.App.handleMsgContextMenu(event, '${msg.id}')">
                         ${this._renderContent(msg)}
                     </div>
                 </div>
@@ -361,19 +361,25 @@ window.WeChat.UI.Bubbles = {
                 `;
 
             case 'call_summary':
-                // New Call Summary Bubble
+                // Native Style Call Summary Bubble
                 let sumData = {};
                 try { sumData = JSON.parse(msg.content); } catch (e) { sumData = { duration: '00:00', summary: '' }; }
 
+                const isSumMe = msg.sender === 'me';
+                const sumBg = isSumMe ? '#95ec69' : '#FFFFFF'; // WeChat Green #95ec69
+                const sumColor = '#000000';
+
+                // Simple Document Icon SVG
+                const docIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; opacity:0.6;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+
+                // IMPORTANT: Do NOT render a nested `.wx-bubble` here.
+                // Outer wrapper already provides the `.wx-bubble` container & press handlers.
                 return `
-                    <div style="width: 220px; background: #07c160; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;"
-                         onclick="window.WeChat.App.openCallSummary('${msg.id}')">
-                         <div style="display: flex; align-items: center; color: white;">
-                             <span style="font-size: 16px; margin-right: 8px;">通话时长 ${sumData.duration}</span>
-                         </div>
-                         <div style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid white; display:flex; align-items:center; justify-content:center;">
-                             <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
-                         </div>
+                    <div style="background: ${sumBg}; padding: 10px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center;"
+                         onclick="event.stopPropagation(); window.WeChat.App.openCallSummary('${msg.id}')">
+                        ${docIcon}
+                        <span style="font-size: 14px; color: ${sumColor};">通话时长 ${sumData.duration}</span>
+                        <span style="font-size: 10px; color: ${sumColor}; opacity: 0.5; margin-left: 6px; margin-top: 2px;">(点击查看)</span>
                     </div>
                 `;
 

@@ -239,6 +239,30 @@ class Store {
         return false;
     }
 
+    /**
+     * Update a message by id (compat layer for legacy callers).
+     * @param {string} id
+     * @param {Object} patch - either a partial patch or a full message object
+     */
+    updateMessage(id, patch) {
+        const messages = this.getAllMessages();
+        const idx = messages.findIndex(m => m.id === id);
+        if (idx === -1) return false;
+        const current = messages[idx] || {};
+        // If patch looks like a full message (has sender_id/receiver_id), still merge to preserve fields.
+        messages[idx] = { ...current, ...(patch || {}) };
+        this.set('chara_db_messages', messages);
+        return true;
+    }
+
+    /**
+     * Legacy no-op (IndexedDB persistence happens in set()).
+     */
+    save() {
+        // Kept for compatibility with old code paths that call sysStore.save()
+        return true;
+    }
+
     addMessage(payload) {
         const messages = this.getAllMessages();
         const newMessage = {

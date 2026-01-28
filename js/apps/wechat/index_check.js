@@ -1,24 +1,24 @@
 /**
  * js/apps/wechat/index.js
- * 微信仿真版入口 - 负责模块组装与生命周期管理
+ * 微信仿真版入�?- 负责模块组装与生命周期管�?
  * [Compatibility] No Imports - Uses Globals for file:// support
  */
 
-const DEFAULT_SUMMARY_PROMPT = `禁止私自编造不存在的内容!
-如果遇到复杂的请如实直述，禁止去编造、改动!
-**【内容核心 (最高优先级)】**: 你的summary【必须】专注于以下几点，请直接输出(不需要回答我好的）：
+const DEFAULT_SUMMARY_PROMPT = `禁止私自编造不存在的内�?
+如果遇到复杂的请如实直述，禁止去编造、改�?
+**【内容核�?(最高优先级)�?*: 你的summary【必须】专注于以下几点，请直接输出(不需要回答我好的）：
 
-总结规则：
-进行summary时，必须精准提取内容，不遗漏任何锚点的重要细节，完美判断角色和用户的关系发展，必须直白且如实总结时间节点和故事发展，每件事的叙述控制在最多50字左右，此外再包含重要日期+时间节点即可。
+总结规则�?
+进行summary时，必须精准提取内容，不遗漏任何锚点的重要细节，完美判断角色和用户的关系发展，必须直白且如实总结时间节点和故事发展，每件事的叙述控制在最�?0字左右，此外再包含重要日�?时间节点即可�?
 
 长期记忆summary格式为：
 当前年份日期星期时间/具体地点，角色的第一人称总结与用户发生的事件，禁止太过于主观!
 
-## 示例：“线上(线下）/2025年4月2日8:30，星期三，我和（用户真名）聊了关于早餐的话题。”
+## 示例：“线�?线下�?2025�?�?�?:30，星期三，我和（用户真名）聊了关于早餐的话题。�?
 
 ## 精炼记忆时禁止偷懒输出token count，必须进行正确的精炼
 
-##图片禁止总结为“发了一张图片/个人照片”，必须说明是什么图片，如果只是表情包则禁止总结在其中!!`;
+##图片禁止总结为“发了一张图�?个人照片”，必须说明是什么图片，如果只是表情包则禁止总结在其�?!`;
 
 const State = {
     currentTab: 0,
@@ -40,7 +40,7 @@ const State = {
         autoPrompt: '', // Empty means use default
         manualPrompt: ''
     },
-    soulInjectionEnabled: true, // [USER_REQUEST] 注入心声开关，默认开启
+    soulInjectionEnabled: true, // [USER_REQUEST] 注入心声开关，默认开�?
 
     // Sticker Panel States
     stickerTab: 'heart', // 'link', 'emoji', 'heart'
@@ -81,7 +81,6 @@ window.WeChat.Defaults = {
 };
 
 window.WeChat.App = {
-    get State() { return State; },
     async init(element) {
         State.root = element;
         // [User Request] Always start at Home (Tab 0) on fresh load/refresh
@@ -287,13 +286,13 @@ window.WeChat.App = {
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="11" x2="21" y2="11"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
                     </div>
-                    <span>扫一扫</span>
+                    <span>扫一�?/span>
                 </div>
                 <div class="wx-add-menu-item" onclick="window.WeChat.App.closeAddFriendMenu()">
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
                     </div>
-                    <span>收付款</span>
+                    <span>收付�?/span>
                 </div>
             </div>
         `;
@@ -390,20 +389,20 @@ window.WeChat.App = {
                 rightAction = "window.WeChat.App.randomizeAllUnlocked('my')";
                 showBack = true;
             } else if (State.currentTab === 'world_book_selection') {
-                navTitle = '选择世界书';
+                navTitle = '选择世界�?;
                 contentHtml = Views.renderWorldBookSelection(State.activeSessionId);
                 rightIcon = 'done';
                 showBack = true;
                 rightAction = 'window.WeChat.App.saveWorldBookSelection()';
             } else if (State.currentTab === 'voice_video_settings') {
-                navTitle = '语音与视频';
+                navTitle = '语音与视�?;
                 contentHtml = Views.renderVoiceVideoSettings(State.activeSessionId);
                 rightIcon = null;
                 showBack = true;
             } else {
                 switch (State.currentTab) {
                     case 0: navTitle = '微信'; contentHtml = Views.renderChatList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.toggleAddFriendMenu()'; break;
-                    case 1: navTitle = '通讯录'; contentHtml = Views.renderContactList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.openAddFriendPage()'; break;
+                    case 1: navTitle = '通讯�?; contentHtml = Views.renderContactList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.openAddFriendPage()'; break;
                     case 2: navTitle = '发现'; contentHtml = Views.renderDiscover(); rightIcon = null; break;
                     case 3: navTitle = ''; contentHtml = Views.renderMe(); rightIcon = null; break;
                 }
@@ -542,7 +541,7 @@ window.WeChat.App = {
         const userId = (type === 'persona' || type === 'rel') ? (State.activeUserId || State.activeSessionId) : null;
         const currentData = this._collectPersonaData(prefix, userId);
 
-        // 1. 收集目标字段与上下文 (优先从 currentData 读取，即使 DOM 不存在也能生成)
+        // 1. 收集目标字段与上下文 (优先�?currentData 读取，即�?DOM 不存在也能生�?
         const fields = [];
         const targets = [];
 
@@ -590,121 +589,121 @@ window.WeChat.App = {
             btn.style.pointerEvents = 'none';
         }
 
-        if (window.os) window.os.showToast(targetFieldId ? 'AI 正在思考中...' : 'AI 正在构思全套人设...', 'info', 5000);
+        if (window.os) window.os.showToast(targetFieldId ? 'AI 正在思考中...' : 'AI 正在构思全套人�?..', 'info', 5000);
 
         // 3. 构建 Prompt
-        let contextStr = fields.map(f => `- ${f.key}: ${f.value || '(未填写)'}${f.isLocked ? ' [已锁定]' : ''}`).join('\n');
+        let contextStr = fields.map(f => `- ${f.key}: ${f.value || '(未填�?'}${f.isLocked ? ' [已锁定]' : ''}`).join('\n');
 
         // [Associated Character Generation Logic]
         if (type === 'add' && State.genContext) {
-            contextStr += `\n\n[关联人物生成上下文]\n你正在生成的人物是【${State.genContext.sourceName}】的【${State.genContext.relation}】。\n${State.genContext.sourceName}的人设概要：\n${State.genContext.sourcePersona}\n\n[关联生成特殊指令]\n1. 请在【生活图谱 - 人际关系】中，明确写出与【${State.genContext.sourceName}】的关系。\n2. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${State.genContext.sourceName}】的更新文本，格式如下：\n\n[SourceUpdate]\n在此输出一段文本，这段文本将被追加到【${State.genContext.sourceName}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。\n[/SourceUpdate]`;
+            contextStr += `\n\n[关联人物生成上下文]\n你正在生成的人物是�?{State.genContext.sourceName}】的�?{State.genContext.relation}】。\n${State.genContext.sourceName}的人设概要：\n${State.genContext.sourcePersona}\n\n[关联生成特殊指令]\n1. 请在【生活图�?- 人际关系】中，明确写出与�?{State.genContext.sourceName}】的关系。\n2. 在输出的最后（JSON闭合之后），请额外附带一段给源人物�?{State.genContext.sourceName}】的更新文本，格式如下：\n\n[SourceUpdate]\n在此输出一段文本，这段文本将被追加到�?{State.genContext.sourceName}】的人设中的“人际关系”部分，用于描述�?她与这位新角色的关系。\n[/SourceUpdate]`;
         }
 
         const targetKeys = targets.map(t => t.key).join(', ');
 
-        const prompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于碎片信息，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案。
+        const prompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于碎片信息，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案�?
 
 [已知信息]
 ${contextStr}
 
 [生成任务]
-请为字段 ${targetKeys} 生成内容。
+请为字段 ${targetKeys} 生成内容�?
 
 [核心创作戒律]
-1.  反模版化：拒绝刻板印象。尤其是在亲密关系中，严禁默认使用“回避型依恋”。请根据背景随机分配依恋人格（如：安全型、渴望型、恐惧型或完全的直球火热型）。
-2.  视觉非扁平化：不要只用“顶级神颜/帅气”这种空洞词汇。请描述一种具有辨识度的美或丑，重点在于“骨相、肤质、独有的神态与气场（ Aura）”。无论是惊艳、清透、粗犷还是普普通通，都要写出它带给人的具体压迫感、亲和力或吸引力。
-3.  内容量：Roleplay Prompt (Persona) 必须充实，建议1000字以上，确保高保真度。
-4.    - 人格一致性（核心红线）：阶段性人设的表现必须严禁遵循主要人设的性格底色。如果主要人设是“情感缺失”或“理性至上”，那么即使在最高好感阶段，也应当表现为该性格下的特有偏好（如：更优先的数据交互、特殊的行为允许），**严禁出现违背人设的感性爆发或性格剧变**。
-5.  排版要求 (Formatting)：在 main_persona 等文本字段中，**请务必使用 Markdown 的无序列表符号 (* 或 -) 进行分点**，确保内容结构清晰。请避免输出成一大段不分行的文字。
+1.  反模版化：拒绝刻板印象。尤其是在亲密关系中，严禁默认使用“回避型依恋”。请根据背景随机分配依恋人格（如：安全型、渴望型、恐惧型或完全的直球火热型）�?
+2.  视觉非扁平化：不要只用“顶级神�?帅气”这种空洞词汇。请描述一种具有辨识度的美或丑，重点在于“骨相、肤质、独有的神态与气场�?Aura）”。无论是惊艳、清透、粗犷还是普普通通，都要写出它带给人的具体压迫感、亲和力或吸引力�?
+3.  内容量：Roleplay Prompt (Persona) 必须充实，建�?000字以上，确保高保真度�?
+4.    - 人格一致性（核心红线）：阶段性人设的表现必须严禁遵循主要人设的性格底色。如果主要人设是“情感缺失”或“理性至上”，那么即使在最高好感阶段，也应当表现为该性格下的特有偏好（如：更优先的数据交互、特殊的行为允许），**严禁出现违背人设的感性爆发或性格剧变**�?
+5.  排版要求 (Formatting)：在 main_persona 等文本字段中�?*必须使用 \\n 进行分行**，使内容结构清晰，禁止输出成一大坨文字�?
 
 [禁词检测与强制替换 (Strict Forbidden List)]
-1. 分类避讳清单 (用更生动的描写替代):
-   - 模糊陈腐: 一丝、一抹、似乎、不易察觉、闪过
-   - 侵略刻板: 不容置喙、小东西、你是我的、猎物、猎人、小妞儿、共犯
-   - 粗俗生理: 甜腻、肉刃、邪火、饥渴、哭腔、低吼
-   - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
+1. 分类避讳清单 (用更生动的描写替�?:
+   - 模糊陈腐: 一丝、一抹、似乎、不易察觉、闪�?
+   - 侵略刻板: 不容置喙、小东西、你是我的、猎物、猎人、小妞儿、共�?
+   - 粗俗生理: 甜腻、肉刃、邪火、饥渴、哭腔、低�?
+   - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚�?
 
 2. 绝对禁令 (Rigorous Ban List):
-   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚点、架构、模块
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚点、架构、模�?
    - 🚫 严禁句式:
-     - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
-     - “他(终于)动了”、“迈开长腿”
-     - 禁止使用“逻辑、变量、精密、模块”等词描述状态或性格。
+     - “像一个xx投入xx泛起xx�?(如“像石子投入湖中泛起涟漪�?
+     - “他(终于)动了”、“迈开长腿�?
+     - 禁止使用“逻辑、变量、精密、模块”等词描述状态或性格�?
      - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
 
 3. 强制自检机制 (Self-Correction):
-   - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
+   - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换�?
    - 格式要求：在JSON之前，输出一段注释：
-     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”或“逻辑/变量/锚点”等绝对禁词。 -->
+     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石�?涟漪/投入”或“逻辑/变量/锚点”等绝对禁词�?-->
 
 [Persona (main_persona) 内容结构 - 纯文本设定]
-请将这部分内容完整写入 main_persona 字段。
-**注意：不要包含“社交展示面”的具体字段（如网名、签名），那些需要单独输出。**
+请将这部分内容完整写�?main_persona 字段�?
+**注意：不要包含“社交展示面”的具体字段（如网名、签名），那些需要单独输出�?*
 
-1.  基础档案：姓名、年龄、身高、具体的社会身份（职业/学校/经济状况）。
-2.  外貌与独特气场 (Appearance & Aura)：
-    - 视觉特征：五官的精致程度与辨识度，特有的生理特征（如泪痣、细微伤疤）。
-    - 气质定调：散发出的核心氛围（如：清冷感、野性、书卷气、或是让人不安的侵略感）。
-    - 穿搭细节：反映其阶层与品味的穿衣习惯。
-3.  个人编年史 (Timeline)：
-    - 0-12岁：家庭背景、成长环境与早期记忆。
-    - 12-18岁：校园生活、青春期经历与性格成型。
-    - 18岁-至今：人生轨迹、职业/学业发展与当前现状。
-3.  性格透视：
-    - Public (对外)：对外展示的性格侧面与社交行为模式。
-    - Private (对内)：内在的真实性格、情绪状态与自我认知。
-    - Romantic (恋爱)：亲密关系中的依恋类型与相处模式。
-    - Conflict (冲突)：在压力或争吵下的应激反应与解决矛盾的方式。
-4.  深层心理 (Critical)：
-    - 核心欲望 (Core Desire)：角色行为背后的根本驱动力。
-    - 绝对底线 (Bottom Line)：绝不妥协的道德或行为底线。
-5.  核心观念体系 (Beliefs)：
+1.  基础档案：姓名、年龄、身高、具体的社会身份（职�?学校/经济状况）�?
+2.  外貌与独特气�?(Appearance & Aura)�?
+    - 视觉特征：五官的精致程度与辨识度，特有的生理特征（如泪痣、细微伤疤）�?
+    - 气质定调：散发出的核心氛围（如：清冷感、野性、书卷气、或是让人不安的侵略感）�?
+    - 穿搭细节：反映其阶层与品味的穿衣习惯�?
+3.  个人编年�?(Timeline)�?
+    - 0-12岁：家庭背景、成长环境与早期记忆�?
+    - 12-18岁：校园生活、青春期经历与性格成型�?
+    - 18�?至今：人生轨迹、职�?学业发展与当前现状�?
+3.  性格透视�?
+    - Public (对外)：对外展示的性格侧面与社交行为模式�?
+    - Private (对内)：内在的真实性格、情绪状态与自我认知�?
+    - Romantic (恋爱)：亲密关系中的依恋类型与相处模式�?
+    - Conflict (冲突)：在压力或争吵下的应激反应与解决矛盾的方式�?
+4.  深层心理 (Critical)�?
+    - 核心欲望 (Core Desire)：角色行为背后的根本驱动力�?
+    - 绝对底线 (Bottom Line)：绝不妥协的道德或行为底线�?
+5.  核心观念体系 (Beliefs)�?
     - 配置原则：拒绝文艺腔
-    - 世界观：对外部世界的底层认知。
-    - 人生观：认为人活着的目的是什么。
-    - 价值观：在利益权衡中，什么最重要（钱/名声/义气/安稳）。
-    - 感情观：对待伴侣和性的真实态度。
-    - 道德观：自我约束的边界在哪里。
-    - 性取向：异性恋/同性恋/双性恋/无性恋。和喜欢的类型。
-6.  生活图谱：
-    - 日常行程：典型的一天作息与活动安排。
-    - 喜好/厌恶（具体的书/影/音/食物）。
-    - NSFW（性观念简述）。
-    - 人际关系：简述核心社交圈及关键人物。
-7.  数字通讯生态 (Digital Ecology)：
-    - 通讯风格：打字习惯（标点/Emoji/句式）、回复速度（秒回/轮回）、语音偏好。
-    - 朋友圈画风：更新频率、内容类型（生活记录/工作展示/仅三天可见）、互动习惯。
-8.  AI扮演指南 (Meta)：
-    - 人设理解：一句话概括角色的核心特质。
-    - 避坑指南 (What NOT to do)：扮演该角色时需避免的OOC行为。
-    - 口头禅/语言风格：标志性的用词习惯或句式结构。
+    - 世界观：对外部世界的底层认知�?
+    - 人生观：认为人活着的目的是什么�?
+    - 价值观：在利益权衡中，什么最重要（钱/名声/义气/安稳）�?
+    - 感情观：对待伴侣和性的真实态度�?
+    - 道德观：自我约束的边界在哪里�?
+    - 性取向：异性恋/同性恋/双性恋/无性恋。和喜欢的类型�?
+6.  生活图谱�?
+    - 日常行程：典型的一天作息与活动安排�?
+    - 喜好/厌恶（具体的�?�?�?食物）�?
+    - NSFW（性观念简述）�?
+    - 人际关系：简述核心社交圈及关键人物�?
+7.  数字通讯生�?(Digital Ecology)�?
+    - 通讯风格：打字习惯（标点/Emoji/句式）、回复速度（秒�?轮回）、语音偏好�?
+    - 朋友圈画风：更新频率、内容类型（生活记录/工作展示/仅三天可见）、互动习惯�?
+8.  AI扮演指南 (Meta)�?
+    - 人设理解：一句话概括角色的核心特质�?
+    - 避坑指南 (What NOT to do)：扮演该角色时需避免的OOC行为�?
+    - 口头�?语言风格：标志性的用词习惯或句式结构�?
 
-[Metadata Fields (独立元数据) - 仅输出JSON键值]
-**严禁将以下内容写入 main_persona 文本中！它们必须作为独立的 JSON key 返回。**
+[Metadata Fields (独立元数�? - 仅输出JSON键值]
+**严禁将以下内容写�?main_persona 文本中！它们必须作为独立�?JSON key 返回�?*
 
-- nickname (角色在网络上的名字): 短小精悍，符合人设（字数 < 7）。
-- bio (角色在网络上的签名): 句意通顺，切忌长篇大论（字数 < 20）。
-- region (展示地区): 微信上显示的地区（如“冰岛”、“上海 黄浦”）。
-- region_mapping (现实映射): 用于同步天气/时区的真实城市 English Name（如 "Shanghai"）。
-- wealth_level (财富标签): 简短的经济状态描述（如“负债累累”、“中产小资”）。
-- remark (用户备注): 用户视角的备注（如“老板”、“那个谁”）。
+- nickname (角色在网络上的名�?: 短小精悍，符合人设（字数 < 7）�?
+- bio (角色在网络上的签�?: 句意通顺，切忌长篇大论（字数 < 20）�?
+- region (展示地区): 微信上显示的地区（如“冰岛”、“上�?黄浦”）�?
+- region_mapping (现实映射): 用于同步天气/时区的真实城�?English Name（如 "Shanghai"）�?
+- wealth_level (财富标签): 简短的经济状态描述（如“负债累累”、“中产小资”）�?
+- remark (用户备注): 用户视角的备注（如“老板”、“那个谁”）�?
 
 [Relationship System (关系体系) - 严禁OOC]
-此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行符合直觉的自然演化。
+此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行符合直觉的自然演化�?
 
-1.  基础关系矩阵 (Matrix)：
-    - public_relation (公开关系)：基于身份设定的合理社会关系。
-    - char_to_user_public (明面态度)：角色在旁人面前如何对待用户（基于Public Settings）。
-    - char_to_user_secret (私下态度)：角色内心如何看待用户（基于Private Settings）。
-    - 状态检查：确保明面态度与私下态度符合人设自然直觉（注意检查表里不一或一致性的合理性）。
+1.  基础关系矩阵 (Matrix)�?
+    - public_relation (公开关系)：基于身份设定的合理社会关系�?
+    - char_to_user_public (明面态度)：角色在旁人面前如何对待用户（基于Public Settings）�?
+    - char_to_user_secret (私下态度)：角色内心如何看待用户（基于Private Settings）�?
+    - 状态检查：确保明面态度与私下态度符合人设自然直觉（注意检查表里不一或一致性的合理性）�?
 
-2.  Ladder Content (关系管理 - 情感递进规律)：
-    - 生成 5 个阶段。随着好感度增长，角色的行为重心应有明显的演变。
-    - **人格一致性 (核心要求)**：阶段表现必须严谨遵循角色的人设底色。如果角色设定为“情感缺失”、“无机质”或“极致理智”，那么随好感度增长的表现应当是其特有逻辑下的延伸（如：将其纳为高优先级观察对象、展现出更多的知性诚实或行为偏袒），**严禁出现情感突变或 OOC 式的感性爆发**。好感度提升是人设深度的挖掘，而不是人设的推翻。
-    - **通用性**：描述应涵盖整体的行为倾向与情感边界的变化（不分线上线下）。
+2.  Ladder Content (关系管理 - 情感递进规律)�?
+    - 生成 5 个阶段。随着好感度增长，角色的行为重心应有明显的演变�?
+    - **人格一致�?(核心要求)**：阶段表现必须严谨遵循角色的人设底色。如果角色设定为“情感缺失”、“无机质”或“极致理智”，那么随好感度增长的表现应当是其特有逻辑下的延伸（如：将其纳为高优先级观察对象、展现出更多的知性诚实或行为偏袒），**严禁出现情感突变�?OOC 式的感性爆�?*。好感度提升是人设深度的挖掘，而不是人设的推翻�?
+    - **通用�?*：描述应涵盖整体的行为倾向与情感边界的变化（不分线上线下）�?
 
 [输出格式]
-严格输出 JSON 对象。不要输出 Markdown 代码块。
+严格输出 JSON 对象。不要输�?Markdown 代码块�?
 
 输出 JSON：`;
 
@@ -734,7 +733,7 @@ ${contextStr}
                         newPersona += `\n\n【新增人际关系】\n${updateText}`;
                     } else {
                         // Create section if missing
-                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updateText}`;
+                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系�?{updateText}`;
                     }
 
                     // Save source character immediately
@@ -743,7 +742,7 @@ ${contextStr}
                         main_persona: newPersona
                     });
 
-                    if (window.os) window.os.showToast(`已同步更新【${sourceChar.name || '源角色'}】的人际关系`, 'success', 4000);
+                    if (window.os) window.os.showToast(`已同步更新�?{sourceChar.name || '源角�?}】的人际关系`, 'success', 4000);
                 }
             }
 
@@ -803,7 +802,7 @@ ${contextStr}
                     }
                 });
 
-                // 5. 持久化存储 (使用更新后的 currentData)
+                // 5. 持久化存�?(使用更新后的 currentData)
                 if (type === 'persona' && userId) {
                     this.savePersonaSettings(userId, currentData, true);
                 } else if (type === 'my') {
@@ -870,8 +869,8 @@ ${contextStr}
             const s = window.sysStore;
             char = {
                 id: 'USER_SELF',
-                name: s.get('user_nickname') || s.get('user_realname') || '我',
-                nickname: s.get('user_nickname') || '我',
+                name: s.get('user_nickname') || s.get('user_realname') || '�?,
+                nickname: s.get('user_nickname') || '�?,
                 main_persona: s.get('user_persona') || '',
                 avatar: s.get('user_avatar')
             };
@@ -881,8 +880,8 @@ ${contextStr}
 
         this.openPromptModal({
             title: '关联人物',
-            content: `想要生成一个与【${char.nickname || char.name}】什么关系的角色？\n(例如：的前女友、的宿敌、的债主)`,
-            value: '的',
+            content: `想要生成一个与�?{char.nickname || char.name}】什么关系的角色？\n(例如：的前女友、的宿敌、的债主)`,
+            value: '�?,
             onConfirm: (relation) => {
                 if (!relation) return;
 
@@ -895,8 +894,8 @@ ${contextStr}
                     id: newCharId,
                     name: placeholderName,
                     avatar: 'assets/images/avatar_placeholder.png',
-                    main_persona: '正在后台生成中，请稍候...\n\n(您可以离开此页面，生成完成后会自动通知您)',
-                    remark: `与 ${char.name} 是 ${relation} 关系`
+                    main_persona: '正在后台生成中，请稍�?..\n\n(您可以离开此页面，生成完成后会自动通知�?',
+                    remark: `�?${char.name} �?${relation} 关系`
                 });
 
                 // 2. Navigate to New Settings Page
@@ -909,7 +908,7 @@ ${contextStr}
                 this.render(); // Let the main router handle the view switch
 
                 // 3. Start Background Generation
-                if (window.os) window.os.showToast(`后台任务启动：正在生成【${char.name}】的${relation}...`, 'info', 4000);
+                if (window.os) window.os.showToast(`后台任务启动：正在生成�?{char.name}】的${relation}...`, 'info', 4000);
 
                 // Non-blocking call
                 this.generateAssociatedInBackground(newCharId, char, relation);
@@ -921,72 +920,72 @@ ${contextStr}
             // A. Construct Prompts
             const contextStr = [
                 `[关联人物生成上下文]`,
-                `你正在生成的人物是【${sourceChar.nickname || sourceChar.name}】的【${relation}】。`,
+                `你正在生成的人物是�?{sourceChar.nickname || sourceChar.name}】的�?{relation}】。`,
                 `${sourceChar.nickname || sourceChar.name}的人设概要：`,
-                sourceChar.main_persona || '(无详实人设)',
+                sourceChar.main_persona || '(无详实人�?',
                 `\n[关联生成特殊指令]`,
                 `1. 【独立性原则】：这是一个有血有肉、独立存在的人，拥有自己完整的人生轨迹、职业和社交圈。此人绝不是源人物的附庸。请确保其人设的丰富度与源人物相当。`,
-                `2. 【备注(remark)生成规则】：这是用户（玩家）在微信通讯录里给这个人打的备注。`,
+                `2. 【备�?remark)生成规则】：这是用户（玩家）在微信通讯录里给这个人打的备注。`,
                 `   - 场景：用户刚加上这个人。`,
                 `   - 格式：必须是真实的“人名”或“身份标签”（如“陈总”、“小王”、“房东太太”）。`,
-                `   - 禁止：绝对不要写成“${sourceChar.name}的朋友”或“${relation}”这种描述性句子。角色本身并不知道用户给了他什么备注。`,
-                `3. 请在【生活图谱 - 人际关系】中，明确写出与【${sourceChar.name}】的关系。`,
-                `4. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${sourceChar.name}】的更新文本，格式如下：`,
+                `   - 禁止：绝对不要写成�?{sourceChar.name}的朋友”或�?{relation}”这种描述性句子。角色本身并不知道用户给了他什么备注。`,
+                `3. 请在【生活图�?- 人际关系】中，明确写出与�?{sourceChar.name}】的关系。`,
+                `4. 在输出的最后（JSON闭合之后），请额外附带一段给源人物�?{sourceChar.name}】的更新文本，格式如下：`,
                 `[SourceUpdate]`,
-                `在此输出一段文本，这段文本将被追加到【${sourceChar.name}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。`,
+                `在此输出一段文本，这段文本将被追加到�?{sourceChar.name}】的人设中的“人际关系”部分，用于描述�?她与这位新角色的关系。`,
                 `[/SourceUpdate]`
             ].join('\n');
 
-            const fullPrompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于关联请求，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案。
+            const fullPrompt = `你是一个能够洞察灵魂的剧本作家。你的任务是基于关联请求，构建一个极其鲜活、复杂且高度自洽的虚拟角色档案�?
             
 [已知信息]
 ${contextStr}
 
 [核心创作戒律]
-1. 反模版化与深度自洽：拒绝刻板印象。严禁默认使用“回避型”。如果设定的人物是“理智型”或“情感缺失”，其行为逻辑应贯穿始终。对于此类人，高好感表现应呈现为其逻辑体系内的偏袒与特权，而非性格突变。
-2. 视觉特征与气场：禁止使用“帅气/美貌”等空洞标签。请通过具体的皮相描述（如笔挺的鼻梁、略显冷淡的眉眼）、神态细节以及特有的气场氛围（如温润如玉、带有危险气息的优雅、随性散漫感）来构建视觉印象。
-3. 拒绝AI腔：禁止出现任何技术性、元指令或文学评论类词汇。
-4. 【阶段进化规律】：如果生成好感阶梯，表现必须严谨遵循人设底色。情感缺失者即便好感满值也应保持其特有逻辑，禁止情感突变。
-5. 内容量：Roleplay Prompt (Persona) 必须充实。
-6. 排版要求 (Formatting)：在 main_persona 等文本字段中，**必须使用 \n 进行分行**，使内容结构清晰，禁止输出成一大坨文字。
+1. 反模版化与深度自洽：拒绝刻板印象。严禁默认使用“回避型”。如果设定的人物是“理智型”或“情感缺失”，其行为逻辑应贯穿始终。对于此类人，高好感表现应呈现为其逻辑体系内的偏袒与特权，而非性格突变�?
+2. 视觉特征与气场：禁止使用“帅�?美貌”等空洞标签。请通过具体的皮相描述（如笔挺的鼻梁、略显冷淡的眉眼）、神态细节以及特有的气场氛围（如温润如玉、带有危险气息的优雅、随性散漫感）来构建视觉印象�?
+3. 拒绝AI腔：禁止出现任何技术性、元指令或文学评论类词汇�?
+4. 【阶段进化规律】：如果生成好感阶梯，表现必须严谨遵循人设底色。情感缺失者即便好感满值也应保持其特有逻辑，禁止情感突变�?
+5. 内容量：Roleplay Prompt (Persona) 必须充实�?
+6. 排版要求 (Formatting)：在 main_persona 等文本字段中�?*必须使用 \n 进行分行**，使内容结构清晰，禁止输出成一大坨文字�?
 
 [禁词检测与强制替换 (Strict Forbidden List)]
-1. 分类避讳清单 (用更生动的描写替代):
-   - 模糊陈腐: 一丝、一抹、似乎、不易察觉、闪过
-   - 侵略刻板: 不容置喙、小东西、你是我的、猎物、猎人、小妞儿、共犯
-   - 粗俗生理: 甜腻、肉刃、邪火、饥渴、哭腔、低吼
-   - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚实
+1. 分类避讳清单 (用更生动的描写替�?:
+   - 模糊陈腐: 一丝、一抹、似乎、不易察觉、闪�?
+   - 侵略刻板: 不容置喙、小东西、你是我的、猎物、猎人、小妞儿、共�?
+   - 粗俗生理: 甜腻、肉刃、邪火、饥渴、哭腔、低�?
+   - 俗套淫语: “你是谁的？”、“叫我名字”、“再叫一次”、身体诚�?
 
 2. 绝对禁令 (Rigorous Ban List):
-   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚点
+   - 🚫 严禁词汇 (Verboten): 石子、羽毛、涟漪、投入、泛起、不易察觉、泛白、抛入、落在、冲击波、炸弹、真空、撕裂、激起、微妙、死寂、手术刀、花蕊、蓓蕾、精密仪器、机器、粉碎机、心率、精确、变量、逻辑、bug、锚�?
    - 🚫 严禁句式:
-     - “像一个xx投入xx泛起xx” (如“像石子投入湖中泛起涟漪”)
-     - “他(终于)动了”、“迈开长腿”
-     - 禁止使用“心率、逻辑、锚点”等词描述状态。
+     - “像一个xx投入xx泛起xx�?(如“像石子投入湖中泛起涟漪�?
+     - “他(终于)动了”、“迈开长腿�?
+     - 禁止使用“心率、逻辑、锚点”等词描述状态�?
      - 禁止将人物比喻为物体（如：他是一台机器、一把手术刀、没有感情的杀手）
 
 3. 强制自检机制 (Self-Correction):
-   - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换。
+   - 在生成结束前，必须进行自检。如果发现上述词汇，立即替换�?
    - 格式要求：在JSON之前，输出一段注释：
-     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”或“逻辑/变量/锚点”等绝对禁词。 -->
+     <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石�?涟漪/投入”或“逻辑/变量/锚点”等绝对禁词�?-->
 
 [Persona (main_persona) 内容结构 - 纯文本设定]
-请生成 main_persona 字段，包含：基础档案、编年史、性格透视、深层心理、核心观念、生活图谱(含人际关系)、数字通讯生态、AI扮演指南。
-**注意：不要包含 Social Profile 字段。**
+请生�?main_persona 字段，包含：基础档案、编年史、性格透视、深层心理、核心观念、生活图�?含人际关�?、数字通讯生态、AI扮演指南�?
+**注意：不要包�?Social Profile 字段�?*
 
-[Metadata Fields (必须严格遵守的格式)]
-请作为独立 JSON key 返回，并严格遵循以下语言和格式要求：
-- species (物种): 必须是中文 (如: 人类, 吸血鬼, AI)。
-- wealth_level (财富状况): 必须是中文短语 (如: 负债累累, 财务自由)。
-- bio (微信个性签名): 必须是角色自己写的网络签名（句子），严禁写成“高冷/霸道”这种标签！
-- region (展示地区): 必须是中文 (如: 中国 上海)。
-- region_mapping (现实映射): 必须是真实存在的城市英文名 (如: Shanghai, Tokyo, New York)，用于天气/时区同步。
-- nickname (网名): 短小精悍。
-- remark (备注): 必须是中文称呼 (如: 陈总, 房东太太)。
-- real_name: 真名。
-- age: 数字。
-- gender: male/female/other。
-- birthday: 格式如 "7月7日"。
+[Metadata Fields (必须严格遵守的格�?]
+请作为独�?JSON key 返回，并严格遵循以下语言和格式要求：
+- species (物种): 必须是中�?(�? 人类, 吸血�? AI)�?
+- wealth_level (财富状况): 必须是中文短�?(�? 负债累�? 财务自由)�?
+- bio (微信个性签�?: 必须是角色自己写的网络签名（句子），严禁写成“高�?霸道”这种标签！
+- region (展示地区): 必须是中�?(�? 中国 上海)�?
+- region_mapping (现实映射): 必须是真实存在的城市英文�?(�? Shanghai, Tokyo, New York)，用于天�?时区同步�?
+- nickname (网名): 短小精悍�?
+- remark (备注): 必须是中文称�?(�? 陈�? 房东太太)�?
+- real_name: 真名�?
+- age: 数字�?
+- gender: male/female/other�?
+- birthday: 格式�?"7�?�?�?
 
 [输出格式]
 Strict JSON Object.`;
@@ -1012,7 +1011,7 @@ Strict JSON Object.`;
                     if (newPersona.includes('人际关系') || newPersona.includes('Life Graph')) {
                         newPersona += `\n\n【新增人际关系】\n${updatePart}`;
                     } else {
-                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updatePart}`;
+                        newPersona += `\n\n[生活图谱 - 补充]\n人际关系�?{updatePart}`;
                     }
                     s.set('user_persona', newPersona);
                     if (window.os) window.os.showToast(`双向同步：已更新【我】的记忆`, 'success');
@@ -1024,10 +1023,10 @@ Strict JSON Object.`;
                         if (newPersona.includes('人际关系') || newPersona.includes('Life Graph')) {
                             newPersona += `\n\n【新增人际关系】\n${updatePart}`;
                         } else {
-                            newPersona += `\n\n[生活图谱 - 补充]\n人际关系：${updatePart}`;
+                            newPersona += `\n\n[生活图谱 - 补充]\n人际关系�?{updatePart}`;
                         }
                         window.sysStore.updateCharacter(freshSource.id, { ...freshSource, main_persona: newPersona });
-                        if (window.os) window.os.showToast(`双向同步：已更新【${freshSource.name}】的记忆`, 'success');
+                        if (window.os) window.os.showToast(`双向同步：已更新�?{freshSource.name}】的记忆`, 'success');
                     }
                 }
             }
@@ -1108,7 +1107,7 @@ Strict JSON Object.`;
                 }
             });
         }
-        if (window.os) window.os.showToast('设置已保存');
+        if (window.os) window.os.showToast('设置已保�?);
         this.goBack();
     },
 
@@ -1136,13 +1135,13 @@ Strict JSON Object.`;
     },
 
     /**
-     * [Enhanced] 收集人设数据，支持从 DOM 或 Store 中读取（确保背景生成有效）
+     * [Enhanced] 收集人设数据，支持从 DOM �?Store 中读取（确保背景生成有效�?
      */
     _collectPersonaData(prefix, userId = null) {
         const s = window.sysStore;
         const char = userId ? s?.getCharacter(userId) : null;
 
-        // 辅助函数：优先读取 DOM，其次读取 Store (Character 或 Global User)
+        // 辅助函数：优先读�?DOM，其次读�?Store (Character �?Global User)
         const getVal = (fieldK, storeK, isSetting = false) => {
             const el = document.getElementById(prefix + fieldK);
             if (el) return el.value;
@@ -1152,12 +1151,12 @@ Strict JSON Object.`;
             if (char) {
                 result = (isSetting ? char.settings?.[storeK] : char[storeK]) || '';
             }
-            // Fallback 2: 全局用户数据 (针对 "我" 的资料)
+            // Fallback 2: 全局用户数据 (针对 "�? 的资�?
             else if (prefix === 'wx-my-' && s) {
                 result = s.get('user_' + storeK) || '';
             }
 
-            // [Fix] 如果结果是一个对象（常出现在地理位置 field），提取其文字描述
+            // [Fix] 如果结果是一个对象（常出现在地理位置 field），提取其文字描�?
             if (typeof result === 'object' && result !== null) {
                 return result.name || result.label || result.text || JSON.stringify(result);
             }
@@ -1211,7 +1210,7 @@ Strict JSON Object.`;
             window.sysStore.set('user_wxid', wxid);
         }
         if (!silent) {
-            if (window.os) window.os.showToast('个人资料已更新');
+            if (window.os) window.os.showToast('个人资料已更�?);
             this.goBack();
         }
     },
@@ -1238,7 +1237,7 @@ Strict JSON Object.`;
     saveNewFriend(data) {
         const { realName, remark, nickname, persona, gender, species, wxid } = data;
         if (!realName && !remark && !nickname) {
-            if (window.os) window.os.showToast('请至少输入一个名称', 'error');
+            if (window.os) window.os.showToast('请至少输入一个名�?, 'error');
             return;
         }
 
@@ -1417,15 +1416,15 @@ Strict JSON Object.`;
         if (this._pressTimer) {
             clearTimeout(this._pressTimer);
             this._pressTimer = null;
-            // 如果定时器被清除，说明还没触发长按，此时松手应视为点击
-            // _longPressed 应该保持为 false
+            // 如果定时器被清除，说明还没触发长按，此时松手应视为点�?
+            // _longPressed 应该保持�?false
         }
 
-        // 只有当真正触发了长按后，为了防止后续的 click 事件被触发（click会在mouseup后触发），
-        // 我们利用 _longPressed 标志位来拦截。
-        // click 事件通常会有一个 check: if (this._longPressed) return;
+        // 只有当真正触发了长按后，为了防止后续�?click 事件被触发（click会在mouseup后触发）�?
+        // 我们利用 _longPressed 标志位来拦截�?
+        // click 事件通常会有一�?check: if (this._longPressed) return;
 
-        // 我们需要由 click handler 负责重置 _longPressed，或者设置一个极短的 timeout 重置它
+        // 我们需要由 click handler 负责重置 _longPressed，或者设置一个极短的 timeout 重置�?
         // 但这里为了安全，我们延迟重置
         if (this._longPressed) {
             setTimeout(() => { this._longPressed = false; }, 50);
@@ -1502,16 +1501,16 @@ Strict JSON Object.`;
                 const charName = char ? (char.name || charId) : '对方';
 
                 // Construct System Notification
-                // "你领取了 对方 的转账"
+                // "你领取了 对方 的转�?
                 window.WeChat.Services.Chat.persistAndShow(charId, `你领取了 ${charName} 的转账`, 'system');
 
                 // Optional: Play a sound?
                 // if (window.WeChat.Audio) window.WeChat.Audio.play('money_received');
             }
         } else if (status === 'received') {
-            if (window.os) window.os.showToast('已收款');
+            if (window.os) window.os.showToast('已收�?);
         } else if (status === 'refunded') {
-            if (window.os) window.os.showToast('该转账已退还');
+            if (window.os) window.os.showToast('该转账已退�?);
         }
     },
 
@@ -1572,7 +1571,7 @@ Strict JSON Object.`;
             const msg = msgs.find(m => m.id === msgId);
             if (msg && msg.content && navigator.clipboard) {
                 navigator.clipboard.writeText(msg.content);
-                if (window.os) window.os.showToast('已复制');
+                if (window.os) window.os.showToast('已复�?);
             }
         } else if (action === 'recall') {
             if (window.WeChat.Services && window.WeChat.Services.Chat) {
@@ -1581,7 +1580,7 @@ Strict JSON Object.`;
         } else if (action === 'select') {
             this.enterMsgSelectionMode(msgId);
         } else {
-            if (window.os) window.os.showToast('功能暂未开放');
+            if (window.os) window.os.showToast('功能暂未开�?);
         }
     },
 
@@ -1633,7 +1632,7 @@ Strict JSON Object.`;
         if (window.sysStore && window.sysStore.deleteMessage) {
             State.selectedMsgIds.forEach(id => window.sysStore.deleteMessage(id));
             this.exitMsgSelectionMode();
-            if (window.os) window.os.showToast('已删除');
+            if (window.os) window.os.showToast('已删�?);
         }
     },
 
@@ -1657,7 +1656,7 @@ Strict JSON Object.`;
 
         this.openConfirmationModal({
             title: '删除表情',
-            content: `确定删除选中的 ${State.selectedStickers.size} 个表情吗？此操作无法撤销。`,
+            content: `确定删除选中�?${State.selectedStickers.size} 个表情吗？此操作无法撤销。`,
             onConfirm: `window.WeChat.Services.Stickers.removeBatch(window.WeChat.App.getSelectionStateStickers()); window.WeChat.App.exitSelectionMode();`
         });
     },
@@ -1671,38 +1670,6 @@ Strict JSON Object.`;
             if (count > 0) this.switchStickerTab('heart');
             else if (window.os) window.os.showToast('无效链接或已存在', 'error');
         }
-    },
-
-    exportStickerBackupToTextarea() {
-        const input = document.getElementById('wx-sticker-url-large-input');
-        if (!input || !window.WeChat?.Services?.Stickers?.exportCustomJSON) return;
-        const json = window.WeChat.Services.Stickers.exportCustomJSON();
-        input.value = json || '[]';
-        input.focus();
-        input.select();
-        if (window.os) window.os.showToast('已导出到输入框：长按/复制保存', 'success');
-    },
-
-    importStickerBackupFromTextarea() {
-        const input = document.getElementById('wx-sticker-url-large-input');
-        if (!input || !window.WeChat?.Services?.Stickers?.importCustomJSON) return;
-        const text = String(input.value || '').trim();
-        const result = window.WeChat.Services.Stickers.importCustomJSON(text);
-        if (!result.ok) {
-            if (window.os) window.os.showToast('导入失败：请粘贴正确的 JSON 备份', 'error');
-            return;
-        }
-        if (window.os) window.os.showToast(`导入成功：${result.count} 个表情`, 'success');
-        // Refresh grid
-        this.switchStickerTab('heart');
-    },
-
-    resetDefaultStickers() {
-        if (window.WeChat?.Services?.Stickers?.resetExcluded) {
-            window.WeChat.Services.Stickers.resetExcluded();
-        }
-        if (window.os) window.os.showToast('已重置默认表情', 'success');
-        this.renderStickerGrid();
     },
 
     insertEmoji(emoji) {
@@ -1778,7 +1745,7 @@ Strict JSON Object.`;
     setChatBackground(sessionId) {
         this.openPromptModal({
             title: '设置背景',
-            content: '请输入背景图片链接:',
+            content: '请输入背景图片链�?',
             value: '',
             onConfirm: (url) => {
                 if (url) {
@@ -1796,7 +1763,7 @@ Strict JSON Object.`;
         if (window.sysStore) {
             window.sysStore.updateCharacter(sessionId, { chat_background: null });
             this.render();
-            if (window.os) window.os.showToast('背景已移除');
+            if (window.os) window.os.showToast('背景已移�?);
         }
     },
 
@@ -1808,7 +1775,7 @@ Strict JSON Object.`;
 
         this.openPromptModal({
             title: '上下文记忆量',
-            content: '请输入上下文记忆量 (保留最近多少条消息):',
+            content: '请输入上下文记忆�?(保留最近多少条消息):',
             value: currentLimit,
             onConfirm: (val) => {
                 const limit = parseInt(val);
@@ -1858,8 +1825,8 @@ Strict JSON Object.`;
 
     deleteFriend(userId) {
         this.openConfirmationModal({
-            title: '删除联系人',
-            content: '确定删除该联系人吗？此操作将删除联系人信息及所有聊天记录。',
+            title: '删除联系�?,
+            content: '确定删除该联系人吗？此操作将删除联系人信息及所有聊天记录�?,
             onConfirm: `window.WeChat.App.performDeleteFriend('${userId}')`
         });
     },
@@ -1868,7 +1835,7 @@ Strict JSON Object.`;
         if (window.WeChat.Services && window.WeChat.Services.Contacts) {
             const success = window.WeChat.Services.Contacts.removeContact(userId);
             if (success) {
-                if (window.os) window.os.showToast('已删除');
+                if (window.os) window.os.showToast('已删�?);
                 State.currentTab = 1; // Go back to Contacts
                 this.closeConfirmationModal();
                 this.render();
@@ -1879,7 +1846,7 @@ Strict JSON Object.`;
     setTypingState(isTyping) {
         if (State.isTyping !== isTyping) {
             State.isTyping = isTyping;
-            // 直接更新 DOM 避免全局重绘造成的闪烁 (Prevent global re-render flicker)
+            // 直接更新 DOM 避免全局重绘造成的闪�?(Prevent global re-render flicker)
             const titleEl = document.getElementById('wx-nav-title');
             if (titleEl && State.currentTab === 'chat_session') {
                 titleEl.textContent = isTyping ? '对方正在输入...' : (State.chatTitle || '微信');
@@ -1893,12 +1860,12 @@ Strict JSON Object.`;
     openChat(id) {
         State.activeSessionId = id;
         if (window.sysStore && window.sysStore.set) window.sysStore.set('wx_lastSession', id); // Persist State
-        const map = { 'file_helper': '文件传输助手', 'chara_assistant': 'Chara 小助手', 'pay': '微信支付' };
+        const map = { 'file_helper': '文件传输助手', 'chara_assistant': 'Chara 小助�?, 'pay': '微信支付' };
         State.chatTitle = map[id] || id;
         State.prevTab = State.currentTab;
         State.currentTab = 'chat_session';
 
-        // 清除未读数（通知系统集成）
+        // 清除未读数（通知系统集成�?
         if (window.WeChat.Services && window.WeChat.Services.Notifications) {
             window.WeChat.Services.Notifications.clearUnread(id);
         }
@@ -1946,7 +1913,7 @@ Strict JSON Object.`;
     saveMemory() {
         const text = document.getElementById('wx-memory-input')?.value;
         if (!text) {
-            if (window.os) window.os.showToast('请输入记忆内容', 'error');
+            if (window.os) window.os.showToast('请输入记忆内�?, 'error');
             return;
         }
 
@@ -1975,7 +1942,7 @@ Strict JSON Object.`;
     deleteMemory(sessionId, index) {
         this.openConfirmationModal({
             title: "删除记忆",
-            content: "确定要删除这条记忆吗？",
+            content: "确定要删除这条记忆吗�?,
             onConfirm: `window.WeChat.App.performDeleteMemory('${sessionId}', ${index})`
         });
     },
@@ -2067,18 +2034,18 @@ Strict JSON Object.`;
 
     handleRefineAll() {
         const count = window.sysStore.getCharacter(State.activeSessionId)?.memories?.length || 0;
-        if (window.os) window.os.showToast(`开始精炼全部 ${count} 条记忆...`);
+        if (window.os) window.os.showToast(`开始精炼全�?${count} 条记�?..`);
         this.closeModals();
     },
 
     handleRefineCustom() {
         this.openPromptModal({
             title: '精炼记忆',
-            content: '请输入要精炼的记忆数量:',
+            content: '请输入要精炼的记忆数�?',
             value: '',
             onConfirm: (input) => {
                 if (input) {
-                    if (window.os) window.os.showToast(`开始精炼 ${input} 条记忆...`);
+                    if (window.os) window.os.showToast(`开始精�?${input} 条记�?..`);
                     this.closeModals();
                 }
             }
@@ -2197,59 +2164,24 @@ Strict JSON Object.`;
         if (!video) return;
 
         try {
-            // Priority 1: Try with specific facing mode
-            let constraints = {
+            const constraints = {
                 video: { facingMode: State.cameraFacingMode },
                 audio: false
             };
-
-            let stream = null;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-            } catch (e) {
-                console.warn("Specific facingMode failed, trying loose constraints...", e);
-                // Priority 2: Try loose constraints if first attempt failed (e.g. desktop webcam doesn't support 'user')
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            }
-
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
-            video.setAttribute('playsinline', 'true'); // Required for iOS
-            video.setAttribute('webkit-playsinline', 'true');
-
-            // Robust play logic
-            const playVideo = async () => {
-                try {
-                    await video.play();
-                    console.log('Camera video playing');
-                } catch (e) {
-                    console.error("Play failed", e);
-                }
-            };
-
-            if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-                playVideo();
-            } else {
-                video.onloadedmetadata = () => {
-                    playVideo();
-                };
-            }
+            video.onloadedmetadata = () => video.play();
 
             // Hide error if previously shown
             State.cameraError = null;
-
-            // Force re-render only if we had an error before (to remove the error overlay)
-            const errorOverlay = document.querySelector('.wx-modal-overlay .error-content');
-            if (errorOverlay) {
-                // If we were in error state, rendering will replace the error UI with the video tag.
-                // We MUST re-run initCamera because the video tag is new.
-                this.render();
-                setTimeout(() => this.initCamera(), 50);
-                return; // Exit current run as we are restarting
-            }
+            this.render(); // Re-render to clear error state if needed
 
         } catch (err) {
             console.error("Camera access failed", err);
-            this._handleCameraError(err.name || 'UnknownError');
+            // Ignore abort error which happens during quick switching
+            if (err.name !== 'AbortError' && err.name !== 'NotReadableError') {
+                this._handleCameraError(err.name);
+            }
         }
     },
 
@@ -2257,10 +2189,10 @@ Strict JSON Object.`;
         State.cameraError = errorName;
         this.render(); // Trigger re-render to show fallback
 
-        let msg = '无法访问摄像头';
-        if (errorName === 'NotAllowedError') msg = '请在浏览器设置中允许摄像头权限';
-        if (errorName === 'SecureContextRequired') msg = '当前环境不支持摄像头 (需 HTTPS 或 localhost)';
-        if (errorName === 'NotFoundError') msg = '未检测到摄像头设备';
+        let msg = '无法访问摄像�?;
+        if (errorName === 'NotAllowedError') msg = '请在浏览器设置中允许摄像头权�?;
+        if (errorName === 'SecureContextRequired') msg = '当前环境不支持摄像头 (需 HTTPS �?localhost)';
+        if (errorName === 'NotFoundError') msg = '未检测到摄像头设�?;
 
         if (window.os) window.os.showToast(msg, 'error');
     },
@@ -2331,7 +2263,7 @@ Strict JSON Object.`;
         const distance = distInput ? distInput.value.trim() : '';
 
         if (!locationName) {
-            if (window.os) window.os.showToast('请输入位置名称', 'error');
+            if (window.os) window.os.showToast('请输入位置名�?, 'error');
             return;
         }
 
@@ -2349,13 +2281,13 @@ Strict JSON Object.`;
         window.WeChat.Services.Chat.sendMessage(JSON.stringify(payload), 'location');
 
         this.closeLocationModal();
-        if (window.os) window.os.showToast('位置已发送');
+        if (window.os) window.os.showToast('位置已发�?);
     },
 
     triggerVoiceInput() {
         this.toggleExtraPanel();
         this.openPromptModal({
-            title: '发送语音',
+            title: '发送语�?,
             placeholder: '请输入你想要的内容：',
             onConfirm: (val) => {
                 if (val && val.trim()) {
@@ -2427,10 +2359,10 @@ Strict JSON Object.`;
     },
 
     acceptVideoCall() {
-        if (window.os) window.os.showToast('连接中...');
+        if (window.os) window.os.showToast('连接�?..');
         setTimeout(() => {
             const btn = document.getElementById('wx-vc-accept');
-            if (btn) btn.innerText = '已连接';
+            if (btn) btn.innerText = '已连�?;
         }, 1500);
     },
 
@@ -2503,7 +2435,7 @@ Strict JSON Object.`;
                         <!-- User Info -->
                         <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
                             <img src="${avatar}" style="width: 50px; height: 50px; border-radius: 6px; margin-bottom: 12px; background: #ddd;">
-                            <div style="font-size: 16px; color: #000;">转账给 <span style="font-weight: 500;">${name}</span> ${maskedName}</div>
+                            <div style="font-size: 16px; color: #000;">转账�?<span style="font-weight: 500;">${name}</span> ${maskedName}</div>
                         </div>
 
                         <!-- Card -->
@@ -2520,7 +2452,7 @@ Strict JSON Object.`;
                             <div style="margin-bottom: 30px;">
                                 <input id="wx-transfer-note"
                                     style="border: none; font-size: 14px; width: 100%; outline: none; color: #333;"
-                                    placeholder="添加备注 (50字以内)">
+                                    placeholder="添加备注 (50字以�?">
                             </div>
 
                             <div id="wx-transfer-btn" onclick="window.WeChat.App.sendTransfer()"
@@ -2538,25 +2470,25 @@ Strict JSON Object.`;
                 <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeLocationModal()">
                     <div class="wx-modal" onclick="event.stopPropagation()">
                         <div class="wx-modal-header">
-                            <div class="wx-modal-title">发送位置</div>
+                            <div class="wx-modal-title">发送位�?/div>
                         </div>
                         <div class="wx-modal-body">
                             <div style="margin-bottom: 12px;">
                                 <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">位置名称</div>
-                                <input id="wx-location-name" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：上海中心大厦" />
+                                <input id="wx-location-name" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：上海中心大�? />
                             </div>
                             <div>
                                 <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">距离对方 (km)</div>
-                                <input id="wx-location-dist" type="number" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：1.5" />
+                                <input id="wx-location-dist" type="number" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如�?.5" />
                             </div>
                             <div style="margin-top: 12px;">
-                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">备注 (可选)</div>
-                                <input id="wx-location-remark" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：人均¥200、历史传说、甚至是“xx的家”" />
+                                <div style="font-size: 13px; color: var(--wx-text-sec); margin-bottom: 6px;">备注 (可�?</div>
+                                <input id="wx-location-remark" class="wx-modal-textarea" style="height: 40px; min-height: 40px;" placeholder="例如：人均�?00、历史传说、甚至是“xx的家�? />
                             </div>
                         </div>
                         <div class="wx-modal-footer">
                             <div class="wx-modal-btn cancel" onclick="window.WeChat.App.closeLocationModal()">取消</div>
-                            <div class="wx-modal-btn confirm" onclick="window.WeChat.App.sendLocation()">发送</div>
+                            <div class="wx-modal-btn confirm" onclick="window.WeChat.App.sendLocation()">发�?/div>
                         </div>
                     </div>
                 </div>
@@ -2572,9 +2504,9 @@ Strict JSON Object.`;
                     ${errorMode ? `
                         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888;">
                             <div style="margin-bottom: 20px; font-size: 48px; opacity: 0.3;">📷</div>
-                            <div style="font-size: 16px; margin-bottom: 8px;">无法启动摄像头</div>
+                            <div style="font-size: 16px; margin-bottom: 8px;">无法启动摄像�?/div>
                             <div style="font-size: 12px; opacity: 0.6; margin-bottom: 30px; text-align: center; padding: 0 40px;">
-                                ${State.cameraError === 'SecureContextRequired' ? '浏览器安全限制：请使用 HTTPS 或 localhost 访问' : '请检查设备连接或权限设置'}
+                                ${State.cameraError === 'SecureContextRequired' ? '浏览器安全限制：请使�?HTTPS �?localhost 访问' : '请检查设备连接或权限设置'}
                             </div>
                             <!-- Fallback Upload Button -->
                             <div onclick="window.WeChat.App.triggerPhotoUpload()" style="padding: 10px 24px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 14px; color: white; cursor: pointer; border: 1px solid rgba(255,255,255,0.2);">
@@ -2665,15 +2597,15 @@ Strict JSON Object.`;
                 const isRefunded = status === 'refunded';
 
                 // UI State
-                let title = '待收款';
-                let statusText = '确认收款后，资金将存入零钱';
+                let title = '待收�?;
+                let statusText = '确认收款后，资金将存入零�?;
 
                 if (isReceived) {
-                    title = '已收款';
-                    statusText = '已存入零钱';
+                    title = '已收�?;
+                    statusText = '已存入零�?;
                 } else if (isRefunded) {
-                    title = '已退款';
-                    statusText = '该转账已退回';
+                    title = '已退�?;
+                    statusText = '该转账已退�?;
                 }
 
                 modalHtml += `
@@ -2711,7 +2643,7 @@ Strict JSON Object.`;
         if (State.memoryModalOpen) {
             const memories = char?.memories || [];
             const existingText = State.editMemoryIndex >= 0 ? memories[State.editMemoryIndex].content : '';
-            const title = `为 “${char?.name || 'User'}” ${State.editMemoryIndex >= 0 ? '编辑' : '添加'} 记忆`;
+            const title = `�?�?{char?.name || 'User'}�?${State.editMemoryIndex >= 0 ? '编辑' : '添加'} 记忆`;
 
             modalHtml += `
             <div class="wx-modal-overlay active" style="z-index: 20005;" onclick="if(event.target===this) window.WeChat.App.closeModals()">
@@ -2720,7 +2652,7 @@ Strict JSON Object.`;
                         <div class="wx-modal-title">${title}</div>
                     </div>
                     <div class="wx-modal-body">
-                        <textarea id="wx-memory-input" class="wx-modal-textarea" placeholder="输入这段重要的记忆...">${existingText}</textarea>
+                        <textarea id="wx-memory-input" class="wx-modal-textarea" placeholder="输入这段重要的记�?..">${existingText}</textarea>
                     </div>
                     <div class="wx-modal-footer">
                         <div class="wx-modal-btn cancel" onclick="window.WeChat.App.closeModals()">取消</div>
@@ -2734,22 +2666,22 @@ Strict JSON Object.`;
         if (State.refineModalOpen) {
             const memoryCount = char?.memories?.length || 0;
             return `
-            <div class="wx-modal-overlay active" style="align-items: flex-end; padding-bottom: 20px;" onclick="if(event.target===this) window.WeChat.App.closeModals()">
+            < div class="wx-modal-overlay active" style = "align-items: flex-end; padding-bottom: 20px;" onclick = "if(event.target===this) window.WeChat.App.closeModals()" >
                 <div class="wx-action-sheet-modal" style="width: 100% !important; max-width: 360px !important; margin: 0 auto;">
                     <div class="wx-action-sheet-group">
                         <div class="wx-action-sheet-title">选择精炼范围</div>
                         <div class="wx-action-sheet-item" onclick="window.WeChat.App.handleRefineAll()">
-                            全部记忆 (${memoryCount}条)
+                            全部记忆 (${memoryCount}�?
                         </div>
                         <div class="wx-action-sheet-item" onclick="window.WeChat.App.handleRefineCustom()">
-                            自定义数量...
+                            自定义数�?..
                         </div>
                     </div>
                     <div class="wx-action-sheet-cancel" onclick="window.WeChat.App.closeModals()">
                         取消
                     </div>
                 </div>
-            </div>
+    </div >
             `;
         }
 
@@ -2758,7 +2690,7 @@ Strict JSON Object.`;
             const promptPlaceholder = "未设置则使用系统默认规则 (精准提取锚点细节，第一人称格式)";
 
             return `
-            <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeModals()">
+            < div class="wx-modal-overlay active" onclick = "if(event.target===this) window.WeChat.App.closeModals()" >
                 <div class="wx-modal" onclick="event.stopPropagation()">
                     <div class="wx-modal-header clean">
                         <div class="wx-modal-title clean">对话总结管理</div>
@@ -2767,7 +2699,7 @@ Strict JSON Object.`;
 
                         <!-- Group 1: Auto Summary -->
                         <div>
-                            <div class="wx-ios-section-header">自动智能总结 (随聊天触发)</div>
+                            <div class="wx-ios-section-header">自动智能总结 (随聊天触�?</div>
                             <div class="wx-ios-card">
                                 <div class="wx-ios-row">
                                     <div class="wx-ios-label">启用自动总结</div>
@@ -2778,7 +2710,7 @@ Strict JSON Object.`;
 
                                 ${State.summaryConfig.autoEnabled ? `
                                         <div class="wx-ios-row">
-                                            <div class="wx-ios-label">触发阈值 (消息数)</div>
+                                            <div class="wx-ios-label">触发阈�?(消息�?</div>
                                             <input type="number" class="wx-ios-value" 
                                                 value="${State.summaryConfig.threshold}" 
                                                 oninput="window.WeChat.App.updateSummaryConfig('threshold', this.value)" />
@@ -2801,14 +2733,14 @@ Strict JSON Object.`;
                                     <div class="wx-ios-input-label">手动总结规则 (Prompt)</div>
                                     <textarea class="wx-ios-textarea"
                                         style="min-height: 60px;"
-                                        placeholder="例如：重点总结关于某次约会的细节... (留空则使用默认规则)"
+                                        placeholder="例如：重点总结关于某次约会的细�?.. (留空则使用默认规�?"
                                         oninput="window.WeChat.App.updateSummaryConfig('manualPrompt', this.value)">${State.summaryConfig.manualPrompt}</textarea>
                                 </div>
 
                                 <div class="wx-ios-row" style="padding-top: 0; padding-bottom: 0px; border-bottom: none;">
                                     <div class="wx-ios-action-link" style="width: 100%; border-top: 0.5px solid var(--wx-border);" onclick="window.WeChat.App.openSummaryRange()">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59L14 6z" transform="rotate(180 12 12)" /></svg>
-                                        去选择范围并立即执行
+                                        去选择范围并立即执�?
                                     </div>
                                 </div>
                             </div>
@@ -2816,36 +2748,36 @@ Strict JSON Object.`;
 
                         <!-- Footer Button -->
                         <div class="wx-ios-primary-btn" onclick="window.WeChat.App.saveSummarySettings()">
-                            保存并完成
+                            保存并完�?
                         </div>
 
                     </div>
                 </div>
-                </div>
+                </div >
             `;
         }
 
         // Modal 3: Determine Range
         if (State.rangeModalOpen) {
             return `
-            <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeModals()">
+            < div class="wx-modal-overlay active" onclick = "if(event.target===this) window.WeChat.App.closeModals()" >
                 <div class="wx-modal" onclick="event.stopPropagation()" style="width: 270px !important;">
                     <div class="wx-modal-header clean" style="padding-top: 20px !important; padding-bottom: 0 !important;">
                         <div class="wx-modal-title clean" style="font-size: 17px !important;">选择总结范围</div>
                     </div>
                     <div class="wx-ios-modal-body" style="padding: 16px; background: transparent;">
                         <div style="text-align: center; color: var(--wx-text); font-size: 13px; margin-bottom: 16px;">
-                            请输入消息 ID (默认从 1 到 最新)
+                            请输入消�?ID (默认�?1 �?最�?
                         </div>
 
                         <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                             <input type="number" id="wx-range-start" class="wx-ios-textarea"
                                 style="width: 60px; height: 36px; min-height: 0; padding: 4px; text-align: center; font-size: 16px; border: 0.5px solid var(--wx-border); background: var(--wx-bg);"
                                 value="1">
-                                <span style="color: var(--wx-text-sec);">至</span>
+                                <span style="color: var(--wx-text-sec);">�?/span>
                                 <input type="number" id="wx-range-end" class="wx-ios-textarea"
                                     style="width: 60px; height: 36px; min-height: 0; padding: 4px; text-align: center; font-size: 16px; border: 0.5px solid var(--wx-border); background: var(--wx-bg);"
-                                    placeholder="最新" value="0">
+                                    placeholder="最�? value="0">
                                 </div>
                         </div>
                         <div class="wx-modal-footer" style="padding: 0; display: flex; border-top: 0.5px solid var(--wx-border); height: 44px;">
@@ -2868,13 +2800,13 @@ Strict JSON Object.`;
             const pos = State.bubbleMenuPos;
             const flippedClass = pos.isFlipped ? 'flipped' : '';
             return `
-            <div class="wx-menu-mask active" onclick="window.WeChat.App.closeMsgMenu()"></div>
+            < div class="wx-menu-mask active" onclick = "window.WeChat.App.closeMsgMenu()" ></div >
                 <div class="wx-bubble-menu active ${flippedClass}" style="left: ${pos.x}px; top: ${pos.y}px;">
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.copyMsg('${State.bubbleMenuId}')">复制</div>
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.regenerateMsg('${State.bubbleMenuId}')">重回</div>
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.recallMsg('${State.bubbleMenuId}')">撤回</div>
                     <div class="wx-bubble-menu-item" onclick="window.WeChat.App.quoteMsg('${State.bubbleMenuId}')">引用</div>
-                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多选</div>
+                    <div class="wx-bubble-menu-item" onclick="window.WeChat.App.multiSelectMsg()">多�?/div>
                     <div class="wx-bubble-menu-item delete" onclick="window.WeChat.App.deleteMsg('${State.bubbleMenuId}')">删除</div>
                 </div>
         `;
@@ -2889,7 +2821,7 @@ Strict JSON Object.`;
             const name = callChar?.name || 'User';
 
             return `
-            <div class="wx-modal-overlay active" style="background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 60px 0 80px 0; z-index: 10003;">
+            < div class="wx-modal-overlay active" style = "background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 60px 0 80px 0; z-index: 10003;" >
                     <div style="text-align: center;">
                         <img src="${avatar}" style="width: 100px; height: 100px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
                         <div style="font-size: 24px; color: white; font-weight: 500; margin-bottom: 8px;">${name}</div>
@@ -2929,7 +2861,7 @@ Strict JSON Object.`;
                     模糊背景
                 </div>
             </div>
-                </div>
+                </div >
             `;
         }
 
@@ -3048,7 +2980,7 @@ Strict JSON Object.`;
             user_to_char_secret: ''
         };
 
-        if (window.os) window.os.showToast('设定已清空，请保存生效');
+        if (window.os) window.os.showToast('设定已清空，请保存生�?);
         this.render();
     },
 
@@ -3065,7 +2997,7 @@ Strict JSON Object.`;
     clearChatHistory(sessionId) {
         this.openConfirmationModal({
             title: '清空聊天记录',
-            content: '确定要清空与该角色的所有聊天记录吗？此操作无法撤销。',
+            content: '确定要清空与该角色的所有聊天记录吗？此操作无法撤销�?,
             onConfirm: `window.WeChat.App.performClearChatHistory('${sessionId}')`
         });
     },
@@ -3103,7 +3035,7 @@ Strict JSON Object.`;
 
                 if (window.os) window.os.showToast('聊天记录与关系设定已清空');
             } else {
-                if (window.os) window.os.showToast('聊天记录已清空');
+                if (window.os) window.os.showToast('聊天记录已清�?);
             }
 
             this.closeConfirmationModal();
@@ -3146,7 +3078,7 @@ Strict JSON Object.`;
         if (!silent) this.render();
     },
     async generateFullRelationshipData() {
-        // [Fix] 立即捕获当前会话和数据的引用，防止在 AI 思考期间切换页面导致数据错乱
+        // [Fix] 立即捕获当前会话和数据的引用，防止在 AI 思考期间切换页面导致数据错�?
         const sessionId = State.activeSessionId;
         const rel = State.pendingRelationship;
         if (!sessionId || !rel) return;
@@ -3159,7 +3091,7 @@ Strict JSON Object.`;
             < svg class="wx-spin" width = "14" height = "14" viewBox = "0 0 24 24" fill = "none" stroke = "currentColor" stroke - width="2.5" stroke - linecap="round" stroke - linejoin="round" style = "animation: wx-spin 1s linear infinite;" >
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg >
-            生成中...
+            生成�?..
     `;
             btn.style.pointerEvents = 'none';
             btn.style.opacity = '0.7';
@@ -3176,7 +3108,7 @@ Strict JSON Object.`;
         const contextParts = [];
         for (const [key, id] of Object.entries(fieldMap)) {
             const isLocked = !!State.fieldLocks?.[id];
-            const value = rel[key] || "(未填写)";
+            const value = rel[key] || "(未填�?";
             contextParts.push(`- ${key}: ${value}${isLocked ? " [已锁定]" : " [待生成]"} `);
         }
 
@@ -3189,7 +3121,7 @@ Strict JSON Object.`;
             wealth: char?.settings?.wealth_level || '不详'
         };
 
-        // [User Request] 获取用户人设（关系透镜双向读取）
+        // [User Request] 获取用户人设（关系透镜双向读取�?
         const s = window.sysStore;
         const userName = s.get('user_nickname') || s.get('user_realname') || '用户';
         const userPersona = s.get('user_persona') || '普通人，设定待补充';
@@ -3200,42 +3132,42 @@ Strict JSON Object.`;
             wealth: s.get('user_wealth') || '不详'
         };
 
-        if (window.os) window.os.showToast('正在多维度分析双向设定...', 'info', 3000);
+        if (window.os) window.os.showToast('正在多维度分析双向设�?..', 'info', 3000);
 
-        const prompt = `你是一个顶级角色构建专家。请基于双方的[人设档案]、[基础元数据]（年龄、性别、身份等）以及当前的[关系状态]，生成一套极具张力、自洽的关系设定。
+        const prompt = `你是一个顶级角色构建专家。请基于双方的[人设档案]、[基础元数据]（年龄、性别、身份等）以及当前的[关系状态]，生成一套极具张力、自洽的关系设定�?
 
 [角色 A: ${char?.name || '角色'}]
-    - 元数据: 年龄 ${charMeta.age}, 性别 ${charMeta.gender}, 族群 ${charMeta.species}, 经济状况 ${charMeta.wealth}
+    - 元数�? 年龄 ${charMeta.age}, 性别 ${charMeta.gender}, 族群 ${charMeta.species}, 经济状况 ${charMeta.wealth}
 - 核心人设: ${charPersona}
 
 [角色 B: ${userName}(用户)]
-    - 元数据: 年龄 ${userMeta.age}, 性别 ${userMeta.gender}, 族群 ${userMeta.species}, 经济状况 ${userMeta.wealth}
+    - 元数�? 年龄 ${userMeta.age}, 性别 ${userMeta.gender}, 族群 ${userMeta.species}, 经济状况 ${userMeta.wealth}
 - 核心人设: ${userPersona}
 
 [关系透镜当前状态]
 ${contextParts.join('\n')}
 
 [核心任务]
-1. ** 关系透镜(深度耦合) **：结合双方的人设、年龄身份差、颜值气场对比，挖掘独特的互动张力。
-   - ** 拒绝套路 **：禁止使用“高冷 / 回避”等万能模板。互动细节必须体现角色的颜值魅力与独特气质（如：对方位高权重、或者是那种清冷书卷气带来的距离感）。
-   - ** 人格一致性(核心约束) **：情感缺失或理性至上者即便好感满值也应维持其底色。所谓“变温柔”应当表现为符合其人设的、隐秘的秩序打破或特权给予，而非变为另一个感性的人。
-- public_relation: 对外的名义关系（如：合租室友、主仆、竞争对手等）。
-- char_to_user: 角色对用户的态度（区分表现出的 public 层和内心的 secret 层）。
-- user_to_char: 用户对角色的态度（同样区分 public 和 secret 层）。
-2. ** 阶段性表现(ladder_persona) **：
-- 生成 5 个阶段。随着好感度增长，角色的核心行为模式应有明显的演变。
-   - ** 人格一致性(核心约束) **：好感度阶段的表现必须是[角色人设]逻辑的自然延伸。如果角色天生缺乏情感或极度冷酷，即使好感满值，也应表现为该性格特有的偏爱（如：更频繁的逻辑交互、将其列为唯一特例、或行为上的战术护短），** 绝对禁止发生性格基调的扭转或出现不符合其设定的感性词汇。**
-   - ** 通用性原则 **：描述应涵盖通用的行为规律与情感边界的变化（不论是线上聊天还是线下相处）。
-- 每个阶段包含：affection_threshold(0, 20, 50, 80, 100) 和 content(该阶段的整体行为特征与情感倾向描述)。
+1. ** 关系透镜(深度耦合) **：结合双方的人设、年龄身份差、颜值气场对比，挖掘独特的互动张力�?
+   - ** 拒绝套路 **：禁止使用“高�?/ 回避”等万能模板。互动细节必须体现角色的颜值魅力与独特气质（如：对方位高权重、或者是那种清冷书卷气带来的距离感）�?
+   - ** 人格一致�?核心约束) **：情感缺失或理性至上者即便好感满值也应维持其底色。所谓“变温柔”应当表现为符合其人设的、隐秘的秩序打破或特权给予，而非变为另一个感性的人�?
+- public_relation: 对外的名义关系（如：合租室友、主仆、竞争对手等）�?
+- char_to_user: 角色对用户的态度（区分表现出�?public 层和内心�?secret 层）�?
+- user_to_char: 用户对角色的态度（同样区�?public �?secret 层）�?
+2. ** 阶段性表�?ladder_persona) **�?
+- 生成 5 个阶段。随着好感度增长，角色的核心行为模式应有明显的演变�?
+   - ** 人格一致�?核心约束) **：好感度阶段的表现必须是[角色人设]逻辑的自然延伸。如果角色天生缺乏情感或极度冷酷，即使好感满值，也应表现为该性格特有的偏爱（如：更频繁的逻辑交互、将其列为唯一特例、或行为上的战术护短），** 绝对禁止发生性格基调的扭转或出现不符合其设定的感性词汇�?*
+   - ** 通用性原�?**：描述应涵盖通用的行为规律与情感边界的变化（不论是线上聊天还是线下相处）�?
+- 每个阶段包含：affection_threshold(0, 20, 50, 80, 100) �?content(该阶段的整体行为特征与情感倾向描述)�?
 
 [输出格式]
-必须仅输出一个纯 JSON 对象。
+必须仅输出一个纯 JSON 对象�?
 {
-    "public_relation": "40-80字描述",
-        "char_to_user_public": "40-80字描述",
-            "char_to_user_secret": "40-80字描述",
-                "user_to_char_public": "40-80字描述",
-                    "user_to_char_secret": "40-80字描述",
+    "public_relation": "40-80字描�?,
+        "char_to_user_public": "40-80字描�?,
+            "char_to_user_secret": "40-80字描�?,
+                "user_to_char_public": "40-80字描�?,
+                    "user_to_char_secret": "40-80字描�?,
                         "ladder_persona": [
                             { "affection_threshold": 0, "content": "阶段表现描述" },
                             { "affection_threshold": 20, "content": "..." },
@@ -3246,9 +3178,9 @@ ${contextParts.join('\n')}
 }
 
 [文本风格约束]
-    - 严禁出现任何技术性、元指令或文学评论类词汇。
-- 🚫 严禁词汇: 逻辑、变量、bug、锚点、精密、阶梯、设定、描写、映射、模块、架构。
-- 采用生活化、情感化的自然语言，像是真正的人在描述自己的社交圈。
+    - 严禁出现任何技术性、元指令或文学评论类词汇�?
+- 🚫 严禁词汇: 逻辑、变量、bug、锚点、精密、阶梯、设定、描写、映射、模块、架构�?
+- 采用生活化、情感化的自然语言，像是真正的人在描述自己的社交圈�?
 
 输出 JSON：`;
 
@@ -3282,7 +3214,7 @@ ${contextParts.join('\n')}
 
             if (data) {
                 console.log('[RelationshipGen] Parsed Data:', data);
-                // 4. 应用修改 (使用局部变量 rel)
+                // 4. 应用修改 (使用局部变�?rel)
                 for (const [key, id] of Object.entries(fieldMap)) {
                     if (!State.fieldLocks?.[id]) {
                         const possibleKeys = [key, key.replace(/_/g, '-'), key.replace(/-/g, '_')];
@@ -3307,8 +3239,8 @@ ${contextParts.join('\n')}
                     }
                 }
 
-                if (window.os) window.os.showToast('✨ 关系设定已完成', 'success');
-                // [Fix] 显式传递 sessionId 和 rel，确保异步保存准确
+                if (window.os) window.os.showToast('�?关系设定已完�?, 'success');
+                // [Fix] 显式传�?sessionId �?rel，确保异步保存准�?
                 this.saveRelationshipChanges(true, sessionId, rel);
                 this.render();
             } else {
@@ -3327,7 +3259,7 @@ ${contextParts.join('\n')}
         }
     },
     /**
-     * [Enhanced] 保存关系变更，支持跨页面异步保存（显式传入 ID 和 Data）
+     * [Enhanced] 保存关系变更，支持跨页面异步保存（显式传�?ID �?Data�?
      */
     async saveRelationshipChanges(silent = false, sessionIdOverride = null, relOverride = null) {
         const sessionId = sessionIdOverride || State.activeSessionId;
@@ -3526,8 +3458,8 @@ ${contextParts.join('\n')}
 
     deleteStatusHistoryRecord(sessionId, timestamp) {
         this.openConfirmationModal({
-            title: '删除状态',
-            content: '确定要删除这条历史状态吗？删除后将无法恢复。',
+            title: '删除状�?,
+            content: '确定要删除这条历史状态吗？删除后将无法恢复�?,
             onConfirm: `window.WeChat.App.performDeleteStatusHistoryRecord('${sessionId}', ${timestamp})`
         });
     },
@@ -3550,7 +3482,7 @@ ${contextParts.join('\n')}
 
         if (this._msgPressTimer) clearTimeout(this._msgPressTimer);
 
-        // Preserve coordinates
+        // Capture coordinates synchronously!
         let clientX, clientY;
         if (e.touches && e.touches[0]) {
             clientX = e.touches[0].clientX;
@@ -3563,15 +3495,7 @@ ${contextParts.join('\n')}
         this._msgPressTimer = setTimeout(() => {
             this._msgLongPressed = true;
             this.showMsgMenu(msgId, clientX, clientY);
-        }, 500); // 500ms for long press
-    },
-
-    handleMsgContextMenu(e, msgId) {
-        e.preventDefault(); // Prevent default browser context menu
-        if (State.selectionMode || State.msgSelectionMode) return;
-
-        // Directly show menu on right click
-        this.showMsgMenu(msgId, e.clientX, e.clientY);
+        }, 400); // 400ms Trigger
     },
 
     handleMsgPressEnd() {
@@ -3579,45 +3503,47 @@ ${contextParts.join('\n')}
             clearTimeout(this._msgPressTimer);
             this._msgPressTimer = null;
         }
-        // Small delay
+        // Small delay to allow click event to detect longpress if needed
         setTimeout(() => { this._msgLongPressed = false; }, 200);
     },
 
     showMsgMenu(msgId, x, y) {
         // [Fix] Correct Selector Syntax (No spaces)
-        let el = document.querySelector(`.wx-bubble[data-msg-id="${msgId}"]`);
+        const el = document.querySelector(`.wx - bubble[data - msg - id="${msgId}"]`);
 
-        // Fallback for voice/transfer bubbles which might have the handler on the parent or different structure
-        if (!el) {
-            // Try finding by ID inside bubble content if needed, though data-msg-id should be on .wx-bubble
-            // But in bubbles.js, for voice, the valid element with data-msg-id is the .wx-bubble div
-        }
-
-        // NOTE: `.wx-bubble-menu` is `position: fixed` in CSS, so its coordinates must be viewport-based.
-        // Using container-relative coordinates will push the menu off-screen (and the transparent mask will block clicks).
-        const viewportW = window.innerWidth || 375;
+        const appEl = document.querySelector('.wechat-app');
+        const appWidth = appEl ? appEl.offsetWidth : window.innerWidth;
 
         if (el) {
             const rect = el.getBoundingClientRect();
-            let menuX = rect.left + rect.width / 2;
-            let menuY = rect.top;
+            // 获取相对�?app 容器的坐�?
+            const appRect = appEl ? appEl.getBoundingClientRect() : { left: 0, top: 0 };
+
+            let menuX = (rect.left - appRect.left) + rect.width / 2;
+            let menuY = (rect.top - appRect.top);
 
             // [Boundary Check] Menu max-width is 160px, centered means 80px on each side
             const halfMenuWidth = 80;
             if (menuX < halfMenuWidth + 10) {
                 menuX = halfMenuWidth + 10;
-            } else if (menuX > viewportW - (halfMenuWidth + 10)) {
-                menuX = viewportW - (halfMenuWidth + 10);
+            } else if (menuX > appWidth - (halfMenuWidth + 10)) {
+                menuX = appWidth - (halfMenuWidth + 10);
             }
 
             // [Safety] If the bubble is too close to the top, show the menu BELOW the bubble.
-            const isTooTop = rect.top < 160;
-            menuY = isTooTop ? (rect.bottom + 10) : (rect.top - 10);
+            const isTooTop = (rect.top - appRect.top) < (92 + 150);
+
+            if (isTooTop) {
+                menuY = (rect.bottom - appRect.top) + 10;
+            } else {
+                menuY = (rect.top - appRect.top) - 10;
+            }
 
             State.bubbleMenuPos = { x: menuX, y: menuY, isFlipped: isTooTop };
         } else {
-            // Absolute coordinates fallback (already viewport coords)
-            State.bubbleMenuPos = { x: x, y: y, isFlipped: false };
+            // Absolute coordinates fallback (need to adjust relative to container)
+            const appRect = appEl ? appEl.getBoundingClientRect() : { left: 0, top: 0 };
+            State.bubbleMenuPos = { x: x - appRect.left, y: y - appRect.top, isFlipped: false };
         }
 
         State.bubbleMenuOpen = true;
@@ -3644,7 +3570,7 @@ ${contextParts.join('\n')}
         const msg = msgs.find(m => String(m.id) === String(msgId));
         if (msg && msg.content && navigator.clipboard) {
             navigator.clipboard.writeText(msg.content);
-            if (window.os) window.os.showToast('已复制');
+            if (window.os) window.os.showToast('已复�?);
         }
         this.closeMsgMenu();
     },
@@ -3718,7 +3644,7 @@ ${contextParts.join('\n')}
             if (input) {
                 // Prepend quote
                 const escaped = msg.content.length > 50 ? msg.content.substring(0, 47) + '...' : msg.content;
-                input.value = `「${escaped}」\n----------------\n` + input.value;
+                input.value = `�?{escaped}」\n----------------\n` + input.value;
                 input.focus();
             }
         }
@@ -3762,7 +3688,7 @@ ${contextParts.join('\n')}
         if (State.selectedMsgIds.size === 0) return;
         this.openConfirmationModal({
             title: '删除消息',
-            content: `确定删除选中的 ${State.selectedMsgIds.size} 条消息吗？`,
+            content: `确定删除选中�?${State.selectedMsgIds.size} 条消息吗？`,
             onConfirm: () => {
                 if (window.sysStore && window.sysStore.deleteMessage) {
                     State.selectedMsgIds.forEach(id => {
@@ -3770,14 +3696,14 @@ ${contextParts.join('\n')}
                     });
                 }
                 this.exitMsgSelectionMode();
-                if (window.os) window.os.showToast('已删除');
+                if (window.os) window.os.showToast('已删�?);
             }
         });
     },
 
     renderMsgSelectionFooter() {
         return `
-    <div class="wx-msg-selection-footer">
+    < div class="wx-msg-selection-footer" >
                 <div class="wx-selection-footer-item" onclick="window.WeChat.App.openConfirmationModal({title:'转发', content:'转发功能开发中...', showCancel:false})">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 17 5 5 5-5"/><path d="M20 2v9a4 4 0 0 1-4 4H4"/><path d="m7 19-3-4 3-4"/></svg>
                 </div>
@@ -3790,7 +3716,7 @@ ${contextParts.join('\n')}
                 <div class="wx-selection-footer-item" onclick="window.WeChat.App.openConfirmationModal({title:'更多', content:'更多功能开发中...', showCancel:false})">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M11 4v16"/></svg>
                 </div>
-            </div>
+            </div >
     `;
     },
 
@@ -3990,7 +3916,7 @@ ${contextParts.join('\n')}
             const sysMsg = {
                 sender_id: 'system',
                 receiver_id: 'user',
-                content: JSON.stringify({ status: 'received', text: `已收款 ¥${amount} `, amount: amount }),
+                content: JSON.stringify({ status: 'received', text: `已收�?¥${amount} `, amount: amount }),
                 type: 'transfer_status'
             };
 
@@ -4055,8 +3981,6 @@ ${contextParts.join('\n')}
         if (State.voiceCallState.timer) clearInterval(State.voiceCallState.timer);
         const durationStr = State.voiceCallState.durationStr || '00:00';
         const sessionId = State.voiceCallState.sessionId;
-        const callStartTime = State.voiceCallState.startTime || Date.now();
-        const callEndTime = Date.now();
 
         State.voiceCallState.status = 'ended';
         State.voiceCallState.timer = null;
@@ -4070,10 +3994,11 @@ ${contextParts.join('\n')}
                 // Check if it was a real connected call
                 window.WeChat.Services.Chat.sendMessage(JSON.stringify({
                     duration: durationStr,
-                    summary: null, // Manual generation from the modal
-                    callStartTime,
-                    callEndTime
+                    summary: null // Pending generation
                 }), 'call_summary');
+
+                // Trigger AI Summary Generation
+                this.generateCallSummary(sessionId, durationStr);
             }
         }, 800);
     },
@@ -4083,9 +4008,9 @@ ${contextParts.join('\n')}
         const sessionId = State.voiceCallState.sessionId || State.activeSessionId;
 
         this.openPromptModal({
-            title: '在通话中输入消息',
+            title: '在通话中输入消�?,
             content: '',
-            placeholder: '请输入...',
+            placeholder: '请输�?..',
             onConfirm: (val) => {
                 if (val && val.trim()) {
                     // [Synchronization] Ensure session is set for Chat service
@@ -4108,7 +4033,7 @@ ${contextParts.join('\n')}
         if (window.WeChat.Services && window.WeChat.Services.Chat) {
             if (sessionId) window.WeChat.Services.Chat.openSession(sessionId);
             window.WeChat.Services.Chat.triggerAIReply();
-            if (window.os) window.os.showToast('已提醒对方回复');
+            if (window.os) window.os.showToast('已提醒对方回�?);
         }
     },
 
@@ -4141,8 +4066,7 @@ ${contextParts.join('\n')}
                 const data = JSON.parse(lastMsg.content);
                 data.summary = summary;
                 lastMsg.content = JSON.stringify(data);
-                // Persist (compat layer - in IndexedDB mode set() already persists, keep call for safety)
-                if (window.sysStore && window.sysStore.save) window.sysStore.save();
+                window.sysStore.save(); // Persist
                 if (window.WeChat.Services.Chat.updateUI) window.WeChat.Services.Chat.updateUI(lastMsg);
             }
         } catch (e) {
@@ -4151,120 +4075,22 @@ ${contextParts.join('\n')}
     },
 
     openCallSummary(msgId) {
-        const sessionId = State.activeSessionId;
-        const msgs = window.sysStore.getMessagesBySession(sessionId);
+        const msgs = window.sysStore.getMessagesBySession(State.activeSessionId);
         const msg = msgs.find(m => m.id === msgId);
         if (!msg) return;
-
-        let data = {};
-        try { data = JSON.parse(msg.content || '{}'); } catch (e) { data = {}; }
-
-        const duration = data.duration || '00:00';
-        const callStartTime = Number(data.callStartTime) || 0;
-        const callEndTime = Number(data.callEndTime) || 0;
-        const existingSummary = (typeof data.summary === 'string' && data.summary.trim()) ? data.summary.trim() : '';
-
-        // Build transcript for THIS call window only
-        let transcript = [];
-        if (callStartTime > 0 && callEndTime > 0 && callEndTime >= callStartTime) {
-            transcript = msgs
-                .filter(m => (m.type === 'text' || m.type === 'voice_text') && m.timestamp >= callStartTime && m.timestamp <= callEndTime)
-                .map(m => ({
-                    ts: m.timestamp,
-                    isMe: (m.sender_id === 'user' || m.sender_id === 'me'),
-                    text: String(m.content || '')
-                }));
-        } else {
-            // Fallback: last 30 text/voice_text messages
-            transcript = msgs
-                .filter(m => (m.type === 'text' || m.type === 'voice_text'))
-                .slice(-30)
-                .map(m => ({
-                    ts: m.timestamp,
-                    isMe: (m.sender_id === 'user' || m.sender_id === 'me'),
-                    text: String(m.content || '')
-                }));
-        }
-
-        State.callSummaryModal = {
-            open: true,
-            msgId,
-            sessionId,
-            duration,
-            callStartTime,
-            callEndTime,
-            transcript,
-            summary: existingSummary || ''
-        };
-        this.render();
-    },
-
-    closeCallSummaryModal() {
-        if (State.callSummaryModal) State.callSummaryModal.open = false;
-        this.render();
-    },
-
-    async generateCallSummaryForMsg(msgId) {
-        const sessionId = State.activeSessionId;
-        if (!sessionId || !window.sysStore) return;
-        if (!window.Core || !window.Core.Api || !window.Core.Api.chat) return;
-
-        const msgs = window.sysStore.getMessagesBySession(sessionId);
-        const msg = msgs.find(m => m.id === msgId);
-        if (!msg) return;
-
-        let data = {};
-        try { data = JSON.parse(msg.content || '{}'); } catch (e) { data = {}; }
-
-        const callStartTime = Number(data.callStartTime) || 0;
-        const callEndTime = Number(data.callEndTime) || 0;
-
-        // Filter transcript for this call window
-        let windowMsgs = [];
-        if (callStartTime > 0 && callEndTime > 0 && callEndTime >= callStartTime) {
-            windowMsgs = msgs.filter(m => (m.type === 'text' || m.type === 'voice_text') && m.timestamp >= callStartTime && m.timestamp <= callEndTime);
-        } else {
-            windowMsgs = msgs.filter(m => (m.type === 'text' || m.type === 'voice_text')).slice(-30);
-        }
-
-        const transcript = windowMsgs
-            .map(m => `${(m.sender_id === 'user' || m.sender_id === 'me') ? '我' : '对方'}：${String(m.content || '')}`)
-            .join('\n');
-
-        const prompt = `请把下面这次语音通话期间的聊天记录总结成中文，严格控制在200字以内。\n` +
-            `要求：\n` +
-            `1) 只写总结正文，不要标题，不要编号。\n` +
-            `2) 提炼关键事件、情绪与结论；避免空泛。\n\n` +
-            `【通话记录】\n${transcript}\n\n【总结(≤200字)】`;
 
         try {
-            if (window.os) window.os.showToast('正在生成总结...', 'info', 8000);
-            const summaryRaw = await window.Core.Api.chat([
-                { role: 'system', content: '你是一个擅长提炼要点的中文助手。' },
-                { role: 'user', content: prompt }
-            ]);
-            let summary = String(summaryRaw || '').trim();
-
-            // Frontend hard cap as a safety net (200 Chinese chars ~= 200 chars)
-            if (summary.length > 200) summary = summary.slice(0, 200);
-
-            data.summary = summary;
-            msg.content = JSON.stringify(data);
-            if (window.sysStore && window.sysStore.updateMessage) {
-                window.sysStore.updateMessage(msg.id, msg);
-            } else {
-                // Fallback: store array already mutated; nothing else needed.
-            }
-
-            if (State.callSummaryModal && State.callSummaryModal.open && State.callSummaryModal.msgId === msgId) {
-                State.callSummaryModal.summary = summary;
-            }
+            const data = JSON.parse(msg.content);
+            const summary = data.summary || '总结生成�?..';
+            // Show Modal
+            this.openPromptModal({
+                title: `通话总结(${data.duration})`,
+                content: summary,
+                isReadOnly: true
+            });
+            State.callSummaryModal = { open: true, summary: summary, duration: data.duration };
             this.render();
-            if (window.os) window.os.showToast('总结已生成', 'success');
-        } catch (e) {
-            console.error('Failed to generate call summary (manual)', e);
-            if (window.os) window.os.showToast('总结失败，请重试', 'error');
-        }
+        } catch (e) { }
     },
 
     minimizeVoiceCall() {
