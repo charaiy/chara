@@ -42,8 +42,8 @@ window.WeChat.Views = {
 
         let lastTime = 0;
         const listHtml = messages.map(m => {
-            // [Fix] Skip voice_text messages in main chat
-            if (m.type === 'voice_text') return '';
+            // [Fix] Skip voice-call specific messages in main chat
+            if (m.type && m.type.startsWith('voice_')) return '';
 
             let html = '';
             // Time Logic: 5-minute rule
@@ -71,7 +71,7 @@ window.WeChat.Views = {
             <div class="wx-chat-footer-container">
                 <div class="wx-chat-footer">
                     <!-- Voice Icon (Now AI Smart Reply) -->
-                    <div class="wx-chat-btn" onclick="window.WeChat.Services.Chat.triggerSmartReply()">
+                    <div class="wx-chat-btn" id="wx-smart-reply-btn" onclick="window.WeChat.Services.Chat.triggerSmartReply()">
                         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8">
                             <circle cx="12" cy="12" r="9"/>
                             <path d="M12 7.5v9M8.5 10v4M15.5 10v4" stroke-linecap="round"/>
@@ -132,7 +132,7 @@ window.WeChat.Views = {
                     <div class="wx-extra-grid">
                         <div class="wx-extra-item" onclick="window.WeChat.App.triggerPhotoUpload()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div><span>照片</span></div>
                         <div class="wx-extra-item" onclick="window.WeChat.App.triggerCamera()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></div><span>拍摄</span></div>
-                        <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div><span>视频通话</span></div>
+                        <div class="wx-extra-item" onclick="window.WeChat.App.triggerVideoCall()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div><span>视频通话</span></div>
                         <div class="wx-extra-item" onclick="window.WeChat.App.triggerLocation()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div><span>位置</span></div>
                         <div class="wx-extra-item" onclick="window.WeChat.App.triggerVoiceCall()"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/></svg></div><span>语音通话</span></div>
                         <div class="wx-extra-item"><div class="wx-extra-icon"><svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.65-.5-.65C10.96 2.54 10.05 2 9 2c-1.66 0-3 1.34-3 3 0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36 2.38 3.24L16.99 11 14.92 8H20v6z"/></svg></div><span>礼物</span></div>
@@ -1086,6 +1086,7 @@ window.WeChat.Views = {
     renderAddFriend() {
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
         const pageBg = isDark ? '#111111' : '#EDEDED';
+        const appState = window.WeChat.App.State;
 
         return `
             <div class="wx-scroller" id="wx-view-add-friend" style="background-color: ${pageBg};">
@@ -1093,7 +1094,7 @@ window.WeChat.Views = {
                 
                 <div style="padding: 16px 24px;">
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <img id="wx-add-friend-avatar" src="${State.newFriendAvatar || 'assets/images/avatar_placeholder.png'}" 
+                        <img id="wx-add-friend-avatar" src="${appState.newFriendAvatar || 'assets/images/avatar_placeholder.png'}" 
                              onclick="window.WeChat.App.triggerAvatarUpload('new_friend')"
                              style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
                         <div style="font-size: 13px; color: var(--wx-text-sec); margin-top: 8px;">点击更换头像</div>
@@ -1137,7 +1138,7 @@ window.WeChat.Views = {
                     <div style="background: var(--wx-cell-bg); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
                         <input id="wx-add-friend-species" ${this._lockAttr('wx-add-friend-species')}
                             style="width: 100%; border: none; background: transparent; font-size: 16px; color: var(--wx-text); outline: none;"
-                            placeholder="如：人类、猫娘" />
+                            value="人类" placeholder="如：人类、猫娘" />
                     </div>
 
                     <div style="font-size: 14px; color: var(--wx-text-sec); margin-bottom: 8px;">性别</div>
@@ -2199,32 +2200,26 @@ window.WeChat.Views = {
 
         // Subtitles Logic
         let subtitlesHtml = '';
-        if (state.status === 'connected') {
-            const msgs = window.sysStore ? window.sysStore.getMessagesBySession(state.sessionId) : [];
-            // Slice removed to allow full history scrolling as per user request
-            const recentMsgs = msgs;
+        const msgs = window.sysStore ? window.sysStore.getMessagesBySession(state.sessionId) : [];
+        let items = '';
+        const effectiveStartTime = (state.dialStartTime || state.startTime || 0) - 2000;
 
-            let items = '';
-            const callStartTime = state.startTime || 0;
+        msgs.forEach(msg => {
+            const isMe = msg.sender_id === 'me' || msg.sender_id === 'user' || msg.sender_id === 'my';
+            const text = msg.content;
 
-            recentMsgs.forEach(msg => {
-                // [Feature] Only show messages that occurred AFTER the voice call started
-                // This ensures we only see the dialogue from the current call session
-                if (msg.timestamp && Number(msg.timestamp) < callStartTime) return;
-
-                const isMe = msg.sender_id === 'me';
-                const text = msg.content;
-                // Filter non-text or simple text
+            // Only show messages from THIS call session
+            if (msg.timestamp >= effectiveStartTime) {
                 if (msg.type === 'text' || msg.type === 'voice_text') {
                     items += `<div class="wx-call-subtitle-item ${isMe ? 'me' : ''}">${text}</div>`;
                 }
-            });
-
-            if (items) {
-                // Auto-scroll script injection
-                const scrollScript = `<img src="" onerror="setTimeout(() => { const el = document.getElementById('wx-call-subs'); if(el) el.scrollTop = el.scrollHeight; }, 10); this.remove();" style="display:none;">`;
-                subtitlesHtml = `<div class="wx-call-subtitles" id="wx-call-subs">${items}${scrollScript}</div>`;
             }
+        });
+
+        if (items || state.status === 'connected') {
+            // Auto-scroll script injection - Enhanced
+            const scrollScript = `<img src="x" onerror="setTimeout(() => { const el = document.getElementById('wx-call-subs'); if(el) { el.scrollTop = el.scrollHeight; } }, 50); this.remove();" style="display:none;">`;
+            subtitlesHtml = `<div class="wx-call-subtitles" id="wx-call-subs">${items}${scrollScript}</div>`;
         }
 
         // Buttons logic
@@ -2240,12 +2235,20 @@ window.WeChat.Views = {
                 </div>
             `;
         } else if (state.status === 'connected') {
+            const isThinking = window.WeChat.App.State.isTyping;
+            const replyIcon = isThinking ?
+                `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="wx-spin" style="animation: wx-spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke="white" stroke-opacity="0.2"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="white"></path>
+                </svg>` :
+                `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+
             buttonsHtml = `
-                <div class="wx-call-btn-group">
-                    <div class="wx-call-btn" onclick="window.WeChat.App.triggerVoiceCallReply()">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <div class="wx-call-btn-group" id="wx-vcall-reply-btn-group" style="${isThinking ? 'pointer-events: none; opacity: 0.8;' : ''}">
+                    <div class="wx-call-btn" id="wx-vcall-reply-btn" onclick="window.WeChat.App.triggerVoiceCallReply()">
+                        ${replyIcon}
                     </div>
-                    <span class="wx-call-btn-label">回复</span>
+                    <span class="wx-call-btn-label">${isThinking ? '回复中' : '回复'}</span>
                 </div>
 
                 <div class="wx-call-btn-group">
@@ -2300,7 +2303,7 @@ window.WeChat.Views = {
                     </div>
                     
                     <div class="wx-call-info" style="${subtitlesHtml ? 'margin-top: 20px; flex: 0 0 auto;' : 'flex: 1; justify-content: center; margin-top: -60px;'}">
-                         <img src="${avatar}" class="wx-call-avatar ${pulseClass}" onerror="this.src='assets/images/avatar_placeholder.png'">
+                         <img src="${avatar}" class="wx-call-avatar ${pulseClass}" onclick="window.WeChat.App.openCharacterPanel('${state.sessionId}')" style="cursor: pointer; object-fit: cover;" onerror="this.src='assets/images/avatar_placeholder.png'">
                          <div class="wx-call-name">${name}</div>
                          <div class="wx-call-status" id="wx-call-status-text">${statusText}</div>
                     </div>
@@ -2314,43 +2317,157 @@ window.WeChat.Views = {
             </div>
         `;
     },
+
+    renderVideoCallModal(state) {
+        if (!state.open) return '';
+
+        const avatar = state.avatar || 'assets/images/avatar_placeholder.png';
+        const name = state.name || 'Unknown';
+        const statusText = state.status === 'dialing' ? '正在等待对方接受邀请...' :
+            state.status === 'connected' ? (state.durationStr || '00:00') :
+                state.status === 'ended' ? '通话结束' : '...';
+
+        const pulseClass = (state.status === 'dialing') ? 'pulsing' : '';
+        const blurStyle = `background-image: url('${avatar}');`;
+
+        // Subtitles Logic
+        let subtitlesHtml = '';
+        const msgs = window.sysStore ? window.sysStore.getMessagesBySession(state.sessionId) : [];
+        let items = '';
+        const effectiveStartTime = (state.dialStartTime || state.startTime || 0) - 2000;
+
+        msgs.forEach(msg => {
+            const isMe = msg.sender_id === 'me' || msg.sender_id === 'user' || msg.sender_id === 'my';
+            const text = msg.content;
+
+            // Only show messages from THIS call session
+            if (msg.timestamp >= effectiveStartTime) {
+                if (msg.type === 'text' || msg.type === 'voice_text') {
+                    items += `<div class="wx-call-subtitle-item ${isMe ? 'me' : ''}">${text}</div>`;
+                }
+            }
+        });
+
+        if (items || state.status === 'connected') {
+            const scrollScript = `<img src="x" onerror="setTimeout(() => { const el = document.getElementById('wx-vcall-subs'); if(el) { el.scrollTop = el.scrollHeight; } }, 50); this.remove();" style="display:none;">`;
+            subtitlesHtml = `<div class="wx-call-subtitles" id="wx-vcall-subs">${items}${scrollScript}</div>`;
+        }
+
+        // Buttons logic
+        let buttonsHtml = '';
+
+        if (state.status === 'dialing' || state.status === 'waiting') {
+            buttonsHtml = `
+                <div class="wx-call-btn-group">
+                    <div class="wx-call-btn hangup" onclick="window.WeChat.App.endVideoCall()">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    </div>
+                    <span class="wx-call-btn-label">取消</span>
+                </div>
+            `;
+        } else if (state.status === 'connected') {
+            const isThinking = window.WeChat.App.State.isTyping;
+            const replyIcon = isThinking ?
+                `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="wx-spin" style="animation: wx-spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke="white" stroke-opacity="0.2"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="white"></path>
+                </svg>` :
+                `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+
+            buttonsHtml = `
+                <div class="wx-call-btn-group" id="wx-vcall-reply-btn-group" style="${isThinking ? 'pointer-events: none; opacity: 0.8;' : ''}">
+                    <div class="wx-call-btn" id="wx-vcall-reply-btn" onclick="window.WeChat.App.triggerVideoCallReply()">
+                        ${replyIcon}
+                    </div>
+                    <span class="wx-call-btn-label">${isThinking ? '回复中' : '回复'}</span>
+                </div>
+
+                <div class="wx-call-btn-group">
+                    <div class="wx-call-btn hangup" onclick="window.WeChat.App.endVideoCall()">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    </div>
+                    <span class="wx-call-btn-label">挂断</span>
+                </div>
+                
+                <div class="wx-call-btn-group">
+                    <div class="wx-call-btn" onclick="window.WeChat.App.triggerVideoCallInput()">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="6" y1="16" x2="6" y2="16"></line><line x1="10" y1="16" x2="14" y2="16"></line><line x1="18" y1="16" x2="18" y2="16"></line></svg>
+                    </div>
+                    <span class="wx-call-btn-label">输入</span>
+                </div>
+            `;
+        }
+
+        return `
+            <style>
+                .wx-vcall-modal { position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; background: #222; display: flex; flex-direction: column; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+                .wx-vcall-bg-blur { position: absolute; top: -20px; left: -20px; right: -20px; bottom: -20px; background-size: cover; background-position: center; filter: blur(30px) brightness(0.6); z-index: -1; }
+                .wx-vcall-content { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; }
+                .wx-vcall-header { height: 60px; display: flex; align-items: center; padding: 0 16px; }
+                .wx-vcall-minimize { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%; cursor: pointer; }
+                .wx-vcall-info { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.3s ease; }
+                .wx-vcall-avatar { width: 100px; height: 100px; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.3); margin-bottom: 20px; }
+                .wx-vcall-avatar.pulsing { animation: wx-ripple 2s infinite; }
+                .wx-vcall-name { font-size: 24px; font-weight: 500; margin-bottom: 12px; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+                .wx-vcall-status { font-size: 16px; color: rgba(255,255,255,0.7); font-weight: 400; }
+                .wx-vcall-actions { width: 100%; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 40px 40px 40px; box-sizing: border-box; }
+            </style>
+            <div class="wx-vcall-modal">
+                <div class="wx-vcall-bg-blur" style="${blurStyle}"></div>
+                
+                <div class="wx-vcall-content">
+                    <div class="wx-vcall-header">
+                        <div class="wx-vcall-minimize" onclick="window.WeChat.App.minimizeVideoCall()">
+                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                        </div>
+                    </div>
+                    
+                    <div class="wx-vcall-info" style="${subtitlesHtml ? 'margin-top: 20px; flex: 0 0 auto;' : 'flex: 1; justify-content: center; margin-top: -60px;'}">
+                         <img src="${avatar}" class="wx-vcall-avatar ${pulseClass}" onclick="window.WeChat.App.openCharacterPanel('${state.sessionId}')" style="cursor: pointer; object-fit: cover;" onerror="this.src='assets/images/avatar_placeholder.png'">
+                         <div class="wx-vcall-name">${name}</div>
+                         <div class="wx-vcall-status" id="wx-vcall-status-text">${statusText}</div>
+                    </div>
+                    
+                    ${subtitlesHtml}
+
+                    <div class="wx-vcall-actions">
+                        ${buttonsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     renderCallSummaryModal(state) {
         if (!state.open) return '';
 
         const duration = state.duration || '00:00';
         const transcript = Array.isArray(state.transcript) ? state.transcript : [];
-        const hasSummary = !!(state.summary && String(state.summary).trim());
 
         const transcriptHtml = transcript.length
             ? transcript.map(item => {
                 const isMe = !!item.isMe;
                 const text = String(item.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return `<div class="wx-call-subtitle-item ${isMe ? 'me' : ''}">${text}</div>`;
+                return `<div class="wx-call-subtitle-item ${isMe ? 'me' : ''}">
+                    <div style="font-size: 11px; opacity: 0.6; margin-bottom: 2px; font-weight: 500;">${item.senderName}</div>
+                    ${text}
+                </div>`;
             }).join('')
             : `<div style="padding: 12px; color: #999; font-size: 13px; text-align: center;">本次通话没有记录</div>`;
 
         return `
             <div class="wx-modal-overlay active" style="z-index: 20006;" onclick="if(event.target===this) window.WeChat.App.closeCallSummaryModal()">
                 <div class="wx-modal-container show" style="width: 330px; padding: 0; background: white; border-radius: 12px; overflow: hidden;" onclick="event.stopPropagation()">
-                    <div style="padding: 14px 14px 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="padding: 14px 14px 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06);">
                         <div style="display:flex; flex-direction:column;">
                             <div style="font-size: 16px; font-weight: 600; color:#111;">通话记录</div>
                             <div style="font-size: 12px; color: #888; margin-top: 2px;">时长: ${duration}</div>
                         </div>
-                        <div style="font-size: 14px; font-weight: 600; color: #07c160; cursor: pointer;"
-                             onclick="window.WeChat.App.generateCallSummaryForMsg('${state.msgId}')">${hasSummary ? '重新总结' : '总结'}</div>
                     </div>
 
                     <div style="padding: 12px 14px 10px 14px;">
-                        ${hasSummary ? `
-                            <div style="font-size: 13px; color:#666; margin-bottom: 8px;">总结(≤200字)</div>
-                            <div style="font-size: 14px; color: #333; line-height: 1.6; white-space: pre-wrap; background: #f5f5f5; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; max-height: 140px; overflow-y: auto;">${String(state.summary).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                        ` : `
-                            <div style="font-size: 13px; color:#999; margin-bottom: 10px;">未生成总结，点击右上角「总结」即可生成</div>
-                        `}
-
                         <div style="font-size: 13px; color:#666; margin-bottom: 8px;">通话期间记录</div>
-                        <div class="wx-call-subtitles" style="max-height: 320px; margin: 0; padding: 0; mask-image: none; -webkit-mask-image: none;">
+                        <div class="wx-call-subtitles" style="max-height: 400px; display: block; overflow-y: auto; margin: 0; padding: 0 4px; mask-image: none; -webkit-mask-image: none;">
                             ${transcriptHtml}
                         </div>
                     </div>
@@ -2410,8 +2527,47 @@ window.WeChat.Views = {
      * 渲染 Confirmation 确认模态框（备用）
      * 主逻辑在 index.js 的 renderModals 中已处理
      */
+    /**
+     * 渲染通话悬浮小窗
+     */
+    renderFloatingCallBubble(state) {
+        if (!state.open || !state.minimized) return '';
+        const char = window.sysStore ? window.sysStore.getCharacter(state.sessionId) : null;
+        const avatar = char?.avatar || 'assets/images/avatar_placeholder.png';
+        const duration = state.durationStr || '00:00';
+        // 判断是语音通话还是视频通话
+        const isVideoCall = window.State && window.State.videoCallState && window.State.videoCallState.open && window.State.videoCallState.sessionId === state.sessionId;
+        const restoreFunc = isVideoCall ? 'restoreVideoCall' : 'restoreVoiceCall';
+        const iconPath = isVideoCall ? 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z' : 'M12 20V10M18 15V9M6 15v-6';
+
+        return `
+            <div id="wx-vcall-mini" onclick="window.WeChat.App.${restoreFunc}()" 
+                 style="position: fixed; top: 120px; right: 12px; width: 62px; height: 62px; z-index: 10001; cursor: pointer; animation: wx-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); touch-action: none;">
+                <style>
+                    @keyframes wx-pop-in { from { transform: scale(0) rotate(-20deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+                    @keyframes wx-mini-pulse { 0% { box-shadow: 0 0 0 0 rgba(7, 193, 96, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(7, 193, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(7, 193, 96, 0); } }
+                </style>
+                <div style="position: relative; width: 100%; height: 100%; animation: wx-mini-pulse 2s infinite;">
+                    <!-- Avatar Area -->
+                    <img src="${avatar}" style="width: 100%; height: 100%; border-radius: 50%; border: 2px solid #07c160; object-fit: cover; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
+                    
+                    <!-- Duration Badge -->
+                    <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); background: #07c160; color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; white-space: nowrap; font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.15); letter-spacing: 0.5px;">
+                        ${duration}
+                    </div>
+
+                    <!-- Call Type Indicator Overlay -->
+                    <div style="position: absolute; top: 0; right: 0; background: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 1px solid #eee;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#07c160" stroke-width="${isVideoCall ? '2' : '3'}" stroke-linecap="round" stroke-linejoin="round" fill="${isVideoCall ? '#07c160' : 'none'}">
+                            <path d="${iconPath}"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     renderConfirmationModal() {
-        // 主要的确认模态框逻辑在 index.js 的 renderModals 中，这里返回空
         return '';
     }
 };

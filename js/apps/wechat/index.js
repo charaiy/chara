@@ -12,13 +12,15 @@ const DEFAULT_SUMMARY_PROMPT = `禁止私自编造不存在的内容!
 进行summary时，必须精准提取内容，不遗漏任何锚点的重要细节，完美判断角色和用户的关系发展，必须直白且如实总结时间节点和故事发展，每件事的叙述控制在最多50字左右，此外再包含重要日期+时间节点即可。
 
 长期记忆summary格式为：
-当前年份日期星期时间/具体地点，角色的第一人称总结与用户发生的事件，禁止太过于主观!
+当前年份日期星期时间/具体地点，角色的第三人称总结（请使用角色名或“他/她”来称呼角色，使用“你”或用户姓名来称呼用户），禁止太过于主观!
 
-## 示例：“线上(线下）/2025年4月2日8:30，星期三，我和（用户真名）聊了关于早餐的话题。”
+## 示例：“线上(线下）/2025年4月2日8:30，星期三，(角色名)和你聊了关于早餐的话题。”
 
 ## 精炼记忆时禁止偷懒输出token count，必须进行正确的精炼
 
-##图片禁止总结为“发了一张图片/个人照片”，必须说明是什么图片，如果只是表情包则禁止总结在其中!!`;
+## 图片禁止总结为“发了一张图片/个人照片”，必须说明是什么图片，如果只是表情包则禁止总结在其中!!
+    
+## 语音通话特别说明：如果记录中出现 [语音通话] 标签的消息，说明这些对话是通话期间产生的，请将其统一总结为“我们进行了一次语音通话，聊了xx”，禁止将其总结为文字聊天后再进行通话!!`;
 
 const State = {
     currentTab: 0,
@@ -68,6 +70,7 @@ const State = {
     videoCallModalOpen: false,
     activeCallSessionId: null,
     voiceCallState: { open: false, sessionId: null, status: 'dialing', startTime: null, timer: null },
+    videoCallState: { open: false, sessionId: null, status: 'dialing', startTime: null, timer: null },
     cameraError: null,
 
     // Custom Modals
@@ -534,7 +537,7 @@ window.WeChat.App = {
 
         const fieldKeys = [
             'real-name', 'bio', 'region', 'region-mapping', 'wealth',
-            'species', 'birthday', 'age', 'nickname', 'persona', 'remark',
+            'species', 'birthday', 'age', 'nickname', 'persona',
             'gender', 'period-start',
             'public_relation', 'char_to_user_public', 'char_to_user_secret', 'user_to_char_public', 'user_to_char_secret'
         ];
@@ -592,12 +595,28 @@ window.WeChat.App = {
 
         if (window.os) window.os.showToast(targetFieldId ? 'AI 正在思考中...' : 'AI 正在构思全套人设...', 'info', 5000);
 
+        // [UI Feedback] Set target fields to "Generating..." status
+        targets.forEach(t => {
+            const el = document.getElementById(t.id);
+            if (el) {
+                if (el.tagName === 'SELECT') {
+                    // Temporarily add a "Generating" option if needed or just set text
+                    const originalText = el.options[el.selectedIndex]?.text;
+                    el.setAttribute('data-original-text', originalText);
+                    // Use a simple prompt/placeholder approach
+                } else {
+                    el.value = '正在生成中...';
+                }
+                el.style.opacity = '0.6';
+            }
+        });
+
         // 3. 构建 Prompt
         let contextStr = fields.map(f => `- ${f.key}: ${f.value || '(未填写)'}${f.isLocked ? ' [已锁定]' : ''}`).join('\n');
 
         // [Associated Character Generation Logic]
         if (type === 'add' && State.genContext) {
-            contextStr += `\n\n[关联人物生成上下文]\n你正在生成的人物是【${State.genContext.sourceName}】的【${State.genContext.relation}】。\n${State.genContext.sourceName}的人设概要：\n${State.genContext.sourcePersona}\n\n[关联生成特殊指令]\n1. 请在【生活图谱 - 人际关系】中，明确写出与【${State.genContext.sourceName}】的关系。\n2. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${State.genContext.sourceName}】的更新文本，格式如下：\n\n[SourceUpdate]\n在此输出一段文本，这段文本将被追加到【${State.genContext.sourceName}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。\n[/SourceUpdate]`;
+            contextStr += `\n\n[关联人物生成上下文]\n你正在生成的人物是【${State.genContext.sourceName}】的【${State.genContext.relation}】。\n${State.genContext.sourceName}的人设概要：\n${State.genContext.sourcePersona}\n\n[关联生成特殊指令]\n1. **独立人格要求**：尽管该角色与【${State.genContext.sourceName}】有关联，但他/她必须是一个**完全独立、鲜活且具有完整人生轨迹**的个体。他/她应有属于自己的核心驱动力、社交圈和不为人知的秘密，而非仅仅作为源角色的附属品或剧情工具人。\n2. 请在【生活图谱 - 人际关系】中，明确写出与【${State.genContext.sourceName}】的关系。\n3. 在输出的最后（JSON闭合之后），请额外附带一段给源人物【${State.genContext.sourceName}】的更新文本，格式如下：\n\n[SourceUpdate]\n在此输出一段文本，这段文本将被追加到【${State.genContext.sourceName}】的人设中的“人际关系”部分，用于描述他/她与这位新角色的关系。\n[/SourceUpdate]`;
         }
 
         const targetKeys = targets.map(t => t.key).join(', ');
@@ -611,11 +630,12 @@ ${contextStr}
 请为字段 ${targetKeys} 生成内容。
 
 [核心创作戒律]
-1.  反模版化：拒绝刻板印象。尤其是在亲密关系中，严禁默认使用“回避型依恋”。请根据背景随机分配依恋人格（如：安全型、渴望型、恐惧型或完全的直球火热型）。
-2.  视觉非扁平化：不要只用“顶级神颜/帅气”这种空洞词汇。请描述一种具有辨识度的美或丑，重点在于“骨相、肤质、独有的神态与气场（ Aura）”。无论是惊艳、清透、粗犷还是普普通通，都要写出它带给人的具体压迫感、亲和力或吸引力。
-3.  内容量：Roleplay Prompt (Persona) 必须充实，建议1000字以上，确保高保真度。
-4.    - 人格一致性（核心红线）：阶段性人设的表现必须严禁遵循主要人设的性格底色。如果主要人设是“情感缺失”或“理性至上”，那么即使在最高好感阶段，也应当表现为该性格下的特有偏好（如：更优先的数据交互、特殊的行为允许），**严禁出现违背人设的感性爆发或性格剧变**。
-5.  排版要求 (Formatting)：在 main_persona 等文本字段中，**请务必使用 Markdown 的无序列表符号 (* 或 -) 进行分点**，确保内容结构清晰。请避免输出成一大段不分行的文字。
+1.  **拒绝文艺范与人机感**：文字必须“说人话”。严禁堆砌华丽但空洞的辞藻，严禁使用翻译腔或AI特有的程式化感叹。想象你是在写一份真实的档案或一个活生生的人的小传，语感要自然、平实、通俗，具备生活气息。读起来应当像真人手写的一样流畅，而非AI生成的范文。
+2.  **反模版化**：拒绝刻板印象。尤其是在亲密关系中，严禁默认使用“回避型依恋”。请根据背景随机分配依恋人格（如：安全型、渴望型、恐惧型或完全的直球火热型）。
+3.  **视觉非扁平化**：不要只用“顶级神颜/帅气”这种空洞词汇。请描述一种具有辨识度的美或丑，重点在于“骨相、肤质、独有的神态与气场（ Aura）”。无论是惊艳、清透、粗犷还是普普通通，都要写出它带给人的具体压迫感、亲和力或吸引力。
+4.  **硬性字数控制 (TOKEN LIMIT)**：Roleplay Prompt (Persona) 必须充实，总字数**必须严格控制在 1000 字以上，1300 字以下**。严禁超过 1300 字（约 2000 Tokens），请通过物理删除无意义的形容词来提升信息浓度，拒绝任何废话。
+5.    - 人格一致性（核心红线）：阶段性人设的表现必须严禁遵循主要人设的性格底色。如果主要人设是“情感缺失”或“理性至上”，那么即使在最高好感阶段，也应当表现为该性格下的特有偏好（如：更优先的数据交互、特殊的行为允许），**严禁出现违背人设的感性爆发或性格剧变**。
+6.  **排版要求 (Formatting)**：在 main_persona 等文本字段中，**请务必使用 Markdown 的无序列表符号 (* 或 -) 进行分点**，确保内容结构清晰。请避免输出成一大段不分行的文字。
 
 [禁词检测与强制替换 (Strict Forbidden List)]
 1. 分类避讳清单 (用更生动的描写替代):
@@ -637,74 +657,34 @@ ${contextStr}
    - 格式要求：在JSON之前，输出一段注释：
      <!-- 禁词风险X: 检测到可能使用[禁词A]。将调整为[替代方案B]。绝不会使用“石子/涟漪/投入”或“逻辑/变量/锚点”等绝对禁词。 -->
 
-[Persona (main_persona) 内容结构 - 纯文本设定]
-请将这部分内容完整写入 main_persona 字段。
-**注意：不要包含“社交展示面”的具体字段（如网名、签名），那些需要单独输出。**
+[Persona 内容结构]
+请将以下核心属性合并后写入 persona 字段。
+**严禁在字段内容中重复输出字段名。直接输出内容细节。**
 
-1.  基础档案：姓名、年龄、身高、具体的社会身份（职业/学校/经济状况）。
-2.  外貌与独特气场 (Appearance & Aura)：
-    - 视觉特征：五官的精致程度与辨识度，特有的生理特征（如泪痣、细微伤疤）。
-    - 气质定调：散发出的核心氛围（如：清冷感、野性、书卷气、或是让人不安的侵略感）。
-    - 穿搭细节：反映其阶层与品味的穿衣习惯。
-3.  个人编年史 (Timeline)：
-    - 0-12岁：家庭背景、成长环境与早期记忆。
-    - 12-18岁：校园生活、青春期经历与性格成型。
-    - 18岁-至今：人生轨迹、职业/学业发展与当前现状。
-3.  性格透视：
-    - Public (对外)：对外展示的性格侧面与社交行为模式。
-    - Private (对内)：内在的真实性格、情绪状态与自我认知。
-    - Romantic (恋爱)：亲密关系中的依恋类型与相处模式。
-    - Conflict (冲突)：在压力或争吵下的应激反应与解决矛盾的方式。
-4.  深层心理 (Critical)：
-    - 核心欲望 (Core Desire)：角色行为背后的根本驱动力。
-    - 绝对底线 (Bottom Line)：绝不妥协的道德或行为底线。
-5.  核心观念体系 (Beliefs)：
-    - 配置原则：拒绝文艺腔
-    - 世界观：对外部世界的底层认知。
-    - 人生观：认为人活着的目的是什么。
-    - 价值观：在利益权衡中，什么最重要（钱/名声/义气/安稳）。
-    - 感情观：对待伴侣和性的真实态度。
-    - 道德观：自我约束的边界在哪里。
-    - 性取向：异性恋/同性恋/双性恋/无性恋。和喜欢的类型。
-6.  生活图谱：
-    - 日常行程：典型的一天作息与活动安排。
-    - 喜好/厌恶（具体的书/影/音/食物）。
-    - NSFW（性观念简述）。
-    - 人际关系：简述核心社交圈及关键人物。
-7.  数字通讯生态 (Digital Ecology)：
-    - 通讯风格：打字习惯（标点/Emoji/句式）、回复速度（秒回/轮回）、语音偏好。
-    - 朋友圈画风：更新频率、内容类型（生活记录/工作展示/仅三天可见）、互动习惯。
-8.  AI扮演指南 (Meta)：
-    - 人设理解：一句话概括角色的核心特质。
-    - 避坑指南 (What NOT to do)：扮演该角色时需避免的OOC行为。
-    - 口头禅/语言风格：标志性的用词习惯或句式结构。
+- **档案与特征**：基本信息及极具辨识度的外貌气场、穿搭习惯。
+- **生平与现状**：简洁的编年史（童年、校园、职业生涯至今）。
+- **多维性格**：对外社交面具、对内真实心声、冲突下的应激反应。
+- **精神内核**：欲望驱动力、处事底线、核心观念体系（三观）。
+- **生活图谱**：日常作息、NSFW观念。**人际关系（如是关联生成，重点描写与源人物的独立契合/冲突）**。
+- **扮演指南**：核心特质摘要、禁忌行为、标志性口头禅。
 
-[Metadata Fields (独立元数据) - 仅输出JSON键值]
-**严禁将以下内容写入 main_persona 文本中！它们必须作为独立的 JSON key 返回。**
+[Metadata Fields]
+- nickname: 网络 ID (字数 < 7)
+- bio: 签名 (字数 < 20)
+- region: 微信显示地区
+- region_mapping: 真实城市 English Name
+- wealth_level: 财富标签 (4字以内)
+- remark: 用户备注
 
-- nickname (角色在网络上的名字): 短小精悍，符合人设（字数 < 7）。
-- bio (角色在网络上的签名): 句意通顺，切忌长篇大论（字数 < 20）。
-- region (展示地区): 微信上显示的地区（如“冰岛”、“上海 黄浦”）。
-- region_mapping (现实映射): 用于同步天气/时区的真实城市 English Name（如 "Shanghai"）。
-- wealth_level (财富标签): 简短的经济状态描述（如“负债累累”、“中产小资”）。
-- remark (用户备注): 用户视角的备注（如“老板”、“那个谁”）。
-
-[Relationship System (关系体系) - 严禁OOC]
-此部分用于配置角色与用户的关系网，必须完全基于【Persona】进行符合直觉的自然演化。
-
-1.  基础关系矩阵 (Matrix)：
-    - public_relation (公开关系)：基于身份设定的合理社会关系。
-    - char_to_user_public (明面态度)：角色在旁人面前如何对待用户（基于Public Settings）。
-    - char_to_user_secret (私下态度)：角色内心如何看待用户（基于Private Settings）。
-    - 状态检查：确保明面态度与私下态度符合人设自然直觉（注意检查表里不一或一致性的合理性）。
-
-2.  Ladder Content (关系管理 - 情感递进规律)：
-    - 生成 5 个阶段。随着好感度增长，角色的行为重心应有明显的演变。
-    - **人格一致性 (核心要求)**：阶段表现必须严谨遵循角色的人设底色。如果角色设定为“情感缺失”、“无机质”或“极致理智”，那么随好感度增长的表现应当是其特有逻辑下的延伸（如：将其纳为高优先级观察对象、展现出更多的知性诚实或行为偏袒），**严禁出现情感突变或 OOC 式的感性爆发**。好感度提升是人设深度的挖掘，而不是人设的推翻。
-    - **通用性**：描述应涵盖整体的行为倾向与情感边界的变化（不分线上线下）。
+[Relationship & Ladder]
+- public_relation: 社会外壳关系。
+- char_to_user_public/secret: 明面与私下对用户的真实态度（需符合逻辑进化）。
+- ladder_persona: 生成 5 个阶段的情感/行为边界演变（严禁越界或 OOC）。
 
 [输出格式]
-严格输出 JSON 对象。不要输出 Markdown 代码块。
+严格输出 JSON 对象。
+**字数红线**：Persona 文本不得超过 **800 字** (约 1200 Tokens)。请通过剥离修饰词、使用短句来维持极高信息密度。
+**格式红线**：严禁在 persona 字段内再次嵌套 JSON 字串。
 
 输出 JSON：`;
 
@@ -783,6 +763,18 @@ ${contextStr}
                             displayVal = val.name || val.label || val.text || JSON.stringify(val);
                         }
 
+                        // [Robust Fix] 如果 AI 抽风在字段内容里又套了一层 JSON (比如 {"persona": "{\"persona\":..."})
+                        // 或者 displayVal 看起来像是一段冗余的 JSON 代码块
+                        if (typeof displayVal === 'string' && displayVal.trim().startsWith('{') && displayVal.includes(':')) {
+                            try {
+                                const nested = JSON.parse(displayVal);
+                                const nestedKeys = Object.keys(nested);
+                                if (nestedKeys.length === 1 && (nestedKeys[0] === t.key || nestedKeys[0] === 'persona' || nestedKeys[0] === 'main_persona')) {
+                                    displayVal = nested[nestedKeys[0]];
+                                }
+                            } catch (e) { /* Not a valid nested JSON, keep as is */ }
+                        }
+
                         // 更新中间对象
                         if (t.internalKey) currentData[t.internalKey] = displayVal;
                         if (t.idx !== undefined && type === 'rel') State.pendingRelationship.ladder_persona[t.idx].content = displayVal;
@@ -824,6 +816,11 @@ ${contextStr}
                 btn.innerHTML = originalHtml;
                 btn.style.pointerEvents = 'auto';
             }
+            // Reset Styles
+            targets.forEach(t => {
+                const el = document.getElementById(t.id);
+                if (el) el.style.opacity = '1';
+            });
         }
     },
 
@@ -888,7 +885,7 @@ ${contextStr}
 
                 // 1. Create Placeholder Character
                 const newCharId = 'gen_' + Date.now();
-                const placeholderName = `关联人物 (${relation})`;
+                const placeholderName = `正在创建中...`;
 
                 // Save initial placeholder
                 window.sysStore.updateCharacter(newCharId, {
@@ -1866,9 +1863,57 @@ Strict JSON Object.`;
 
     performDeleteFriend(userId) {
         if (window.WeChat.Services && window.WeChat.Services.Contacts) {
+            // [Memory Cleanup] Remove mentions of this character from others
+            const charToDelete = window.sysStore.getCharacter(userId);
+            if (charToDelete) {
+                const names = [charToDelete.name, charToDelete.nickname, charToDelete.real_name, charToDelete.remark]
+                    .filter(n => n && n.length > 1);
+
+                const allChars = window.sysStore.get('chara_db_characters', {});
+                Object.values(allChars).forEach(c => {
+                    if (c.id === userId) return;
+                    let persona = c.main_persona || '';
+                    let changed = false;
+
+                    // 1. Remove blocks added by [SourceUpdate]
+                    // Regex helps find blocks that starts with "新增人际关系" or "生活图谱 - 补充" 
+                    // and contain any of the deleted names
+                    names.forEach(name => {
+                        const blockRegex = new RegExp(`[\\n\\s]*(?:【新增人际关系】|\\[生活图谱 - 补充\\])[\\s\\S]*?${name}[\\s\\S]*?(?=\\n\\n|【新增人际关系】|\\[生活图谱 - 补充\\]|$)`, 'g');
+                        if (blockRegex.test(persona)) {
+                            persona = persona.replace(blockRegex, '').trim();
+                            changed = true;
+                        }
+                    });
+
+                    // 2. Fallback: line-by-line check for mentions if not in blocks
+                    if (!changed) {
+                        const lines = persona.split('\n');
+                        const newLines = lines.filter(line => !names.some(name => line.includes(name)));
+                        if (newLines.length !== lines.length) {
+                            persona = newLines.join('\n').trim();
+                            changed = true;
+                        }
+                    }
+
+                    if (changed) {
+                        window.sysStore.updateCharacter(c.id, { main_persona: persona });
+                    }
+                });
+
+                // Also cleanup User context if needed
+                const s = window.sysStore;
+                let userPersona = s.get('user_persona') || '';
+                names.forEach(name => {
+                    const blockRegex = new RegExp(`[\\n\\s]*(?:【新增人际关系】|\\[生活图谱 - 补充\\])[\\s\\S]*?${name}[\\s\\S]*?(?=\\n\\n|$)`, 'g');
+                    userPersona = userPersona.replace(blockRegex, '').trim();
+                });
+                s.set('user_persona', userPersona);
+            }
+
             const success = window.WeChat.Services.Contacts.removeContact(userId);
             if (success) {
-                if (window.os) window.os.showToast('已删除');
+                if (window.os) window.os.showToast('该角色及其关联记忆已清除');
                 State.currentTab = 1; // Go back to Contacts
                 this.closeConfirmationModal();
                 this.render();
@@ -1879,12 +1924,57 @@ Strict JSON Object.`;
     setTypingState(isTyping) {
         if (State.isTyping !== isTyping) {
             State.isTyping = isTyping;
-            // 直接更新 DOM 避免全局重绘造成的闪烁 (Prevent global re-render flicker)
+
+            // 1. Update Title
             const titleEl = document.getElementById('wx-nav-title');
-            if (titleEl && State.currentTab === 'chat_session') {
-                titleEl.textContent = isTyping ? '对方正在输入...' : (State.chatTitle || '微信');
-            } else {
-                this.render();
+            if (titleEl) {
+                // If in chat session, always update. If elsewhere, check tab.
+                const isChat = State.currentTab === 'chat_session';
+                if (isChat || titleEl.textContent.includes('输入') || titleEl.textContent === State.chatTitle) {
+                    titleEl.textContent = isTyping ? '对方正在输入...' : (State.chatTitle || '微信');
+                }
+            }
+
+            // 2. Update Reply Button in Main Chat (Immediate Feedback)
+            const smartReplyBtn = document.getElementById('wx-smart-reply-btn');
+            if (smartReplyBtn) {
+                if (isTyping) {
+                    smartReplyBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" class="wx-spin" style="animation: wx-spin 1s linear infinite;">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2"></circle>
+                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor"></path>
+                        </svg>
+                    `;
+                    smartReplyBtn.style.opacity = '0.5';
+                    smartReplyBtn.style.pointerEvents = 'none';
+                } else {
+                    smartReplyBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="9"/>
+                            <path d="M12 7.5v9M8.5 10v4M15.5 10v4" stroke-linecap="round"/>
+                        </svg>
+                    `;
+                    smartReplyBtn.style.opacity = '1';
+                    smartReplyBtn.style.pointerEvents = 'auto';
+                }
+            }
+
+            // 3. Update Voice Call Reply Button (If open)
+            const vcallGroup = document.getElementById('wx-vcall-reply-btn-group');
+            if (vcallGroup) {
+                const btn = vcallGroup.querySelector('.wx-call-btn');
+                const label = vcallGroup.querySelector('.wx-call-btn-label');
+                if (isTyping) {
+                    if (btn) btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="wx-spin" style="animation: wx-spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="white" stroke-opacity="0.2"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke="white"></path></svg>`;
+                    if (label) label.textContent = '回复中';
+                    vcallGroup.style.opacity = '0.8';
+                    vcallGroup.style.pointerEvents = 'none';
+                } else {
+                    if (btn) btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+                    if (label) label.textContent = '回复';
+                    vcallGroup.style.opacity = '1';
+                    vcallGroup.style.pointerEvents = 'auto';
+                }
             }
         }
     },
@@ -1893,8 +1983,10 @@ Strict JSON Object.`;
     openChat(id) {
         State.activeSessionId = id;
         if (window.sysStore && window.sysStore.set) window.sysStore.set('wx_lastSession', id); // Persist State
+
+        const char = window.sysStore.getCharacter(id);
         const map = { 'file_helper': '文件传输助手', 'chara_assistant': 'Chara 小助手', 'pay': '微信支付' };
-        State.chatTitle = map[id] || id;
+        State.chatTitle = char?.name || map[id] || id;
         State.prevTab = State.currentTab;
         State.currentTab = 'chat_session';
 
@@ -2469,15 +2561,28 @@ Strict JSON Object.`;
         let modalHtml = '';
 
         if (State.voiceCallState && State.voiceCallState.open) {
-            modalHtml += window.WeChat.Views.renderVoiceCallModal(State.voiceCallState);
-            // Don't return here, allow other modals (like prompt) to render on top
+            if (State.voiceCallState.minimized) {
+                modalHtml += window.WeChat.Views.renderFloatingCallBubble(State.voiceCallState);
+            } else {
+                modalHtml += window.WeChat.Views.renderVoiceCallModal(State.voiceCallState);
+            }
+        }
+
+        if (State.videoCallState && State.videoCallState.open) {
+            if (State.videoCallState.minimized) {
+                modalHtml += window.WeChat.Views.renderFloatingCallBubble(State.videoCallState);
+            } else {
+                modalHtml += window.WeChat.Views.renderVideoCallModal(State.videoCallState);
+            }
         }
 
         if (State.callSummaryModal && State.callSummaryModal.open) {
-            return window.WeChat.Views.renderCallSummaryModal(State.callSummaryModal);
+            modalHtml += window.WeChat.Views.renderCallSummaryModal(State.callSummaryModal);
         }
 
-        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen && !State.bubbleMenuOpen && !State.characterPanelOpen && !State.relationshipPanelOpen && !State.statusHistoryPanelOpen && !State.cameraModalOpen && !State.locationModalOpen && !State.transferModalOpen && !State.videoCallModalOpen && !(State.confirmationModal && State.confirmationModal.open) && !(State.promptModal && State.promptModal.open)) return modalHtml;
+        if (!State.memoryModalOpen && !State.summaryModalOpen && !State.rangeModalOpen && !State.refineModalOpen && !State.bubbleMenuOpen && !State.characterPanelOpen && !State.relationshipPanelOpen && !State.statusHistoryPanelOpen && !State.cameraModalOpen && !State.locationModalOpen && !State.transferModalOpen && !State.videoCallModalOpen && !(State.confirmationModal && State.confirmationModal.open) && !(State.promptModal && State.promptModal.open)) {
+            return modalHtml;
+        }
 
         const char = window.sysStore.getCharacter(State.activeSessionId);
 
@@ -3079,35 +3184,50 @@ Strict JSON Object.`;
             const isKeep = char?.settings?.keep_relationship_on_clear !== false; // Default True
 
             if (!isKeep) {
-                // Reset Relationship & Status
+                // [Exhaustive Reset] User demands EVERYTHING in relationship management to be cleared
                 const defaultStatus = {
                     outfit: "日常便装",
                     behavior: "等待回复",
                     inner_voice: "...",
-                    affection: 0,
+                    affection: 0.0,
                     relationship_difficulty: 'normal',
                     ladder_persona: []
                 };
 
-                const defaultSettings = { ...char.settings };
-                // Clear relationship part of settings
-                delete defaultSettings.relationship;
+                const updatedSettings = { ...char.settings };
+                // 1. Remove New Matrix Object
+                delete updatedSettings.relationship;
+
+                // 2. Clear memories for fresh start
+                const updatedMemories = [];
 
                 window.sysStore.updateCharacter(sessionId, {
                     status: defaultStatus,
-                    status_history: [], // Clear history too
-                    settings: defaultSettings,
-                    memories: [] // Maybe clear memories too? User said "Clear chat history... keep relationship". Usually implies full wipe if not kept.
-                    // But let's stick to "Relationship Panel" data (Status + Relationship Settings).
+                    status_history: [], // Clear thought history
+                    settings: updatedSettings,
+                    memories: updatedMemories,
+                    // [Crucial] Specifically nullify/delete old legacy fields that might be used as fallbacks
+                    relationship_they_to_me: null,
+                    relationship_me_to_they: null
                 });
 
-                if (window.os) window.os.showToast('聊天记录与关系设定已清空');
+                // Clear live pending state if UI is open or was cached
+                if (State.activeSessionId === sessionId) {
+                    State.pendingRelationship = null;
+                }
+
+                if (window.os) window.os.showToast('聊天记录与所有关系设定已清除');
             } else {
                 if (window.os) window.os.showToast('聊天记录已清空');
             }
 
+            // Sync with Chat Service if needed (to reset prompt cache etc)
+            if (window.WeChat.Services && window.WeChat.Services.Chat) {
+                window.WeChat.Services.Chat.openSession(sessionId);
+            }
+
+            this.render(); // Full re-render to update Token display etc.
             this.closeConfirmationModal();
-            this.render();
         }
     },
 
@@ -4019,61 +4139,69 @@ ${contextParts.join('\n')}
             status: 'dialing',
             name: char ? (char.name || sessionId) : '未知用户',
             avatar: char ? char.avatar : null,
+            dialStartTime: Date.now(), // Capture REAL start (dialing)
             startTime: Date.now(),
             timer: null
         };
         this.render();
 
-        // Simulate AI picking up
+        // 1. Trigger AI thinking immediately
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            State.voiceCallState.awaitingInitiation = true;
+            window.WeChat.Services.Chat.triggerAIReply();
+        }
+
+        // [New] Timeout protection: 30s if AI never answers or rejects
+        const cId = State.voiceCallState.sessionId;
         setTimeout(() => {
-            if (State.voiceCallState.open && State.voiceCallState.status === 'dialing') {
-                State.voiceCallState.status = 'connected';
-                State.voiceCallState.startTime = Date.now();
-
-                // Start Timer
-                if (State.voiceCallState.timer) clearInterval(State.voiceCallState.timer);
-                State.voiceCallState.timer = setInterval(() => {
-                    if (!State.voiceCallState.open || State.voiceCallState.status !== 'connected') {
-                        return;
-                    }
-                    const diff = Math.floor((Date.now() - State.voiceCallState.startTime) / 1000);
-                    const m = Math.floor(diff / 60).toString().padStart(2, '0');
-                    const s = (diff % 60).toString().padStart(2, '0');
-                    State.voiceCallState.durationStr = `${m}:${s} `;
-
-                    // Direct DOM update for performance
-                    const statusText = document.getElementById('wx-call-status-text');
-                    if (statusText) statusText.innerText = State.voiceCallState.durationStr;
-                }, 1000);
-
+            const call = State.voiceCallState;
+            if (call.open && call.sessionId === cId && call.status === 'dialing') {
+                console.warn('[Call] No response from AI after 30s, marking as unanswered.');
+                window.WeChat.Services.Chat.persistAndShow(cId, 'no_answer', 'call_status');
+                call.open = false;
                 this.render();
             }
-        }, 2500);
+        }, 30000);
     },
 
     endVoiceCall() {
         if (State.voiceCallState.timer) clearInterval(State.voiceCallState.timer);
         const durationStr = State.voiceCallState.durationStr || '00:00';
         const sessionId = State.voiceCallState.sessionId;
-        const callStartTime = State.voiceCallState.startTime || Date.now();
+        const callStartTime = State.voiceCallState.dialStartTime || State.voiceCallState.startTime || Date.now();
         const callEndTime = Date.now();
+        const lastStatus = State.voiceCallState.status;
+        const awaitingDecision = State.voiceCallState.awaitingInitiation;
 
         State.voiceCallState.status = 'ended';
         State.voiceCallState.timer = null;
         this.render();
         setTimeout(() => {
             State.voiceCallState.open = false;
+            State.voiceCallState.minimized = false;
             this.render();
 
-            // Insert Summary Bubble
-            if (sessionId && durationStr !== '00:00') {
-                // Check if it was a real connected call
-                window.WeChat.Services.Chat.sendMessage(JSON.stringify({
-                    duration: durationStr,
-                    summary: null, // Manual generation from the modal
-                    callStartTime,
-                    callEndTime
-                }), 'call_summary');
+            if (sessionId) {
+                if (lastStatus === 'connected') {
+                    window.WeChat.Services.Chat.sendMessage(JSON.stringify({
+                        duration: durationStr,
+                        summary: null,
+                        callStartTime,
+                        callEndTime
+                    }), 'call_summary');
+                    // Decide between Cancelled and Refused
+                    // If awaitingDecision is true, it means AI hasn't responded, User clicked Cancel.
+                    // So sender should be 'me' to appear in green.
+                    const statusCode = awaitingDecision ? 'cancel' : 'reject';
+                    const realSender = awaitingDecision ? 'me' : sessionId;
+                    window.WeChat.Services.Chat.persistAndShow(sessionId, statusCode, 'call_status', {
+                        sender_id: realSender,
+                        isVideo: false
+                    });
+
+                    // Trigger AI response to the missed event
+                    window.WeChat.Services.Chat.triggerAIReply();
+                }
             }
         }, 800);
     },
@@ -4108,7 +4236,7 @@ ${contextParts.join('\n')}
         if (window.WeChat.Services && window.WeChat.Services.Chat) {
             if (sessionId) window.WeChat.Services.Chat.openSession(sessionId);
             window.WeChat.Services.Chat.triggerAIReply();
-            if (window.os) window.os.showToast('已提醒对方回复');
+            // User requested to remove the toast and use button UI feedback instead
         }
     },
 
@@ -4151,10 +4279,12 @@ ${contextParts.join('\n')}
     },
 
     openCallSummary(msgId) {
-        const sessionId = State.activeSessionId;
-        const msgs = window.sysStore.getMessagesBySession(sessionId);
-        const msg = msgs.find(m => m.id === msgId);
+        const msg = window.sysStore.getMessageById(msgId);
         if (!msg) return;
+
+        // Determine session from msg
+        const sessionId = msg.sender_id === 'user' || msg.sender_id === 'me' ? msg.receiver_id : msg.sender_id;
+        const msgs = window.sysStore.getMessagesBySession(sessionId);
 
         let data = {};
         try { data = JSON.parse(msg.content || '{}'); } catch (e) { data = {}; }
@@ -4162,28 +4292,44 @@ ${contextParts.join('\n')}
         const duration = data.duration || '00:00';
         const callStartTime = Number(data.callStartTime) || 0;
         const callEndTime = Number(data.callEndTime) || 0;
-        const existingSummary = (typeof data.summary === 'string' && data.summary.trim()) ? data.summary.trim() : '';
 
         // Build transcript for THIS call window only
         let transcript = [];
+        const msgTypes = ['text', 'voice_text', 'voice'];
+
+        const char = window.sysStore.getCharacter(sessionId);
+        const charName = char?.name || '对方';
+
         if (callStartTime > 0 && callEndTime > 0 && callEndTime >= callStartTime) {
+            // Buffer: -5000ms to catch the start trigger reliably
+            const bufferedStart = callStartTime - 5000;
             transcript = msgs
-                .filter(m => (m.type === 'text' || m.type === 'voice_text') && m.timestamp >= callStartTime && m.timestamp <= callEndTime)
-                .map(m => ({
-                    ts: m.timestamp,
-                    isMe: (m.sender_id === 'user' || m.sender_id === 'me'),
-                    text: String(m.content || '')
-                }));
+                .filter(m => msgTypes.includes(m.type) && m.timestamp >= bufferedStart && m.timestamp <= callEndTime)
+                .map(m => {
+                    const isMe = (m.sender_id === 'user' || m.sender_id === 'me');
+                    return {
+                        ts: m.timestamp,
+                        isMe: isMe,
+                        senderName: isMe ? '我' : charName,
+                        text: m.type === 'voice' ? '[语音消息]' : String(m.content || '')
+                    };
+                });
+            console.log(`[Call History] Found ${transcript.length} msgs in window ${bufferedStart}-${callEndTime}`);
         } else {
-            // Fallback: last 30 text/voice_text messages
+            // Fallback: last 30 related messages
             transcript = msgs
-                .filter(m => (m.type === 'text' || m.type === 'voice_text'))
+                .filter(m => msgTypes.includes(m.type))
                 .slice(-30)
-                .map(m => ({
-                    ts: m.timestamp,
-                    isMe: (m.sender_id === 'user' || m.sender_id === 'me'),
-                    text: String(m.content || '')
-                }));
+                .map(m => {
+                    const isMe = (m.sender_id === 'user' || m.sender_id === 'me');
+                    return {
+                        ts: m.timestamp,
+                        isMe: isMe,
+                        senderName: isMe ? '我' : charName,
+                        text: m.type === 'voice' ? '[语音消息]' : String(m.content || '')
+                    };
+                });
+            console.log(`[Call History] Fallback mode: Found ${transcript.length} msgs`);
         }
 
         State.callSummaryModal = {
@@ -4193,8 +4339,7 @@ ${contextParts.join('\n')}
             duration,
             callStartTime,
             callEndTime,
-            transcript,
-            summary: existingSummary || ''
+            transcript
         };
         this.render();
     },
@@ -4204,73 +4349,136 @@ ${contextParts.join('\n')}
         this.render();
     },
 
-    async generateCallSummaryForMsg(msgId) {
-        const sessionId = State.activeSessionId;
-        if (!sessionId || !window.sysStore) return;
-        if (!window.Core || !window.Core.Api || !window.Core.Api.chat) return;
 
-        const msgs = window.sysStore.getMessagesBySession(sessionId);
-        const msg = msgs.find(m => m.id === msgId);
-        if (!msg) return;
-
-        let data = {};
-        try { data = JSON.parse(msg.content || '{}'); } catch (e) { data = {}; }
-
-        const callStartTime = Number(data.callStartTime) || 0;
-        const callEndTime = Number(data.callEndTime) || 0;
-
-        // Filter transcript for this call window
-        let windowMsgs = [];
-        if (callStartTime > 0 && callEndTime > 0 && callEndTime >= callStartTime) {
-            windowMsgs = msgs.filter(m => (m.type === 'text' || m.type === 'voice_text') && m.timestamp >= callStartTime && m.timestamp <= callEndTime);
-        } else {
-            windowMsgs = msgs.filter(m => (m.type === 'text' || m.type === 'voice_text')).slice(-30);
-        }
-
-        const transcript = windowMsgs
-            .map(m => `${(m.sender_id === 'user' || m.sender_id === 'me') ? '我' : '对方'}：${String(m.content || '')}`)
-            .join('\n');
-
-        const prompt = `请把下面这次语音通话期间的聊天记录总结成中文，严格控制在200字以内。\n` +
-            `要求：\n` +
-            `1) 只写总结正文，不要标题，不要编号。\n` +
-            `2) 提炼关键事件、情绪与结论；避免空泛。\n\n` +
-            `【通话记录】\n${transcript}\n\n【总结(≤200字)】`;
-
-        try {
-            if (window.os) window.os.showToast('正在生成总结...', 'info', 8000);
-            const summaryRaw = await window.Core.Api.chat([
-                { role: 'system', content: '你是一个擅长提炼要点的中文助手。' },
-                { role: 'user', content: prompt }
-            ]);
-            let summary = String(summaryRaw || '').trim();
-
-            // Frontend hard cap as a safety net (200 Chinese chars ~= 200 chars)
-            if (summary.length > 200) summary = summary.slice(0, 200);
-
-            data.summary = summary;
-            msg.content = JSON.stringify(data);
-            if (window.sysStore && window.sysStore.updateMessage) {
-                window.sysStore.updateMessage(msg.id, msg);
-            } else {
-                // Fallback: store array already mutated; nothing else needed.
-            }
-
-            if (State.callSummaryModal && State.callSummaryModal.open && State.callSummaryModal.msgId === msgId) {
-                State.callSummaryModal.summary = summary;
-            }
+    minimizeVoiceCall() {
+        if (State.voiceCallState) {
+            State.voiceCallState.minimized = true;
             this.render();
-            if (window.os) window.os.showToast('总结已生成', 'success');
-        } catch (e) {
-            console.error('Failed to generate call summary (manual)', e);
-            if (window.os) window.os.showToast('总结失败，请重试', 'error');
         }
     },
 
-    minimizeVoiceCall() {
-        if (window.os) window.os.showToast('通话已最小化');
-        State.voiceCallState.open = false;
+    restoreVoiceCall() {
+        if (State.voiceCallState) {
+            State.voiceCallState.minimized = false;
+            this.render();
+        }
+    },
+
+    // --- Video Call Logic ---
+    triggerVideoCall() {
+        this.toggleExtraPanel();
+        const sessionId = State.activeSessionId;
+        const char = window.sysStore.getCharacter(sessionId);
+
+        State.videoCallState = {
+            open: true,
+            sessionId: sessionId,
+            status: 'dialing',
+            name: char ? (char.name || sessionId) : '未知用户',
+            avatar: char ? char.avatar : null,
+            dialStartTime: Date.now(),
+            startTime: Date.now(),
+            timer: null
+        };
         this.render();
+
+        // 1. Trigger AI thinking immediately
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            State.videoCallState.awaitingInitiation = true;
+            window.WeChat.Services.Chat.triggerAIReply();
+        }
+
+        // [New] Timeout protection
+        const vId = State.videoCallState.sessionId;
+        setTimeout(() => {
+            const vcall = State.videoCallState;
+            if (vcall.open && vcall.sessionId === vId && vcall.status === 'dialing') {
+                window.WeChat.Services.Chat.persistAndShow(vId, 'no_answer', 'call_status', { isVideo: true });
+                vcall.open = false;
+                this.render();
+            }
+        }, 30000);
+    },
+
+    endVideoCall() {
+        if (State.videoCallState.timer) clearInterval(State.videoCallState.timer);
+        const durationStr = State.videoCallState.durationStr || '00:00';
+        const sessionId = State.videoCallState.sessionId;
+        const callStartTime = State.videoCallState.dialStartTime || State.videoCallState.startTime || Date.now();
+        const callEndTime = Date.now();
+        const lastStatus = State.videoCallState.status;
+        const awaitingDecision = State.videoCallState.awaitingInitiation;
+
+        State.videoCallState.status = 'ended';
+        State.videoCallState.timer = null;
+        this.render();
+        setTimeout(() => {
+            State.videoCallState.open = false;
+            State.videoCallState.minimized = false;
+            this.render();
+
+            if (sessionId) {
+                if (lastStatus === 'connected') {
+                    window.WeChat.Services.Chat.sendMessage(JSON.stringify({
+                        duration: durationStr,
+                        summary: null,
+                        callStartTime,
+                        callEndTime,
+                        type: 'video'
+                    }), 'call_summary');
+                } else if (lastStatus === 'dialing') {
+                    const statusCode = awaitingDecision ? 'cancel' : 'reject';
+                    const realSender = awaitingDecision ? 'me' : sessionId;
+                    window.WeChat.Services.Chat.persistAndShow(sessionId, statusCode, 'call_status', {
+                        sender_id: realSender,
+                        isVideo: true
+                    });
+                    window.WeChat.Services.Chat.triggerAIReply();
+                }
+            }
+        }, 800);
+    },
+
+    triggerVideoCallInput() {
+        if (!State.videoCallState || !State.videoCallState.open) return;
+        const sessionId = State.videoCallState.sessionId || State.activeSessionId;
+
+        this.openPromptModal({
+            title: '在视频通话中输入消息',
+            content: '',
+            placeholder: '请输入...',
+            onConfirm: (val) => {
+                if (val && val.trim()) {
+                    if (sessionId) window.WeChat.Services.Chat.openSession(sessionId);
+                    window.WeChat.Services.Chat.sendMessage(val.trim(), 'voice_text');
+                    this.render();
+                }
+            }
+        });
+    },
+
+    triggerVideoCallReply() {
+        if (!State.videoCallState || !State.videoCallState.open) return;
+        const sessionId = State.videoCallState.sessionId || State.activeSessionId;
+
+        if (window.WeChat.Services && window.WeChat.Services.Chat) {
+            if (sessionId) window.WeChat.Services.Chat.openSession(sessionId);
+            window.WeChat.Services.Chat.triggerAIReply();
+        }
+    },
+
+    minimizeVideoCall() {
+        if (State.videoCallState) {
+            State.videoCallState.minimized = true;
+            this.render();
+        }
+    },
+
+    restoreVideoCall() {
+        if (State.videoCallState) {
+            State.videoCallState.minimized = false;
+            this.render();
+        }
     },
 
 

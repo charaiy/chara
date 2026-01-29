@@ -163,33 +163,44 @@ class CharaOS {
      * @param {number} duration - 持续时间 (ms)
      */
     showToast(message, type = 'success', duration = 2000) {
-        // Remove existing toast if any (to prevent stacking too many)
-        const oldToast = document.querySelector('.os-toast');
+        let container = document.getElementById('os-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'os-toast-container';
+            document.body.appendChild(container);
+        }
+
+        // Cleanup: remove existing to avoid overlap mess
+        const oldToast = container.querySelector('.os-toast');
         if (oldToast) oldToast.remove();
 
         const toast = document.createElement('div');
         toast.className = `os-toast ${type}`;
 
         let icon = '';
-        if (type === 'success') icon = '✓';
-        else if (type === 'error') icon = '✕';
-        else icon = 'ℹ';
+        if (type === 'success') icon = '􀁣'; // SF Pro style check
+        else if (type === 'error') icon = '􀁡'; // SF Pro style cross
+        else icon = '􀅼'; // SF Pro style info
+
+        // Fallback for non-apple systems
+        if (icon === '􀁣') icon = '✓';
+        if (icon === '􀁡') icon = '✕';
+        if (icon === '􀅼') icon = 'i';
 
         toast.innerHTML = `
             <span class="os-toast-icon">${icon}</span>
             <span class="os-toast-text">${message}</span>
         `;
 
-        const osRoot = document.getElementById('os-root') || document.body;
-        osRoot.appendChild(toast);
+        container.appendChild(toast);
 
-        // Animate in
-        requestAnimationFrame(() => toast.classList.add('show'));
+        // Animate in with a slight delay for smoother entry
+        setTimeout(() => toast.classList.add('show'), 10);
 
         // Remove
         setTimeout(() => {
             toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
+            setTimeout(() => toast.remove(), 400);
         }, duration);
     }
 

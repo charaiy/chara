@@ -129,10 +129,49 @@ const API = {
                 throw new Error(`API错误 (${response.status}): ${errorDetails}`);
             }
 
-            const data = await response.json();
+            // [FIX] 安全解析 JSON，处理可能的解析错误
+            let data;
+            let responseText = '';
+            try {
+                responseText = await response.text();
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('API 返回空响应');
+                }
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('[API] JSON 解析失败:', parseError);
+                // 使用已读取的响应文本
+                const preview = responseText ? responseText.substring(0, 200) : '无法读取响应内容';
+                throw new Error(`API 响应解析失败: ${parseError.message}。原始响应: ${preview}`);
+            }
 
+            // [FIX] 增强错误处理：记录实际响应内容以便调试
             if (!data.choices || data.choices.length === 0) {
-                throw new Error('API 返回格式异常: 没有 choices');
+                // 记录实际响应内容（限制长度避免日志过长）
+                const responsePreview = JSON.stringify(data).substring(0, 500);
+                console.error('[API] 响应格式异常，实际响应内容:', responsePreview);
+                
+                // 检查是否是错误响应但状态码是 200
+                if (data.error) {
+                    const errorMsg = data.error.message || data.error.code || JSON.stringify(data.error);
+                    throw new Error(`API 返回错误: ${errorMsg}`);
+                }
+                
+                // 检查是否有其他格式的响应（某些 API 可能使用不同的字段名）
+                if (data.content) {
+                    // 某些 API 可能直接返回 content 而不是 choices
+                    console.warn('[API] 检测到非标准响应格式，尝试使用 content 字段');
+                    return String(data.content || '');
+                }
+                
+                if (data.text) {
+                    // 某些 API 可能使用 text 字段
+                    console.warn('[API] 检测到非标准响应格式，尝试使用 text 字段');
+                    return String(data.text || '');
+                }
+                
+                // 如果都没有，抛出详细错误
+                throw new Error(`API 返回格式异常: 没有 choices。响应预览: ${responsePreview}`);
             }
 
             return data.choices[0].message.content || '';

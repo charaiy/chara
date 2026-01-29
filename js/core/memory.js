@@ -135,66 +135,98 @@ const Memory = {
         const userName = this.store.get('user_realname') || '用户';
 
         // 1. Prepare System Prompt
-        let systemPrompt = config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第一人称视角记录。";
+        // [FIX] 手动总结优先使用 manualPrompt，自动总结使用 autoPrompt
+        let basePrompt = config.manualPrompt || config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
         const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
         // [CRITICAL FIX] 明确告诉 AI 两个时间的区别
-        systemPrompt += `\n\n【时间处理严格规定】：
+        let systemPrompt = basePrompt;
+        if (!config.manualPrompt) {
+            // 只有在自动总结时才添加时间处理规则
+            systemPrompt += `\n\n【时间处理严格规定】：
 1. 这里的 "当前执行时间: ${nowStr}" 仅供你计算 "昨天"、"前天" 等相对概念，**绝不可作为 Summary 的时间头**！
 2. 生成的 "年份日期星期时间" 必须提取自 **下方对话记录中的实际时间戳 [YYYY/... ]**。
 3. 如果对话跨越也必须标明！不要把昨天发生的事写成今天！
 4. 例子：如果对话发生在昨天23:00，你的Summary必须写 "202x年x月x日23:00(昨天实际日期)..."，而不能写今天的日期。`;
+        }
+        // [FIX] 明确要求使用第三人称
+        systemPrompt += `\n\n【视角要求（强制）】：
+1. **必须使用第三人称**：使用角色名或"他/她"来称呼角色，使用"你"或用户姓名来称呼用户。
+2. 禁止使用第一人称（"我"）来总结角色自己的行为。
+3. 示例格式："2025年4月2日8:30，星期三，（角色名）和你聊了关于早餐的话题。"`;
 
         systemPrompt += `\n\n【其它要求】：\n1. 总结精简(100字内)。\n2. 遇到表情包请描述含义。`;
 
         // 2. Build Multimodal Content
+        // [FIX] 检查是否真的需要多模态格式（是否有图片/表情包）
+        const hasMultimodalContent = messages.some(m => m.type === 'image' || m.type === 'sticker');
         let userContentParts = [];
         let currentTextBuffer = systemPrompt + "\n\n[对话记录开始]\n";
 
         messages.forEach(m => {
             const sender = (m.sender_id === 'user' || m.sender_id === 'me') ? userName : (char.name || '角色');
-            const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false }); // Add explicit time
+            const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
+            // [FIX] 安全处理 content，避免 undefined/null 导致的问题
+            const safeContent = (m.content != null) ? String(m.content) : '';
 
             if (m.type === 'image' || m.type === 'sticker') {
-                // Flush text buffer
                 if (currentTextBuffer) {
                     userContentParts.push({ type: 'text', text: currentTextBuffer });
                     currentTextBuffer = "";
                 }
-
-                // Add Context for Image - Explicitly label as Sticker or Image for the AI
                 const label = m.type === 'sticker' ? '[发送了表情包]' : '[发送了图片]';
                 userContentParts.push({ type: 'text', text: `\n[${timeStr}] ${sender} ${label}:\n` });
-
-                // Add Image Part
-                // Ensure it is a valid URL or Base64. 
-                // Note: Some local base64 might be too large, but we try.
-                userContentParts.push({
-                    type: 'image_url',
-                    image_url: { url: m.content }
-                });
-
-                currentTextBuffer += "\n"; // Padding after image
+                userContentParts.push({ type: 'image_url', image_url: { url: safeContent } });
+                currentTextBuffer += "\n";
+            } else if (m.type === 'voice_text' || m.type === 'voice') {
+                // [Logic] Mark as Voice Call to prevent AI from thinking it was a text chat
+                // [FIX] 如果 content 为空，使用默认描述
+                const voiceContent = safeContent || '[语音通话内容]';
+                currentTextBuffer += `[${timeStr}] ${sender} [语音通话]: ${voiceContent}\n`;
+            } else if (m.type === 'call_summary') {
+                // [Logic] Integrate call metadata
+                let data = {};
+                try { 
+                    if (safeContent) {
+                        data = JSON.parse(safeContent);
+                    }
+                } catch (e) { }
+                currentTextBuffer += `[${timeStr}] 系统提示: ${sender} 与你进行了一次通话 (时长: ${data.duration || '未知'})\n`;
             } else {
-                // Normal Text
-                currentTextBuffer += `[${timeStr}] ${sender}: ${m.content}\n`;
+                // [FIX] 确保所有文本消息的 content 都被安全处理
+                currentTextBuffer += `[${timeStr}] ${sender}: ${safeContent}\n`;
             }
         });
 
         currentTextBuffer += "\n[对话记录结束]\n\n请输出总结：";
-        userContentParts.push({ type: 'text', text: currentTextBuffer });
+        
+        // [FIX] 只在需要多模态格式时才填充 userContentParts
+        if (hasMultimodalContent) {
+            userContentParts.push({ type: 'text', text: currentTextBuffer });
+        }
 
         try {
-            // 3. Call API with Multimodal payload
-            console.log('[Memory] Calling AI (Vision) for summary...');
-
-            // Construct the messages structure. 
-            // Note: We merge everything into one 'user' message with multiple parts for maximum compatibility with standard Vision APIs.
-            const messagesPayload = [
-                {
-                    role: 'user',
-                    content: userContentParts
-                }
-            ];
+            // 3. Call API with appropriate format
+            // [FIX] 如果包含图片/表情包，使用多模态格式；否则使用纯文本格式
+            let messagesPayload;
+            if (hasMultimodalContent) {
+                console.log('[Memory] Calling AI (Vision) for summary...');
+                // Construct the messages structure for multimodal content
+                messagesPayload = [
+                    {
+                        role: 'user',
+                        content: userContentParts
+                    }
+                ];
+            } else {
+                console.log('[Memory] Calling AI for summary...');
+                // Use simple text format when no images/stickers
+                messagesPayload = [
+                    {
+                        role: 'user',
+                        content: currentTextBuffer
+                    }
+                ];
+            }
 
             const summaryText = await window.API.chat(messagesPayload);
 

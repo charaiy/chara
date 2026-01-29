@@ -38,7 +38,6 @@ window.WeChat.Services.Chat = {
         if (isUser) {
             this.triggerAIReply();
         } else {
-            // AI Last spoke -> No action (Auto-continue removed)
             console.log('[Chat] Last message was from AI. Waiting for user input.');
         }
     },
@@ -222,105 +221,100 @@ window.WeChat.Services.Chat = {
         const limit = char?.settings?.memory_limit || 50;
         const rawHistory = window.sysStore.getMessagesBySession(targetId).slice(-limit);
 
-        return rawHistory.map((m, index) => {
+        const history = rawHistory.map((m, index) => {
+            // ... (existing mapping logic)
             let content = m.content;
-
-            // Vision Logic: STRICTLY follow the user's context_limit. 
-            // If the message is within the 'limit' slice (rawHistory), we send the full image payload.
-            // No secondary truncation.
-
-            // Core: Transcribe non-text messages for AI
             if (m.type === 'image') {
-                // Try to resolve sticker meaning from Stickers Service
                 let description = '';
                 if (window.WeChat.Services.Stickers && window.WeChat.Services.Stickers.getAll) {
                     const allStickers = window.WeChat.Services.Stickers.getAll();
-                    // Loose match to handle potential URL encoding diffs
                     const match = allStickers.find(s => s.url === m.content || m.content.includes(s.url));
                     if (match && match.tags && match.tags.length > 0) {
-                        // Filter out generic tags
                         const meaningfulTags = match.tags.filter(t => !['自定义', '收藏', '未分类'].includes(t));
-                        if (meaningfulTags.length > 0) {
-                            description = meaningfulTags.join(', ');
-                        }
+                        if (meaningfulTags.length > 0) description = meaningfulTags.join(', ');
                     }
                 }
-
-                if (description) {
-                    content = `[图片/表情: ${description}]`;
-                } else {
-                    // Standard Image (Always send full payload if in history context)
-                    // Construction for Vision Models (OpenAI/Anthropic compatible format)
-                    content = [
-                        { type: "text", text: "[发送了一张图片，请根据图片内容进行交互]" },
-                        { type: "image_url", image_url: { url: m.content, detail: "auto" } }
-                    ];
-                }
-            } else if (m.type === 'voice') {
-                content = `[语音消息]`;
-            } else if (m.type === 'system') {
-                if (m.content.includes('我 拍了拍 自己')) {
-                    // User nudged themselves
-                    content = `[微信系统提示] 用户在微信上"拍了拍"自己 (可能是无聊或者按错了)`;
-                } else if (m.content.includes('我 拍了拍') && (m.content.includes(charName) || m.content.includes('对方'))) {
-                    // User nudged AI
-                    content = `[微信系统提示] 用户在微信上"拍了拍"你 (你的手机震动了一下。这是虚拟提醒信号，请不要理解为物理接触)`;
-                } else if (m.content.includes('拍了拍 我')) {
-                    // AI nudged User (History)
-                    content = `[微信系统提示] 你在微信上"拍了拍"用户`;
-                } else if (m.content.includes('拍了拍 自己') && !m.content.includes('我 拍了拍')) {
-                    // AI nudged themselves (History)
-                    content = `[微信系统提示] 你在微信上"拍了拍"你自己`;
-                } else {
-                    content = `[系统消息: ${m.content}]`;
-                }
+                if (description) content = `[图片/表情: ${description}]`;
+                else content = [{ type: "text", text: "[发送了一张图片，请根据内容交互]" }, { type: "image_url", image_url: { url: m.content, detail: "auto" } }];
+            } else if (m.type === 'voice') content = `[语音消息]`;
+            else if (m.type === 'system') {
+                if (m.content.includes('我 拍了拍 自己')) content = `[微信系统提示] 用户"拍了拍"自己`;
+                else if (m.content.includes('我 拍了拍')) content = `[微信系统提示] 用户"拍了拍"你`;
+                else if (m.content.includes('拍了拍 我')) content = `[微信系统提示] 你"拍了拍"用户`;
+                else content = `[系统消息: ${m.content}]`;
             } else if (m.type === 'transfer') {
-                let trans = { amount: '?', note: '' };
-                try { trans = JSON.parse(m.content); } catch (e) { }
-                const statusStr = m.transfer_status ? ` (当前状态: ${m.transfer_status === 'received' ? '已收款' : '已退回'})` : ' (等待收款)';
-
-                // Explicitly describe the direction for AI
+                let trans = { amount: '?', note: '' }; try { trans = JSON.parse(m.content); } catch (e) { }
                 const senderName = (m.sender_id === 'user' || m.sender_id === 'me') ? '用户' : '你';
-                content = `[${senderName}发起转账] 金额: ¥${trans.amount} 备注: "${trans.note}"${statusStr}`;
-            } else if (m.type === 'transfer_status') {
-                let transStat = {};
-                try { transStat = JSON.parse(m.content); } catch (e) { }
-                content = `[转账状态更新] ${transStat.text}`;
+                content = `[${senderName}发起转账] ¥${trans.amount} "${trans.note}"`;
+            } else if (m.type === 'call_status') content = `[语音通话] ${m.content}`;
+            else if (m.type === 'call_summary') {
+                let sum = { duration: '00:00' }; try { sum = JSON.parse(m.content); } catch (e) { }
+                content = `[语音通话已结束] 通话时长: ${sum.duration}`;
             }
 
             let role = (m.sender_id === 'user' || m.sender_id === 'me' || m.sender_id === 'my') ? 'user' : 'assistant';
-
-            // [Time Awareness] Add timestamp to message content
             const timeStr = new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
-            if (typeof content === 'string') {
-                content = `[${timeStr}] ${content}`;
-            } else if (Array.isArray(content)) {
-                content[0].text = `[${timeStr}] ${content[0].text}`;
-            }
+            if (typeof content === 'string') content = `[${timeStr}] ${content}`;
+            else if (Array.isArray(content)) content[0].text = `[${timeStr}] ${content[0].text}`;
 
-            // Special handling for System interactions
-            if (m.type === 'system') {
-                if (m.content.includes('用户拍了拍') || m.content.includes('我 拍了拍')) {
-                    // This is a user-initiated event, treat as User Role for the AI
-                    role = 'user';
-                } else if (m.content.includes('你拍了拍') || m.content.includes('拍了拍 我')) {
-                    // This is an AI-initiated event
-                    role = 'assistant';
-                } else {
-                    // Generic system messages -> treat as 'system' role if possible, or 'user' (as context/instruction)
-                    // For safety with most APIs, 'system' messages in history are tricky. 
-                    // Let's coerce to 'user' with a prefix to ensure AI sees it as an external input.
-                    role = 'user';
-                }
-            }
-
-            return {
-                role: role,
-                content: content
-            };
+            if (m.type === 'system') role = 'user';
+            return { role: role, content: content };
         });
+
+        // [Fix] Inject REAL-TIME Call Event if dialing
+        if (window.WeChat.App) {
+            const state = window.WeChat.App.State;
+            let callType = '';
+            if (state.voiceCallState?.open && state.voiceCallState.sessionId === targetId && state.voiceCallState.status === 'dialing') callType = '语音';
+            else if (state.videoCallState?.open && state.videoCallState.sessionId === targetId && state.videoCallState.status === 'dialing') callType = '视频';
+
+            if (callType) {
+                history.push({
+                    role: 'user',
+                    content: `[系统实时提醒] 用户正在向你发起【${callType}通话邀请】，请立刻根据你的性格和好感度做出决定：如果你想接听，请直接回复文字(text)或表情(sticker)作为你的第一句话；如果你不想接听或不方便，请使用指令 reject_call 拒绝。`
+                });
+            }
+        }
+
+        return history;
     },
 
+    _autoAnswerIfDialing(targetId) {
+        if (!window.WeChat.App) return;
+        const state = window.WeChat.App.State;
+
+        let call = null;
+        let statusId = '';
+
+        if (state.voiceCallState?.open && state.voiceCallState.sessionId === targetId && state.voiceCallState.status === 'dialing') {
+            call = state.voiceCallState;
+            statusId = 'wx-call-status-text';
+        } else if (state.videoCallState?.open && state.videoCallState.sessionId === targetId && state.videoCallState.status === 'dialing') {
+            call = state.videoCallState;
+            statusId = 'wx-vcall-status-text';
+        }
+
+        if (call) {
+            console.log('[Chat] AI produced content. Auto-connecting call...');
+            call.status = 'connected';
+            call.startTime = Date.now();
+            call.awaitingInitiation = false;
+
+            // Start Timer
+            if (call.timer) clearInterval(call.timer);
+            call.timer = setInterval(() => {
+                if (!call.open || call.status !== 'connected') return;
+                const diff = Math.floor((Date.now() - call.startTime) / 1000);
+                const m = Math.floor(diff / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                call.durationStr = `${m}:${s} `;
+                const statusText = document.getElementById(statusId);
+                if (statusText) statusText.innerText = call.durationStr;
+            }, 1000);
+
+            window.WeChat.App.render();
+        }
+    },
 
     /**
      * 执行 AI 返回的动作序列
@@ -328,11 +322,27 @@ window.WeChat.Services.Chat = {
     async executeActions(targetId, actions) {
         if (!Array.isArray(actions)) return;
 
+        // [Robustness] Capture call state AT THE START of the action sequence execution
+        // This prevents messages from "leaking" into the main chat if the call ends while AIs are still speaking
+        const appState = window.WeChat.App.State;
+        const isInCallWithTarget = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId) ||
+            (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId);
+
         for (const action of actions) {
             console.log('[Chat] Executing Action:', action.type);
 
+            // [New] If AI produces content during Dialing, it means AI ANSWERS the call
+            // [Fix] ONLY auto-answer if THERE IS NO reject_call in the entire sequence.
+            // If AI is rejecting, they might still send a text explanation, but we MUST NOT connect.
+            const hasReject = actions.some(a => a.type === 'reject_call');
+            const contentTypes = ['text', 'sticker', 'voice_message'];
+            if (contentTypes.includes(action.type) && !hasReject) {
+                this._autoAnswerIfDialing(targetId);
+            }
+
             // 模拟输入延迟 (增强拟人感) - User Rule: First msg 0s, others 2s 固定
             const displayTypes = ['text', 'sticker', 'voice_message'];
+
             if (displayTypes.includes(action.type)) {
                 // Calculate if this is the FIRST displayable message in the batch
                 // We must find the index of the first visual item to ensure it pops instantly
@@ -360,34 +370,37 @@ window.WeChat.Services.Chat = {
                     break;
 
                 case 'text':
-                    // Auto-fix: Extract "expression meaning" from text and convert to sticker
-                    // Regex handles: (表情含义: XXX), （表情含义：XXX）, (Expression: XXX)
                     let textContent = action.content;
                     const stickerRegex = /[\(（]\s*(?:表情含义|Expression)[:：]\s*(.*?)[\)）]/i;
                     const match = textContent.match(stickerRegex);
 
                     if (match) {
-                        // Found a sticker description embedded in text
                         const stickerMeaning = match[1];
-                        // Remove it from text
                         textContent = textContent.replace(match[0], '').trim();
 
-                        // 1. Send the cleaned text first (if any remains)
                         if (textContent) {
-                            // [Style Fix] Remove trailing periods/dots for realism
                             textContent = textContent.replace(/[。\.]$/, '');
+                            const msgType = isInCallWithTarget ? 'voice_text' : 'text';
 
-                            this.persistAndShow(targetId, textContent, 'text');
-                            await new Promise(r => setTimeout(r, 400)); // Small delay between text and sticker
+                            // [Voice Call Splitting Logic - Enhanced]
+                            if (isInCallWithTarget && textContent.length > 45) {
+                                const fragments = textContent.match(/[^。！？\?!\n]+([。！？\?!\n]+」?|$)/g)
+                                    ?.map(s => s.trim())
+                                    .filter(s => s.length > 0)
+                                    .slice(0, 4) || [textContent];
+
+                                for (let i = 0; i < fragments.length; i++) {
+                                    this.persistAndShow(targetId, fragments[i], 'voice_text');
+                                    if (i < fragments.length - 1) await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
+                                }
+                            } else {
+                                this.persistAndShow(targetId, textContent, msgType);
+                            }
+                            await new Promise(r => setTimeout(r, 400));
                         }
 
                         if (stickerMeaning && stickerMeaning.trim()) {
-                            // 2. Trigger Sticker Logic (Recursing or duplicating logic)
-                            // We'll reuse the logic in case 'sticker' below by constructing a fake action object
                             const stickerAction = { type: 'sticker', meaning: stickerMeaning };
-
-                            // Directly execute the sticker logic block (Extracting it to a helper would be cleaner, but for now inline is fine or jump)
-                            // Let's just copy the logic for reliability
                             let stickerUrl = null;
                             if (window.WeChat.Services.Stickers && window.WeChat.Services.Stickers.findUrlByMeaning) {
                                 stickerUrl = window.WeChat.Services.Stickers.findUrlByMeaning(stickerMeaning);
@@ -395,21 +408,33 @@ window.WeChat.Services.Chat = {
                             if (stickerUrl) {
                                 this.persistAndShow(targetId, stickerUrl, 'sticker');
                             } else {
-                                // If still not found, just show the meaning as format text? 
-                                // No, better to show nothing or a generic placeholder?
-                                // User hates the text format, so let's fallback to a system tip or nothing.
-                                // Or maybe just [Expression: XXX] is better than the sentence format.
                                 this.persistAndShow(targetId, `[${stickerMeaning}]`, 'text');
                             }
                         }
 
                     } else {
-                        // Normal text - Filter out WorldBook citations like [1], [1, 2] etc.
                         const filteredContent = textContent.replace(/\[\d+(?:,\s*\d+)*\]/g, '').trim();
                         if (filteredContent) {
-                            // [Style Fix] Remove trailing periods/dots
                             const finalContent = filteredContent.replace(/[。\.]$/, '');
-                            this.persistAndShow(targetId, finalContent, 'text');
+                            const msgType = isInCallWithTarget ? 'voice_text' : 'text';
+
+                            // [Voice Call Splitting Logic - Enhanced]
+                            if (isInCallWithTarget && finalContent.length > 45) {
+                                // Smart split: Match sentences while keeping punctuation and brackets
+                                // Regex explanation: Match anything that's NOT a sentence ender, 
+                                // followed by sentence enders AND optional closing brackets
+                                const fragments = finalContent.match(/[^。！？\?!\n]+([。！？\?!\n]+」?|$)/g)
+                                    ?.map(s => s.trim())
+                                    .filter(s => s.length > 0)
+                                    .slice(0, 4) || [finalContent];
+
+                                for (let i = 0; i < fragments.length; i++) {
+                                    this.persistAndShow(targetId, fragments[i], 'voice_text');
+                                    if (i < fragments.length - 1) await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
+                                }
+                            } else {
+                                this.persistAndShow(targetId, finalContent, msgType);
+                            }
                         }
                     }
                     break;
@@ -465,9 +490,11 @@ window.WeChat.Services.Chat = {
                     // Future: 真正调用画图 API 并发送
                     break;
 
-                case 'voice_message':
-                    this.persistAndShow(targetId, action.content, 'voice');
+                case 'voice_message': {
+                    const vType = isInCallWithTarget ? 'voice_text' : 'voice';
+                    this.persistAndShow(targetId, action.content, vType);
                     break;
+                }
 
                 case 'send_and_recall':
                     const recalledMsg = this.persistAndShow(targetId, action.content, 'text');
@@ -615,19 +642,65 @@ window.WeChat.Services.Chat = {
                     break;
 
                 case 'ignore_and_log':
-                    // 1. Show System Tip (Gray text explain why ignored)
-                    if (action.reason) {
-                        this.persistAndShow(targetId, `(${action.reason})`, 'system');
+                    // 1. Show System Tip (Visual reminder for user)
+                    // Priority: status_update (string) > reason
+                    let systemTip = action.status_update || action.reason;
+                    if (typeof systemTip === 'string' && systemTip) {
+                        this.persistAndShow(targetId, `(${systemTip})`, 'system');
                     }
 
-                    // 2. Perform background status update (if provided)
-                    // The 'status' update is already handled by the global parser at the top of executeActions (lines 500+),
-                    // but we ensure it's processed. The global parser extracts 'status' object from any action.
-                    // If action.status_update is passed as a separate field, we map it.
-                    if (action.status_update) {
+                    // 2. Perform background internal status update (if status_update is an object)
+                    if (action.status_update && typeof action.status_update === 'object') {
                         this._applyStatusUpdate(targetId, action.status_update);
                     }
-                    console.log(`[Chat] AI ignored user: ${action.reason}`);
+                    console.log(`[Chat] AI ignored user: ${systemTip}`);
+                    break;
+
+                case 'status_update':
+                    // Explicit system notification action
+                    if (action.content || action.text || typeof action === 'string') {
+                        const tipText = action.content || action.text || (typeof action === 'string' ? action : '');
+                        if (tipText) {
+                            this.persistAndShow(targetId, `(${tipText})`, 'system');
+                        }
+                    }
+                    break;
+
+                case 'reject_call':
+                case 'hangup_call':
+                    console.log('[Chat] AI requested to hang up/reject the call');
+                    if (window.WeChat.App) {
+                        const vState = window.WeChat.App.State.voiceCallState;
+                        const videoState = window.WeChat.App.State.videoCallState;
+
+                        // [Fix] Handle Initiation Decision
+                        if (vState && vState.open) {
+                            if (vState.status === 'dialing') {
+                                // AI Decided to reject while dialing
+                                vState.awaitingInitiation = false;
+                                window.WeChat.App.endVoiceCall();
+                            } else if (action.type === 'hangup_call') {
+                                // AI Decided to hang up during an active call
+                                window.WeChat.App.endVoiceCall();
+                            } else {
+                                // IMPORTANT: If status is 'connected' but AI returns 'reject_call' (initiation decision), 
+                                // it means the decision is OUTDATED (user spoke or system auto-connected). 
+                                // We IGNORE this and also discard the rest of this action sequence (the explanation text).
+                                console.warn('[Chat] Ignoring stale reject_call action as call is already connected.');
+                                return; // Stop executing further actions in this batch (like "Sorry...")
+                            }
+                        } else if (videoState && videoState.open) {
+                            if (videoState.status === 'dialing') {
+                                videoState.awaitingInitiation = false;
+                                window.WeChat.App.endVideoCall();
+                            } else if (action.type === 'hangup_call') {
+                                window.WeChat.App.endVideoCall();
+                            } else {
+                                console.warn('[Chat] Ignoring stale reject_call action for video.');
+                                return;
+                            }
+                        }
+                    }
                     break;
 
                 case 'waimai_request': // 外卖代付
@@ -746,13 +819,14 @@ window.WeChat.Services.Chat = {
         }
     },
 
-    persistAndShow(targetId, content, type) {
+    persistAndShow(targetId, content, type, extra = {}) {
         if (!content) return;
         const msg = window.sysStore.addMessage({
             sender_id: targetId,
             receiver_id: 'user',
             content: content,
-            type: type
+            type: type,
+            ...extra
         });
         this.updateUI(msg);
 
@@ -816,6 +890,30 @@ window.WeChat.Services.Chat = {
 
     updateUI(msg) {
         if (!window.WeChat.UI || !window.WeChat.UI.Bubbles) return;
+
+        // [Voice Call Integration] 
+        // If it's a voice/video call message OR if a call is currently open, we need to refresh the call UI
+        const appState = window.WeChat.App.State;
+        const isInCall = (appState && appState.voiceCallState && appState.voiceCallState.open) ||
+            (appState && appState.videoCallState && appState.videoCallState.open);
+
+        if (isInCall) {
+            window.WeChat.App.render();
+            // Explicitly scroll call subtitles
+            setTimeout(() => {
+                const callSubs = document.getElementById('wx-call-subs');
+                if (callSubs) {
+                    callSubs.scrollTop = callSubs.scrollHeight;
+                }
+            }, 100);
+
+            // If it's ONLY a voice call message, we don't need to update the main chat list DOM
+            if (msg.type === 'voice_text') return;
+        }
+
+        // [Sync Fix] Never append voice-call specific messages to the main chat view DOM (for session switch recovery)
+        if (msg.type === 'voice_text') return;
+
         const view = document.getElementById('wx-view-session');
         if (!view) return;
         const cnt = view.querySelector('.wx-chat-messages');
@@ -858,12 +956,8 @@ window.WeChat.Services.Chat = {
 
         cnt.insertAdjacentHTML('beforeend', window.WeChat.UI.Bubbles.render(bubbleData));
 
-        // [Voice Call Integration]
-        if (window.WeChat.App && window.WeChat.App.State && window.WeChat.App.State.voiceCallState && window.WeChat.App.State.voiceCallState.open) {
-            window.WeChat.App.render();
-        }
         setTimeout(() => {
-            view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' });
+            if (view) view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' });
         }, 50);
     },
 

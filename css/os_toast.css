@@ -1,47 +1,63 @@
-/* Toast Notification */
+/* Toast Notification (iOS 17 Capsule Style) */
 .os-toast {
     position: absolute;
-    top: 60px;
-    /* Below status bar */
+    top: 70px;
+    /* Adjusted to be slightly below the status bar area */
     left: 50%;
-    transform: translateX(-50%) translateY(-20px);
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    padding: 12px 24px;
-    border-radius: 30px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transform: translateX(-50%) scale(0.85);
+    background: rgba(30, 30, 30, 0.75);
+    backdrop-filter: blur(25px) saturate(1.8);
+    -webkit-backdrop-filter: blur(25px) saturate(1.8);
+    padding: 8px 16px;
+    border-radius: 24px;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     display: flex;
     align-items: center;
-    gap: 8px;
-    z-index: 99999;
+    gap: 10px;
+    z-index: 1000000;
+    /* Extremely high to stay on top */
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.5s cubic-bezier(0.32, 1.25, 0.32, 1.1);
     pointer-events: none;
-    max-width: 80%;
-    text-align: center;
+    max-width: 85%;
+    white-space: nowrap;
 }
 
-#os-root.light-mode .os-toast {
-    background: rgba(0, 0, 0, 0.8);
+#os-root.light-theme .os-toast {
+    background: rgba(255, 255, 255, 0.8);
+    border: 0.5px solid rgba(0, 0, 0, 0.05);
 }
 
 .os-toast.show {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) scale(1);
 }
 
 .os-toast-icon {
-    font-size: 18px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+#os-root.light-theme .os-toast-icon {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .os-toast-text {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
-    color: #000;
+    color: #fff;
+    letter-spacing: -0.2px;
 }
 
-#os-root.light-mode .os-toast-text {
-    color: #fff;
+#os-root.light-theme .os-toast-text {
+    color: #000;
 }
 
 /* Success/Error Variants */

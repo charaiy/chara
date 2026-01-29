@@ -332,56 +332,107 @@ window.WeChat.UI.Bubbles = {
                 `;
 
             case 'video_call':
-                const isVideoMe = msg.sender === 'me';
-                const callStatus = msg.status || 'ended';
-                const callDuration = msg.call_duration || '';
-                let callText = '视频通话';
-                if (callStatus === 'ended') callText = `视频通话 结束时长 ${callDuration || '00:00'}`;
-                if (callStatus === 'declined') callText = isVideoMe ? '对方已拒绝' : '已拒绝';
-                if (callStatus === 'cancelled') callText = isVideoMe ? '已取消' : '对方已取消';
-                const callIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
-                    <path d="M15 10l4.55-2.27A1 1 0 0121 8.61v6.78a1 1 0 01-1.45.89L15 14v-4zM5 8h8a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2z" fill="currentColor"/>
-                </svg>`;
-                return `
-                    <div style="display: flex; align-items: center; padding: 2px 0;">
-                        ${isVideoMe ? `<span style="font-size: 15px;">${callText}</span>${callIcon}` : `${callIcon}<span style="font-size: 15px;">${callText}</span>`}
-                    </div>
+            case 'audio_call': {
+                const isMe = msg.sender === 'me';
+                const isVideo = msg.type === 'video_call';
+                const status = msg.status || 'ended';
+                const duration = msg.call_duration || '';
+
+                // WeChat Native Outline Call Icon (High Precision)
+                const handsetIcon = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 12px; flex-shrink: 0; transform: rotate(-135deg); opacity: 0.9;">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
                 `;
 
-            case 'audio_call':
-                const isAudioMe = msg.sender === 'me';
-                const aCallText = msg.status === 'ended' ? `语音通话 结束时长 ${msg.call_duration || '00:00'}` : '语音通话';
-                const audioIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
-                    <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/>
-                </svg>`;
                 return `
-                    <div style="display: flex; align-items: center; padding: 2px 0;">
-                        ${isAudioMe ? `<span style="font-size: 15px;">${aCallText}</span>${audioIcon}` : `${audioIcon}<span style="font-size: 15px;">${aCallText}</span>`}
+                    <div style="display: flex; align-items: center; min-height: 24px;">
+                        <span style="font-size: 16px; line-height: 1.4; flex: 1; letter-spacing: 0.3px;">${callText}</span>
+                        ${handsetIcon}
                     </div>
                 `;
+            }
 
-            case 'call_summary':
-                // Native Style Call Summary Bubble
+            case 'call_summary': {
                 let sumData = {};
                 try { sumData = JSON.parse(msg.content); } catch (e) { sumData = { duration: '00:00', summary: '' }; }
 
-                const isSumMe = msg.sender === 'me';
-                const sumBg = isSumMe ? '#95ec69' : '#FFFFFF'; // WeChat Green #95ec69
-                const sumColor = '#000000';
+                const isMe = msg.sender === 'me';
+                const isVideo = sumData.type === 'video';
 
-                // Simple Document Icon SVG
-                const docIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; opacity:0.6;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+                // 高精度图标
+                let iconHtml = '';
+                if (isVideo) {
+                    iconHtml = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="${isMe ? 'margin-left: 12px;' : 'margin-right: 12px;'} flex-shrink: 0; opacity: 0.9;">
+                        <path d="M15 7.5H6C4.8 7.5 4 8.3 4 9.5V14.5C4 15.7 4.8 16.5 6 16.5H15C16.2 16.5 17 15.7 17 14.5V13L21 15.5V8.5L17 11V9.5C17 8.3 16.2 7.5 15 7.5Z"/>
+                    </svg>`;
+                } else {
+                    iconHtml = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="${isMe ? 'margin-left: 12px;' : 'margin-right: 12px;'} flex-shrink: 0; opacity: 0.9;">
+                        <path d="M5.5 14.5C4.5 14.5 3.5 13.5 4 12C4.5 10 7 8.5 12 8.5C17 8.5 19.5 10 20 12C20.5 13.5 19.5 14.5 18.5 14.5C17.5 14.5 17 13.5 17 12.5C17 11 15 10.5 12 10.5C9 10.5 7 11 7 12.5C7 13.5 6.5 14.5 5.5 14.5Z"/>
+                    </svg>`;
+                }
 
-                // IMPORTANT: Do NOT render a nested `.wx-bubble` here.
-                // Outer wrapper already provides the `.wx-bubble` container & press handlers.
                 return `
-                    <div style="background: ${sumBg}; padding: 10px 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center;"
-                         onclick="event.stopPropagation(); window.WeChat.App.openCallSummary('${msg.id}')">
-                        ${docIcon}
-                        <span style="font-size: 14px; color: ${sumColor};">通话时长 ${sumData.duration}</span>
-                        <span style="font-size: 10px; color: ${sumColor}; opacity: 0.5; margin-left: 6px; margin-top: 2px;">(点击查看)</span>
+                    <div onclick="window.WeChat.App.openCallSummary('${msg.id}')" style="display: flex; align-items: center; min-height: 24px; cursor: pointer; flex-direction: ${isMe ? 'row' : 'row-reverse'};">
+                        <span style="font-size: 16px; line-height: 1.4; flex: 1; letter-spacing: 0.3px; text-align: ${isMe ? 'right' : 'left'};">通话时长 ${sumData.duration}</span>
+                        ${iconHtml}
                     </div>
                 `;
+            }
+
+            case 'call_status': {
+                const isMe = msg.sender === 'me';
+                const isVideo = msg.isVideo;
+                let rawStatus = msg.content; // "reject", "cancel", "no_answer", "busy"
+
+                // --- 视角差逻辑还原 (严格匹配微信) ---
+                let statusText = '';
+                if (isMe) {
+                    // 我发起的动作 (如：我按了挂断)
+                    const map = {
+                        'cancel': '已取消',
+                        'reject': '已拒绝',
+                        'no_answer': '无应答'
+                    };
+                    statusText = map[rawStatus] || rawStatus;
+                } else {
+                    // 对方动作导致的结果 (如：对方拒接了我的呼叫)
+                    const map = {
+                        'cancel': '对方已取消',
+                        'reject': '对方已拒绝',
+                        'no_answer': '对方无应答'
+                    };
+                    statusText = map[rawStatus] || rawStatus;
+                }
+
+                // --- 高精度空心图标 ---
+                let iconHtml = '';
+                if (isVideo) {
+                    iconHtml = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                        <path d="M15 7.5H6C4.8 7.5 4 8.3 4 9.5V14.5C4 15.7 4.8 16.5 6 16.5H15C16.2 16.5 17 15.7 17 14.5V13L21 15.5V8.5L17 11V9.5C17 8.3 16.2 7.5 15 7.5Z"/>
+                    </svg>`;
+                } else {
+                    iconHtml = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                        <path d="M5.5 14.5C4.5 14.5 3.5 13.5 4 12C4.5 10 7 8.5 12 8.5C17 8.5 19.5 10 20 12C20.5 13.5 19.5 14.5 18.5 14.5C17.5 14.5 17 13.5 17 12.5C17 11 15 10.5 12 10.5C9 10.5 7 11 7 12.5C7 13.5 6.5 14.5 5.5 14.5Z"/>
+                    </svg>`;
+                }
+
+                const contentHtml = isMe ?
+                    `<div style="display: flex; align-items: center; justify-content: flex-end; width:100%;">
+                        <span style="font-size: 16px; margin-right: 12px; font-weight: 400;">${statusText}</span>
+                        ${iconHtml}
+                    </div>` :
+                    `<div style="display: flex; align-items: center; justify-content: flex-start; width:100%;">
+                        ${iconHtml}
+                        <span style="font-size: 16px; margin-left: 12px; font-weight: 400;">${statusText}</span>
+                    </div>`;
+
+                return contentHtml;
+            }
 
             default:
                 return '[不支持的消息类型]';
