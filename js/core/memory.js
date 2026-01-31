@@ -135,13 +135,31 @@ const Memory = {
         const userName = this.store.get('user_realname') || '用户';
 
         // 1. Prepare System Prompt
-        // [FIX] 手动总结优先使用 manualPrompt，自动总结使用 autoPrompt
-        let basePrompt = config.manualPrompt || config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
+        // [USER REQUEST] 手动总结时必须使用总结规则
+        // 判断是否为手动总结：如果 config 中有 manualPrompt 字段（即使为空字符串），则认为是手动总结
+        const isManualSummary = 'manualPrompt' in config;
+        let basePrompt;
+        
+        if (isManualSummary) {
+            // 手动总结：优先使用 manualPrompt，如果为空或未设置则使用默认总结规则
+            if (config.manualPrompt && config.manualPrompt.trim()) {
+                basePrompt = config.manualPrompt;
+                console.log('[Memory] Manual summary: Using custom manual prompt');
+            } else {
+                basePrompt = window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
+                console.log('[Memory] Manual summary: Using default summary prompt');
+            }
+        } else {
+            // 自动总结：使用 autoPrompt 或默认规则
+            basePrompt = config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
+            console.log('[Memory] Auto summary: Using auto prompt or default');
+        }
+        
         const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
         // [CRITICAL FIX] 明确告诉 AI 两个时间的区别
         let systemPrompt = basePrompt;
-        if (!config.manualPrompt) {
-            // 只有在自动总结时才添加时间处理规则
+        // 只有在自动总结时才添加时间处理规则（手动总结时，如果用户自定义了规则，应该已经包含时间处理）
+        if (!isManualSummary) {
             systemPrompt += `\n\n【时间处理严格规定】：
 1. 这里的 "当前执行时间: ${nowStr}" 仅供你计算 "昨天"、"前天" 等相对概念，**绝不可作为 Summary 的时间头**！
 2. 生成的 "年份日期星期时间" 必须提取自 **下方对话记录中的实际时间戳 [YYYY/... ]**。
@@ -154,7 +172,12 @@ const Memory = {
 2. 禁止使用第一人称（"我"）来总结角色自己的行为。
 3. 示例格式："2025年4月2日8:30，星期三，（角色名）和你聊了关于早餐的话题。"`;
 
-        systemPrompt += `\n\n【其它要求】：\n1. 总结精简(100字内)。\n2. 遇到表情包请描述含义。`;
+        systemPrompt += `\n\n【图片和表情包识别要求（强制）】：
+1. **表情包识别**：如果对话中包含表情包，你必须准确识别表情包的含义（如"生气"、"开心"、"担心"等），并在总结中明确描述。禁止使用"发送了表情包"这种模糊描述。
+2. **图片识别**：如果对话中包含图片，你必须仔细观察图片内容，准确描述图片中的内容（人物、物品、场景等），禁止编造不存在的内容。
+3. **禁止编造**：如果图片无法清晰识别，请如实说明"图片内容不清晰"或"无法识别"，绝不可编造图片内容。`;
+
+        systemPrompt += `\n\n【其它要求】：\n1. 总结精简(100字内)。\n2. 所有总结必须使用第三人称。`;
 
         // 2. Build Multimodal Content
         // [FIX] 检查是否真的需要多模态格式（是否有图片/表情包）
@@ -169,14 +192,40 @@ const Memory = {
             const safeContent = (m.content != null) ? String(m.content) : '';
 
             if (m.type === 'image' || m.type === 'sticker') {
+                // [USER REQUEST] 表情包必须能识别正确含义
+                let label = '';
+                let description = '';
+                
+                if (m.type === 'sticker') {
+                    // 尝试从 Stickers 服务获取表情包的含义标签
+                    if (window.WeChat && window.WeChat.Services && window.WeChat.Services.Stickers) {
+                        const allStickers = window.WeChat.Services.Stickers.getAll();
+                        const sticker = allStickers.find(s => s.url === safeContent);
+                        if (sticker && sticker.tags && sticker.tags.length > 0) {
+                            // 过滤掉"自定义"、"收藏"等元数据标签，只保留含义标签
+                            const meaningTags = sticker.tags.filter(t => !['自定义', '收藏', '未分类'].includes(t));
+                            if (meaningTags.length > 0) {
+                                description = `[表情包含义: ${meaningTags.join(', ')}]`;
+                            }
+                        }
+                    }
+                    label = description ? `[发送了表情包 ${description}]` : '[发送了表情包]';
+                } else {
+                    label = '[发送了图片]';
+                }
+                
+                const imageText = `[${timeStr}] ${sender} ${label}: ${safeContent}\n`;
+                
+                // 同时添加到多模态格式和文本缓冲区（用于回退）
                 if (currentTextBuffer) {
                     userContentParts.push({ type: 'text', text: currentTextBuffer });
                     currentTextBuffer = "";
                 }
-                const label = m.type === 'sticker' ? '[发送了表情包]' : '[发送了图片]';
-                userContentParts.push({ type: 'text', text: `\n[${timeStr}] ${sender} ${label}:\n` });
+                userContentParts.push({ type: 'text', text: `\n${imageText}` });
                 userContentParts.push({ type: 'image_url', image_url: { url: safeContent } });
-                currentTextBuffer += "\n";
+                
+                // [FIX] 也在文本缓冲区中保留图片描述，以便回退到纯文本格式时使用
+                currentTextBuffer += imageText;
             } else if (m.type === 'voice_text' || m.type === 'voice') {
                 // [Logic] Mark as Voice Call to prevent AI from thinking it was a text chat
                 // [FIX] 如果 content 为空，使用默认描述
@@ -206,19 +255,39 @@ const Memory = {
 
         try {
             // 3. Call API with appropriate format
-            // [FIX] 如果包含图片/表情包，使用多模态格式；否则使用纯文本格式
+            // [USER REQUEST] 修复：有图片/表情包时也要能总结
+            // [FIX] 如果包含图片/表情包，尝试使用多模态格式；如果失败则回退到纯文本格式
+            let summaryText = null;
             let messagesPayload;
+            
             if (hasMultimodalContent) {
-                console.log('[Memory] Calling AI (Vision) for summary...');
-                // Construct the messages structure for multimodal content
-                messagesPayload = [
-                    {
-                        role: 'user',
-                        content: userContentParts
-                    }
-                ];
+                console.log('[Memory] Calling AI (Vision) for summary with multimodal content...');
+                console.log('[Memory] Multimodal content parts:', userContentParts.length);
+                console.log('[Memory] System prompt emphasizes: image recognition, sticker meaning, third-person perspective');
+                
+                // 尝试使用多模态格式
+                try {
+                    messagesPayload = [
+                        {
+                            role: 'user',
+                            content: userContentParts
+                        }
+                    ];
+                    summaryText = await window.API.chat(messagesPayload);
+                } catch (multimodalError) {
+                    console.warn('[Memory] Multimodal summary failed, falling back to text-only format:', multimodalError);
+                    // 回退到纯文本格式（只使用文本描述，不包含图片）
+                    console.log('[Memory] Falling back to text-only summary...');
+                    messagesPayload = [
+                        {
+                            role: 'user',
+                            content: currentTextBuffer
+                        }
+                    ];
+                    summaryText = await window.API.chat(messagesPayload);
+                }
             } else {
-                console.log('[Memory] Calling AI for summary...');
+                console.log('[Memory] Calling AI for text-only summary...');
                 // Use simple text format when no images/stickers
                 messagesPayload = [
                     {
@@ -226,15 +295,19 @@ const Memory = {
                         content: currentTextBuffer
                     }
                 ];
+                summaryText = await window.API.chat(messagesPayload);
             }
-
-            const summaryText = await window.API.chat(messagesPayload);
 
             // 4. Save Summary
             if (summaryText) {
                 this.addMemory(targetId, summaryText, 'summary', false);
                 console.log('[Memory] Summary saved successfully.');
                 if (window.os) window.os.showToast('长期记忆已更新', 'success');
+                
+                // [USER REQUEST] 实时刷新UI，不需要手动刷新页面
+                if (window.WeChat && window.WeChat.App && window.WeChat.App.render) {
+                    window.WeChat.App.render();
+                }
             }
 
         } catch (e) {

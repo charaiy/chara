@@ -102,9 +102,18 @@ window.WeChat.Views.Stickers = {
         // But `State` in `index.js` is not exposed.
         // Solution: I will expose `window.WeChat.App.getSelectionState()` in index.js
 
-        const { selectionMode, selectedStickers } = window.WeChat.App.getSelectionState
+        const selectionState = window.WeChat.App && window.WeChat.App.getSelectionState
             ? window.WeChat.App.getSelectionState()
             : { selectionMode: false, selectedStickers: new Set() };
+        
+        const selectionMode = selectionState.selectionMode || false;
+        // Convert Set to Set if needed, or handle array
+        let selectedStickers = selectionState.selectedStickers;
+        if (selectedStickers && !(selectedStickers instanceof Set)) {
+            selectedStickers = new Set(Array.isArray(selectedStickers) ? selectedStickers : []);
+        } else if (!selectedStickers) {
+            selectedStickers = new Set();
+        }
 
 
         // 1. Restore Album Upload (Pos 1) - Dashed Plus
@@ -121,14 +130,16 @@ window.WeChat.Views.Stickers = {
         const stickerItems = stickers.map(item => {
             const url = item.url; // Extract URL from object
             // Check if selected
-            const isSelected = selectedStickers && selectedStickers.has(url);
+            const isSelected = selectedStickers && selectedStickers.has && selectedStickers.has(url);
+            // Escape URL for HTML attribute
+            const escapedUrl = url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             return `
             <div class="wx-sticker-cell ${isSelected ? 'selected' : ''}" 
-                 onmousedown="window.WeChat.App.handleStickerPressStart(event, '${url}')"
-                 ontouchstart="window.WeChat.App.handleStickerPressStart(event, '${url}')"
-                 onmouseup="window.WeChat.App.handleStickerPressEnd(event, '${url}')"
-                 ontouchend="window.WeChat.App.handleStickerPressEnd(event, '${url}')"
-                 onclick="window.WeChat.App.handleStickerClick('${url}')">
+                 onmousedown="window.WeChat.App.handleStickerPressStart(event, '${escapedUrl}')"
+                 ontouchstart="window.WeChat.App.handleStickerPressStart(event, '${escapedUrl}')"
+                 onmouseup="window.WeChat.App.handleStickerPressEnd(event, '${escapedUrl}')"
+                 ontouchend="window.WeChat.App.handleStickerPressEnd(event, '${escapedUrl}')"
+                 onclick="window.WeChat.App.handleStickerClick('${escapedUrl}')">
                 
                 <div class="wx-sticker-check-btn"></div>
                 <img src="${url}" loading="lazy" style="pointer-events:none;" onerror="this.style.display='none'; this.parentElement.style.background='rgba(255,255,255,0.06)';" />

@@ -1,6 +1,43 @@
-﻿/**
+/**
  * js/apps/wechat/ui/bubbles.js
- * 负责渲染聊天气泡
+ * 消息气泡渲染服务 - 负责渲染各种类型的消息气泡
+ * 
+ * 职责：
+ * - 渲染不同类型的消息气泡（文本、图片、语音、位置、转账等）
+ * - 处理消息的显示样式（用户侧/角色侧）
+ * - 处理消息选择模式下的显示
+ * - 处理头像点击和双击事件
+ * 
+ * 支持的消息类型：
+ * - text: 文本消息
+ * - image: 图片消息
+ * - sticker: 表情包消息
+ * - voice: 语音消息
+ * - location: 位置消息
+ * - transfer: 转账消息
+ * - transfer_status: 转账状态消息
+ * - call_status: 通话状态消息
+ * - system: 系统消息
+ * 
+ * 功能模块：
+ * 1. 消息渲染：
+ *    - render(): 渲染单条消息（包含气泡和头像）
+ *    - _renderContent(): 渲染消息内容（根据类型）
+ * 
+ * 2. 交互处理：
+ *    - handleAvatarClick(): 处理头像单击（打开资料）
+ *    - handleAvatarDblClick(): 处理头像双击（拍一拍）
+ * 
+ * 3. 特殊处理：
+ *    - 撤回消息显示
+ *    - 隐藏系统消息（hidden: true）
+ *    - 消息选择模式
+ *    - 时间戳显示逻辑
+ * 
+ * 依赖：
+ * - window.WeChat.App: 应用主对象
+ * - window.sysStore: 数据存储
+ * - window.WeChat.Services: 各种服务
  */
 
 window.WeChat = window.WeChat || {};
@@ -61,6 +98,10 @@ window.WeChat.UI.Bubbles = {
 
         // 2. Handle System Messages
         if (msg.type === 'system') {
+            // [Fix] 隐藏系统消息（对AI可见，但不在UI中显示）
+            if (msg.hidden === true) {
+                return ''; // 返回空字符串，不渲染
+            }
             return `
                 <div class="wx-msg-system">
                     <span>${msg.content}</span>
@@ -246,8 +287,10 @@ window.WeChat.UI.Bubbles = {
             case 'transfer_status': {
                 let statusData = {};
                 try { statusData = JSON.parse(msg.content); } catch (e) { statusData = { status: 'unknown', text: msg.content }; }
+                const isReceived = statusData.status === 'received';
                 const isRefund = statusData.status === 'refunded';
-                const bubbleBg = isRefund ? '#ffebd7' : '#f79e39';
+                // [Fix] 已收款和已被接收应该使用相同的颜色
+                const bubbleBg = (isReceived || isRefund) ? (isRefund ? '#ffebd7' : '#f9e6cc') : '#f79e39';
                 const txtColor = 'white';
                 const footerColor = 'rgba(255,255,255,0.8)';
                 const borderColor = 'rgba(255,255,255,0.2)';
@@ -386,10 +429,24 @@ window.WeChat.UI.Bubbles = {
                 const isMe = msg.sender === 'me';
                 const isVideo = msg.isVideo;
                 let rawStatus = msg.content; // "reject", "cancel", "no_answer", "busy"
+                
+                // [Fix] 获取消息的 initiatedByUser 标记
+                // 优先从 msg 对象获取，如果没有则从 store 查找
+                let initiatedByUser = msg.initiatedByUser === true;
+                if (!initiatedByUser && window.sysStore && msg.id) {
+                    const fullMsg = window.sysStore.getAllMessages().find(m => m.id === msg.id);
+                    if (fullMsg) {
+                        initiatedByUser = fullMsg.initiatedByUser === true;
+                    }
+                }
 
                 // --- 视角差逻辑还原 (严格匹配微信) ---
                 let statusText = '';
-                if (isMe) {
+                // [Fix] 如果用户主动拨打被拒绝，即使消息显示在右侧（isMe=true），也应该显示"对方已拒绝"
+                if (isMe && initiatedByUser && rawStatus === 'reject') {
+                    // 用户主动拨打被对方拒绝，显示"对方已拒绝"
+                    statusText = '对方已拒绝';
+                } else if (isMe) {
                     // 我发起的动作 (如：我按了挂断)
                     const map = {
                         'cancel': '已取消',
@@ -433,6 +490,10 @@ window.WeChat.UI.Bubbles = {
 
                 return contentHtml;
             }
+
+            case 'thought_chain':
+                // [Fix] 思维链不应该显示在聊天界面，只记录到控制台
+                return '';
 
             default:
                 return '[不支持的消息类型]';

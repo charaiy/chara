@@ -1,7 +1,56 @@
 /**
  * js/apps/wechat/services/chat.js
- * 负责消息管理、发送、接收逻辑
+ * 聊天核心服务 - 负责消息管理、AI回复、动作执行等核心逻辑
+ * 
+ * 职责：
+ * - 消息发送和接收
+ * - AI回复触发和处理
+ * - AI响应解析（JSON命令系统）
+ * - 动作执行（转账、位置、拍一拍、表情包等）
+ * - 上下文构建（历史消息、记忆、关系等）
+ * - 消息持久化和显示
+ * 
+ * 核心功能模块：
+ * 1. 消息发送：
+ *    - sendMessage(): 发送消息（文本、图片等）
+ *    - persistAndShow(): 持久化并显示消息
+ * 
+ * 2. AI回复：
+ *    - triggerAIReply(): 触发AI回复
+ *    - _parseAIResponse(): 解析AI响应（支持JSON命令和纯文本）
+ *    - buildContext(): 构建对话上下文
+ * 
+ * 3. 动作执行：
+ *    - executeActions(): 执行AI返回的动作序列
+ *    - 支持的动作类型：
+ *      - text: 文本消息
+ *      - sticker: 表情包
+ *      - image: 图片
+ *      - location_share: 位置分享
+ *      - transfer: 转账
+ *      - accept_transfer: 接收转账
+ *      - refund_transfer: 退还转账
+ *      - nudge: 拍一拍
+ *      - voice_call_request: 语音通话请求
+ *      - video_call_request: 视频通话请求
+ *      - reject_call: 拒绝通话
+ *      - hangup_call: 挂断通话
+ *      - status_update: 状态更新
+ *      - ignore_and_log: 忽略并记录
+ * 
+ * 4. 特殊处理：
+ *    - 通话中的消息处理（voice_text类型）
+ *    - 消息时间戳显示逻辑
+ *    - 消息排序和去重
+ * 
  * [Refactor] Advanced AI Integration with JSON Command System
+ * 
+ * 依赖：
+ * - window.Core.Api: API调用
+ * - window.WeChat.Services.Prompts: 提示词构建
+ * - window.WeChat.Services.*: 各种服务（转账、位置等）
+ * - window.sysStore: 数据存储
+ * - window.Core.Memory: 记忆系统
  */
 
 window.WeChat = window.WeChat || {};
@@ -99,7 +148,7 @@ window.WeChat.Services.Chat = {
                 systemPrompt = window.WeChat.Services.Prompts.constructSystemPrompt(targetId, character);
             } else {
                 console.error('[Chat] Prompts service not found!');
-                return;
+                throw new Error('Prompts service not found'); // 改为抛出异常，确保 finally 块执行
             }
 
             // 3.获取历史消息
@@ -122,26 +171,40 @@ window.WeChat.Services.Chat = {
             await this.executeActions(targetId, actions);
 
         } catch (e) {
-            console.error('[ChatService] AI Reply Failed:', e);
-
-            // Extract meaningful error message
-            let displayMsg = '连接断开或响应异常';
-            if (e.message && !e.message.includes('JSON') && !e.message.includes('Unexpected')) {
-                displayMsg = e.message;
-            } else if (e.message) {
-                // If it's a JSON/Parsing error after a successful response chunk, don't toast
-                return;
-            }
-
-            if (window.os && window.os.showToast) {
-                window.os.showToast(`(系统消息: ${displayMsg})`, 'error');
-            } else {
-                this.updateUI({
-                    sender_id: 'system',
-                    receiver_id: 'user',
-                    content: `(系统消息: ${displayMsg}，请确保网络及 API 配置正确)`,
-                    type: 'system'
+            // 使用统一错误处理
+            const errorType = this._getErrorType(e);
+            const shouldShowToast = !(e.message && (e.message.includes('JSON') || e.message.includes('parse') || e.message.includes('Unexpected')));
+            
+            if (window.ErrorHandler) {
+                window.ErrorHandler.setContext({
+                    sessionId: targetId,
+                    action: 'triggerAIReply'
                 });
+                window.ErrorHandler.handle(e, {
+                    level: window.ErrorHandler.Level.ERROR,
+                    type: errorType,
+                    showToast: shouldShowToast,
+                    metadata: { targetId }
+                });
+            } else {
+                // Fallback: 原始错误处理
+                console.error('[ChatService] AI Reply Failed:', e);
+                let displayMsg = '连接断开或响应异常';
+                if (e.message && !e.message.includes('JSON') && !e.message.includes('Unexpected')) {
+                    displayMsg = e.message;
+                }
+                if (shouldShowToast) {
+                    if (window.os && window.os.showToast) {
+                        window.os.showToast(`(系统消息: ${displayMsg})`, 'error');
+                    } else {
+                        this.updateUI({
+                            sender_id: 'system',
+                            receiver_id: 'user',
+                            content: `(系统消息: ${displayMsg}，请确保网络及 API 配置正确)`,
+                            type: 'system'
+                        });
+                    }
+                }
             }
         } finally {
             this._isRequesting = false;
@@ -163,39 +226,69 @@ window.WeChat.Services.Chat = {
         let cleanText = responseText.trim();
         let actions = [];
 
+        // [Fix] 提前检查：如果文本看起来不像 JSON（没有 {} 或 []），直接作为文本处理
+        const hasJsonStructure = (cleanText.includes('{') && cleanText.includes('}')) || 
+                                  (cleanText.includes('[') && cleanText.includes(']'));
+        
+        if (!hasJsonStructure) {
+            console.log('[Chat] Response does not contain JSON structure, treating as pure text.');
+            return [
+                { type: 'thought_chain', analysis: 'Fallback', strategy: 'Direct Reply', character_thoughts: {} },
+                { type: 'text', content: cleanText }
+            ];
+        }
+
         try {
             // Case A: 完美的 JSON
             actions = JSON.parse(cleanText);
         } catch (e1) {
             try {
                 // Case B: Markdown 代码块包裹 (```json ... ```)
-                // 寻找最外层的 []
+                // 移除 markdown 代码块标记
+                cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+                
+                // 寻找最外层的 [] 或 {}
                 const firstBracket = cleanText.indexOf('[');
                 const lastBracket = cleanText.lastIndexOf(']');
+                const firstBrace = cleanText.indexOf('{');
+                const lastBrace = cleanText.lastIndexOf('}');
 
                 if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
                     const jsonCandidate = cleanText.substring(firstBracket, lastBracket + 1);
                     actions = JSON.parse(jsonCandidate);
+                } else if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                    const jsonCandidate = cleanText.substring(firstBrace, lastBrace + 1);
+                    const parsed = JSON.parse(jsonCandidate);
+                    // 单个对象包装成数组
+                    actions = Array.isArray(parsed) ? parsed : [parsed];
                 } else {
-                    throw new Error("No JSON array structure found");
+                    throw new Error("No JSON structure found");
                 }
             } catch (e2) {
                 console.warn('[Chat] Relaxed JSON parsing failed, attempting fallback.', e2);
 
                 // Case C: 彻底不是 JSON，当做普通文本回复
-                // 只有当文本不包含明显的 JSON 特征时才这样做，否则可能是 JSON 格式错误
-                if (!cleanText.includes('type":')) {
-                    console.log('[Chat] Treating response as pure text.');
+                // [Fix] 改进判断：检查是否包含 JSON 特征（引号、冒号、逗号等）
+                const hasJsonFeatures = cleanText.includes('"') && 
+                                       (cleanText.includes(':') || cleanText.includes(',')) &&
+                                       (cleanText.includes('type') || cleanText.includes('content'));
+                
+                if (!hasJsonFeatures) {
+                    console.log('[Chat] Treating response as pure text (no JSON features detected).');
                     // 自动包装标准 Think + Text 结构
                     return [
-                        { type: 'thought_chain', analysis: 'Fallack', strategy: 'Direct Reply', character_thoughts: {} },
+                        { type: 'thought_chain', analysis: 'Fallback', strategy: 'Direct Reply', character_thoughts: {} },
                         { type: 'text', content: cleanText }
                     ];
                 }
 
-                // Case D: 坏掉的 JSON，只能报错或忽略
-                console.error('[Chat] Unrecoverable JSON format.');
-                throw e2;
+                // Case D: 坏掉的 JSON，尝试提取文本内容
+                console.error('[Chat] Unrecoverable JSON format, extracting text content.');
+                // [Fix] 不抛出异常，而是返回一个文本消息，避免整个流程失败
+                return [
+                    { type: 'thought_chain', analysis: 'Parse Error', strategy: 'Direct Reply', character_thoughts: {} },
+                    { type: 'text', content: cleanText.replace(/[{}[\]]/g, '').trim() || 'AI 响应格式异常，请重试' }
+                ];
             }
         }
 
@@ -214,12 +307,32 @@ window.WeChat.Services.Chat = {
 
     /**
      * 构建上下文消息列表
+     * [USER REQUEST] 优化：添加缓存机制，避免重复构建上下文，提升通话中回复速度
      */
     buildContext(targetId) {
         const char = window.sysStore.getCharacter(targetId);
         const charName = char ? (char.name || targetId) : '对方';
         const limit = char?.settings?.memory_limit || 50;
-        const rawHistory = window.sysStore.getMessagesBySession(targetId).slice(-limit);
+        
+        // [OPTIMIZATION] 缓存机制：如果消息没有变化，直接返回缓存的上下文
+        const allMessages = window.sysStore.getMessagesBySession(targetId);
+        const lastMessageId = allMessages.length > 0 ? allMessages[allMessages.length - 1].id : null;
+        const lastMessageTime = allMessages.length > 0 ? allMessages[allMessages.length - 1].timestamp : 0;
+        
+        // 检查缓存
+        if (this._contextCache) {
+            const cache = this._contextCache;
+            if (cache.targetId === targetId && 
+                cache.lastMessageId === lastMessageId && 
+                cache.lastMessageTime === lastMessageTime &&
+                cache.limit === limit) {
+                // 缓存命中，直接返回
+                console.log('[Chat] buildContext: Cache hit, reusing context');
+                return cache.history;
+            }
+        }
+        
+        const rawHistory = allMessages.slice(-limit);
 
         const history = rawHistory.map((m, index) => {
             // ... (existing mapping logic)
@@ -246,7 +359,44 @@ window.WeChat.Services.Chat = {
                 let trans = { amount: '?', note: '' }; try { trans = JSON.parse(m.content); } catch (e) { }
                 const senderName = (m.sender_id === 'user' || m.sender_id === 'me') ? '用户' : '你';
                 content = `[${senderName}发起转账] ¥${trans.amount} "${trans.note}"`;
-            } else if (m.type === 'call_status') content = `[语音通话] ${m.content}`;
+            } else if (m.type === 'call_status') {
+                // [Fix] 正确构建通话状态消息，说明是谁的动作和谁发起的
+                // 注意：在 buildContext 中，角色视角是 'assistant'，用户视角是 'user'
+                // 如果 sender_id 是 'user' 或 'me'，说明是用户的操作
+                // 如果 sender_id 是角色ID，说明是角色的操作
+                const isUserAction = (m.sender_id === 'user' || m.sender_id === 'me' || m.sender_id === 'my');
+                const wasInitiatedByUser = m.initiatedByUser === true;  // [Fix] 检查是否用户主动发起
+                
+                // [Fix] 根据发起者和操作者构建更准确的描述
+                let statusText = '';
+                if (m.content === 'reject') {
+                    if (isUserAction) {
+                        statusText = '用户拒绝了你的通话邀请';
+                    } else if (wasInitiatedByUser) {
+                        // 用户主动发起，角色拒绝
+                        statusText = '你拒绝了用户主动发起的通话邀请';
+                    } else {
+                        // 角色主动发起，角色拒绝（不太可能，但保留逻辑）
+                        statusText = '你取消了通话';
+                    }
+                } else if (m.content === 'cancel') {
+                    if (isUserAction) {
+                        statusText = '用户取消了通话';
+                    } else {
+                        statusText = '你取消了通话';
+                    }
+                } else if (m.content === 'no_answer') {
+                    if (isUserAction) {
+                        statusText = '用户未接听';
+                    } else {
+                        statusText = '你未接听';
+                    }
+                } else {
+                    statusText = `[通话状态: ${m.content}]`;
+                }
+                
+                content = `[${m.isVideo ? '视频' : '语音'}通话] ${statusText}`;
+            }
             else if (m.type === 'call_summary') {
                 let sum = { duration: '00:00' }; try { sum = JSON.parse(m.content); } catch (e) { }
                 content = `[语音通话已结束] 通话时长: ${sum.duration}`;
@@ -276,6 +426,15 @@ window.WeChat.Services.Chat = {
             }
         }
 
+        // [OPTIMIZATION] 缓存构建好的上下文
+        this._contextCache = {
+            targetId: targetId,
+            lastMessageId: lastMessageId,
+            lastMessageTime: lastMessageTime,
+            limit: limit,
+            history: history
+        };
+        
         return history;
     },
 
@@ -299,6 +458,40 @@ window.WeChat.Services.Chat = {
             call.status = 'connected';
             call.startTime = Date.now();
             call.awaitingInitiation = false;
+
+            // [New] 启动真实的媒体流
+            setTimeout(async () => {
+                try {
+                    const WebRTC = window.WeChat.Services.WebRTC;
+                    if (WebRTC && WebRTC.isSupported()) {
+                        // 判断是视频通话还是语音通话
+                        const appState = window.WeChat.App.State;
+                        const isVideo = (appState.videoCallState?.open && 
+                                        appState.videoCallState?.sessionId === targetId) || false;
+                        
+                        if (isVideo) {
+                            // 视频通话：获取摄像头和麦克风
+                            await WebRTC.startVideoCall();
+                            // 绑定本地视频流到 video 元素
+                            setTimeout(() => {
+                                WebRTC.attachLocalVideo('wx-video-call-local');
+                            }, 100);
+                        } else {
+                            // 语音通话：只获取麦克风
+                            await WebRTC.startVoiceCall();
+                            // 绑定本地音频流到 audio 元素
+                            setTimeout(() => {
+                                WebRTC.attachLocalAudio('wx-voice-call-audio');
+                            }, 100);
+                        }
+                    }
+                } catch (error) {
+                    console.error('[WebRTC] 启动媒体流失败:', error);
+                    if (window.os) {
+                        window.os.showToast('无法访问摄像头/麦克风，请检查权限设置', 'error', 3000);
+                    }
+                }
+            }, 200);
 
             // Start Timer
             if (call.timer) clearInterval(call.timer);
@@ -325,6 +518,10 @@ window.WeChat.Services.Chat = {
         // [Robustness] Capture call state AT THE START of the action sequence execution
         // This prevents messages from "leaking" into the main chat if the call ends while AIs are still speaking
         const appState = window.WeChat.App.State;
+        
+        // [USER REQUEST] 检查是否在通话中（已接通状态）
+        const isInActiveCall = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId && appState.voiceCallState?.status === 'connected') ||
+                               (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'connected');
         const isInCallWithTarget = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId) ||
             (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId);
 
@@ -336,8 +533,17 @@ window.WeChat.Services.Chat = {
             // If AI is rejecting, they might still send a text explanation, but we MUST NOT connect.
             const hasReject = actions.some(a => a.type === 'reject_call');
             const contentTypes = ['text', 'sticker', 'voice_message'];
+            // [Fix] 在第一个内容消息时立即接通，避免超时保护误判
             if (contentTypes.includes(action.type) && !hasReject) {
-                this._autoAnswerIfDialing(targetId);
+                // 检查是否在通话中
+                const appState = window.WeChat.App.State;
+                const isDialing = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId && appState.voiceCallState?.status === 'dialing') ||
+                                 (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'dialing');
+                
+                if (isDialing) {
+                    // 立即接通，避免超时保护误判
+                    this._autoAnswerIfDialing(targetId);
+                }
             }
 
             // 模拟输入延迟 (增强拟人感) - User Rule: First msg 0s, others 2s 固定
@@ -440,6 +646,11 @@ window.WeChat.Services.Chat = {
                     break;
 
                 case 'nudge':
+                    // [USER REQUEST] 通话中禁止拍一拍
+                    if (isInActiveCall) {
+                        console.warn('[Chat] 通话中禁止拍一拍，已忽略');
+                        break; // 跳过拍一拍动作
+                    }
                     // AI actively nudges...
                     const target = action.target || 'user';
                     const char = window.sysStore.getCharacter(targetId);
@@ -457,6 +668,11 @@ window.WeChat.Services.Chat = {
                     break;
 
                 case 'sticker':
+                    // [USER REQUEST] 通话中禁止发送表情包
+                    if (isInActiveCall) {
+                        console.warn('[Chat] 通话中禁止发送表情包，已忽略');
+                        break; // 跳过表情包动作
+                    }
                     let stickerUrl = null;
                     // Robust Clean: Remove [ ], - , ( ) and trim
                     let meaning = String(action.meaning || action.content || '').trim();
@@ -678,6 +894,8 @@ window.WeChat.Services.Chat = {
                             if (vState.status === 'dialing') {
                                 // AI Decided to reject while dialing
                                 vState.awaitingInitiation = false;
+                                // [Fix] 不在这里显示拒绝消息，让 calls.js 的 endVoiceCall 统一处理
+                                // 这样可以避免重复显示，并且能正确判断显示位置
                                 window.WeChat.App.endVoiceCall();
                             } else if (action.type === 'hangup_call') {
                                 // AI Decided to hang up during an active call
@@ -692,6 +910,8 @@ window.WeChat.Services.Chat = {
                         } else if (videoState && videoState.open) {
                             if (videoState.status === 'dialing') {
                                 videoState.awaitingInitiation = false;
+                                // [Fix] 不在这里显示拒绝消息，让 calls.js 的 endVideoCall 统一处理
+                                // 这样可以避免重复显示，并且能正确判断显示位置
                                 window.WeChat.App.endVideoCall();
                             } else if (action.type === 'hangup_call') {
                                 window.WeChat.App.endVideoCall();
@@ -812,8 +1032,23 @@ window.WeChat.Services.Chat = {
             }
 
         } catch (e) {
-            console.error('[Chat] Play Voice Error:', e);
-            if (window.os) window.os.showToast('播放错误: ' + e.message, 'error');
+            // 使用统一错误处理
+            if (window.ErrorHandler) {
+                window.ErrorHandler.setContext({
+                    sessionId: this._activeSession,
+                    action: 'playVoiceMessage'
+                });
+                window.ErrorHandler.handle(e, {
+                    level: window.ErrorHandler.Level.ERROR,
+                    type: window.ErrorHandler.Type.API,
+                    message: '语音播放失败',
+                    metadata: { msgId }
+                });
+            } else {
+                // Fallback
+                console.error('[Chat] Play Voice Error:', e);
+                if (window.os) window.os.showToast('播放错误: ' + e.message, 'error');
+            }
         } finally {
             if (bubble) bubble.style.opacity = '1';
         }
@@ -821,9 +1056,27 @@ window.WeChat.Services.Chat = {
 
     persistAndShow(targetId, content, type, extra = {}) {
         if (!content) return;
+        // [Fix] 如果 extra 中指定了 sender_id 和 receiver_id，使用它们；否则使用默认逻辑
+        const senderId = extra.sender_id !== undefined ? extra.sender_id : targetId;
+        const receiverId = extra.receiver_id !== undefined ? extra.receiver_id : 'user';
+        
+        // [Fix] 防止创建无效会话（如果 targetId 是 'user' 或 'me'，且没有明确指定 receiver_id）
+        if (senderId === 'me' || senderId === 'user') {
+            // 如果发送者是用户，接收者必须是角色ID（targetId）
+            if (!receiverId || receiverId === 'user' || receiverId === 'me') {
+                console.error('[Chat] persistAndShow: Invalid receiver_id for user message', { targetId, senderId, receiverId });
+                return;
+            }
+        }
+        
+        // [OPTIMIZATION] 清除上下文缓存，因为新消息已添加
+        if (targetId === this._activeSession) {
+            this._contextCache = null;
+        }
+        
         const msg = window.sysStore.addMessage({
-            sender_id: targetId,
-            receiver_id: 'user',
+            sender_id: senderId,
+            receiver_id: receiverId,
             content: content,
             type: type,
             ...extra
@@ -877,12 +1130,18 @@ window.WeChat.Services.Chat = {
             const isCurrentlyActive = this._activeSession === targetId;
             if (isCurrentlyActive) this.setTypingState(true);
 
-            await this.executeActions(targetId, actions);
-
-            if (isCurrentlyActive) this.setTypingState(false);
+            try {
+                await this.executeActions(targetId, actions);
+            } finally {
+                // [FIX] 确保即使 executeActions 出错，打字状态也会被清除
+                if (isCurrentlyActive) this.setTypingState(false);
+            }
 
         } catch (e) {
             console.error('[ChatService] Background activity failed:', e);
+            // [FIX] 确保错误时也清除打字状态（双重保险）
+            const isCurrentlyActive = this._activeSession === targetId;
+            if (isCurrentlyActive) this.setTypingState(false);
         }
     },
 
@@ -913,6 +1172,9 @@ window.WeChat.Services.Chat = {
 
         // [Sync Fix] Never append voice-call specific messages to the main chat view DOM (for session switch recovery)
         if (msg.type === 'voice_text') return;
+        
+        // [Fix] Skip hidden system messages (visible to AI but not in UI)
+        if (msg.type === 'system' && msg.hidden === true) return;
 
         const view = document.getElementById('wx-view-session');
         if (!view) return;
@@ -935,19 +1197,29 @@ window.WeChat.Services.Chat = {
             type: msg.type || 'text',
             content: msg.content,
             avatar: avatar,
-            timestamp: msg.timestamp || Date.now()
+            timestamp: msg.timestamp || Date.now(),
+            // [Fix] 传递额外信息给 bubbles.js，用于正确显示通话状态
+            initiatedByUser: msg.initiatedByUser,
+            isVideo: msg.isVideo
         };
 
         // [Logic] Date/Time rendering (5-minute rule)
         // Auto-detect session derived from the message itself
         const activeSess = isMe ? msg.receiver_id : msg.sender_id;
         const messages = window.sysStore.getMessagesBySession(activeSess);
+        
+        // [Fix] Sort messages by timestamp to ensure correct order
+        const sortedMessages = [...messages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         // Find current message index
-        const currentIndex = messages.findIndex(m => m.id === msg.id);
-        const prevMsg = (currentIndex > 0) ? messages[currentIndex - 1] : null;
+        const currentIndex = sortedMessages.findIndex(m => m.id === msg.id);
+        const prevMsg = (currentIndex > 0) ? sortedMessages[currentIndex - 1] : null;
 
-        if (!prevMsg || (bubbleData.timestamp - prevMsg.timestamp > 5 * 60 * 1000)) {
+        // [Fix] Show timestamp if:
+        // 1. This is the first message (no previous message)
+        // 2. Current message not found in list (new message, show timestamp)
+        // 3. Time difference > 5 minutes
+        if (currentIndex === -1 || currentIndex === 0 || !prevMsg || (bubbleData.timestamp - prevMsg.timestamp > 5 * 60 * 1000)) {
             const timeStr = window.WeChat.Views && window.WeChat.Views._formatChatTime
                 ? window.WeChat.Views._formatChatTime(bubbleData.timestamp)
                 : new Date(bubbleData.timestamp).toLocaleTimeString();

@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
 
    WeChat (Simulated) - iOS Design System
 
@@ -746,8 +746,11 @@ html body #os-root.light-mode {
 .wx-msg-avatar {
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    min-height: 40px;
     border-radius: 4px;
     flex-shrink: 0;
+    flex-basis: 40px;
     object-fit: cover;
 }
 
@@ -1254,6 +1257,7 @@ html body #os-root.light-mode .wx-msg-system span {
 }
 
 .wx-sticker-cell {
+    position: relative;
     aspect-ratio: 1 / 1;
     display: flex;
     align-items: center;
@@ -2983,6 +2987,13 @@ html body #os-root:not(.light-mode) .wx-ios-alert-btn:active {
     margin-bottom: 20px;
     -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%);
     mask-image: linear-gradient(to bottom, transparent, black 20%);
+    /* [USER REQUEST] 隐藏滚动条，使用直接滑动 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.wx-call-subtitles::-webkit-scrollbar {
+    display: none;
 }
 
 .wx-call-subtitle-item {

@@ -265,17 +265,47 @@
         <div class="home-bar"></div>
     </div>
 
-    <!-- Error Handler -->
+    <!-- JS Modules -->
+    <script src="js/utils/error_handler.js?v=6"></script>
+    
+    <!-- Global Error Handler -->
     <script>
+        // 统一全局错误处理
         window.onerror = function (msg, url, line, col, error) {
-            // Ignore trivial errors
-            if (msg.includes('ResizeObserver') || msg.includes('Script error')) return;
-            alert('系统错误 (System Error):\n' + msg + '\nFile: ' + url + '\nLine: ' + line);
+            // 忽略无关紧要的错误
+            if (msg.includes('ResizeObserver') || msg.includes('Script error')) return false;
+            
+            // 使用统一错误处理服务
+            if (window.ErrorHandler) {
+                window.ErrorHandler.handle(error || new Error(msg), {
+                    level: window.ErrorHandler.Level.ERROR,
+                    type: window.ErrorHandler.Type.UNKNOWN,
+                    message: `全局错误: ${msg} (${url}:${line}:${col})`,
+                    showToast: true,
+                    metadata: { url, line, col }
+                });
+            } else {
+                // Fallback: 如果错误处理服务未加载，使用原始方式
+                console.error('Global error:', msg, url, line, col, error);
+            }
             return false;
         };
-    </script>
 
-    <!-- JS Modules -->
+        // 处理未捕获的Promise拒绝
+        window.addEventListener('unhandledrejection', function(event) {
+            if (window.ErrorHandler) {
+                window.ErrorHandler.handle(event.reason || new Error('Unhandled Promise Rejection'), {
+                    level: window.ErrorHandler.Level.ERROR,
+                    type: window.ErrorHandler.Type.UNKNOWN,
+                    message: '异步操作失败',
+                    showToast: true
+                });
+            } else {
+                console.error('Unhandled promise rejection:', event.reason);
+            }
+        });
+    </script>
+    
     <script src="js/utils/helpers.js?v=5"></script>
     <script src="js/utils/dom.js?v=5"></script>
     <script src="js/utils/time.js?v=5"></script>
@@ -292,14 +322,26 @@
     <script src="js/apps/settings/index.js?v=5"></script>
 
     <!-- WeChat App Modules -->
-    <script src="js/apps/wechat/services/contacts.js?v=5"></script>
+    <script src="js/apps/wechat/services/contacts.js?v=6"></script>
     <script src="js/apps/wechat/services/notifications.js?v=5"></script>
     <script src="js/apps/wechat/services/prompts.js?v=5"></script>
+    <script src="js/apps/wechat/services/webrtc.js?v=5"></script>
     <script src="js/apps/wechat/services/chat.js?v=5"></script>
+    <script src="js/apps/wechat/services/generators.js?v=5"></script>
+    <script src="js/apps/wechat/services/calls.js?v=5"></script>
+    <script src="js/apps/wechat/services/messages.js?v=5"></script>
+    <script src="js/apps/wechat/services/memory_system.js?v=5"></script>
+    <script src="js/apps/wechat/services/media.js?v=5"></script>
+    <!-- relationships.js 已合并到 contacts.js -->
+    <script src="js/apps/wechat/services/settings.js?v=6"></script>
+    <!-- profile_settings.js 已合并到 settings.js -->
     <script src="js/apps/wechat/ui/components.js?v=5"></script>
+    <script src="js/apps/wechat/ui/ui_interactions.js?v=5"></script>
     <script src="js/apps/wechat/ui/bubbles.js?v=5"></script>
-    <script src="js/apps/wechat/ui/views.js?v=5"></script>
-    <script src="js/apps/wechat/extensions/redpacket.js?v=5"></script>
+    <script src="js/apps/wechat/ui/modals_controller.js?v=5"></script>
+    <script src="js/apps/wechat/ui/views_chat.js?v=5"></script>
+    <script src="js/apps/wechat/ui/views_settings.js?v=5"></script>
+    <script src="js/apps/wechat/ui/views_modals.js?v=5"></script>
     <script src="js/apps/wechat/services/stickers.js?v=5"></script>
     <script src="js/apps/wechat/ui/sticker_view.js?v=5"></script>
     <script src="js/apps/wechat/index.js?v=5"></script>

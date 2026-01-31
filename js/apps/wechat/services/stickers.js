@@ -1,7 +1,22 @@
 /**
  * js/apps/wechat/services/stickers.js
  * 表情管理服务 - 负责存储和获取用户自定义表情
- * [Upgraded] Supports Semantic Tags for AI
+ * 
+ * 职责：
+ * - 表情包的存储和读取（支持IndexedDB和localStorage）
+ * - 表情包的增删改查操作
+ * - 语义标签管理（用于AI理解表情含义）
+ * - 默认表情包管理
+ * - 表情备份导入导出
+ * 
+ * 特性：
+ * - [Upgraded] 支持语义标签（tags），AI可以根据语义选择合适表情
+ * - 向后兼容旧版本存储格式
+ * - 支持批量操作（导入、导出、重置）
+ * 
+ * 存储格式：
+ * - 键名: 'wx_custom_stickers_v2'
+ * - 数据格式: Array<{url: string, tags?: string[]}>
  */
 
 window.WeChat = window.WeChat || {};
