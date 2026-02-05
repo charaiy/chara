@@ -174,7 +174,7 @@ window.WeChat.Services.Chat = {
             // 使用统一错误处理
             const errorType = this._getErrorType(e);
             const shouldShowToast = !(e.message && (e.message.includes('JSON') || e.message.includes('parse') || e.message.includes('Unexpected')));
-            
+
             if (window.ErrorHandler) {
                 window.ErrorHandler.setContext({
                     sessionId: targetId,
@@ -227,9 +227,9 @@ window.WeChat.Services.Chat = {
         let actions = [];
 
         // [Fix] 提前检查：如果文本看起来不像 JSON（没有 {} 或 []），直接作为文本处理
-        const hasJsonStructure = (cleanText.includes('{') && cleanText.includes('}')) || 
-                                  (cleanText.includes('[') && cleanText.includes(']'));
-        
+        const hasJsonStructure = (cleanText.includes('{') && cleanText.includes('}')) ||
+            (cleanText.includes('[') && cleanText.includes(']'));
+
         if (!hasJsonStructure) {
             console.log('[Chat] Response does not contain JSON structure, treating as pure text.');
             return [
@@ -246,7 +246,7 @@ window.WeChat.Services.Chat = {
                 // Case B: Markdown 代码块包裹 (```json ... ```)
                 // 移除 markdown 代码块标记
                 cleanText = cleanText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-                
+
                 // 寻找最外层的 [] 或 {}
                 const firstBracket = cleanText.indexOf('[');
                 const lastBracket = cleanText.lastIndexOf(']');
@@ -269,10 +269,10 @@ window.WeChat.Services.Chat = {
 
                 // Case C: 彻底不是 JSON，当做普通文本回复
                 // [Fix] 改进判断：检查是否包含 JSON 特征（引号、冒号、逗号等）
-                const hasJsonFeatures = cleanText.includes('"') && 
-                                       (cleanText.includes(':') || cleanText.includes(',')) &&
-                                       (cleanText.includes('type') || cleanText.includes('content'));
-                
+                const hasJsonFeatures = cleanText.includes('"') &&
+                    (cleanText.includes(':') || cleanText.includes(',')) &&
+                    (cleanText.includes('type') || cleanText.includes('content'));
+
                 if (!hasJsonFeatures) {
                     console.log('[Chat] Treating response as pure text (no JSON features detected).');
                     // 自动包装标准 Think + Text 结构
@@ -313,17 +313,17 @@ window.WeChat.Services.Chat = {
         const char = window.sysStore.getCharacter(targetId);
         const charName = char ? (char.name || targetId) : '对方';
         const limit = char?.settings?.memory_limit || 50;
-        
+
         // [OPTIMIZATION] 缓存机制：如果消息没有变化，直接返回缓存的上下文
         const allMessages = window.sysStore.getMessagesBySession(targetId);
         const lastMessageId = allMessages.length > 0 ? allMessages[allMessages.length - 1].id : null;
         const lastMessageTime = allMessages.length > 0 ? allMessages[allMessages.length - 1].timestamp : 0;
-        
+
         // 检查缓存
         if (this._contextCache) {
             const cache = this._contextCache;
-            if (cache.targetId === targetId && 
-                cache.lastMessageId === lastMessageId && 
+            if (cache.targetId === targetId &&
+                cache.lastMessageId === lastMessageId &&
                 cache.lastMessageTime === lastMessageTime &&
                 cache.limit === limit) {
                 // 缓存命中，直接返回
@@ -331,7 +331,7 @@ window.WeChat.Services.Chat = {
                 return cache.history;
             }
         }
-        
+
         const rawHistory = allMessages.slice(-limit);
 
         const history = rawHistory.map((m, index) => {
@@ -366,7 +366,7 @@ window.WeChat.Services.Chat = {
                 // 如果 sender_id 是角色ID，说明是角色的操作
                 const isUserAction = (m.sender_id === 'user' || m.sender_id === 'me' || m.sender_id === 'my');
                 const wasInitiatedByUser = m.initiatedByUser === true;  // [Fix] 检查是否用户主动发起
-                
+
                 // [Fix] 根据发起者和操作者构建更准确的描述
                 let statusText = '';
                 if (m.content === 'reject') {
@@ -394,7 +394,7 @@ window.WeChat.Services.Chat = {
                 } else {
                     statusText = `[通话状态: ${m.content}]`;
                 }
-                
+
                 content = `[${m.isVideo ? '视频' : '语音'}通话] ${statusText}`;
             }
             else if (m.type === 'call_summary') {
@@ -434,7 +434,7 @@ window.WeChat.Services.Chat = {
             limit: limit,
             history: history
         };
-        
+
         return history;
     },
 
@@ -466,9 +466,9 @@ window.WeChat.Services.Chat = {
                     if (WebRTC && WebRTC.isSupported()) {
                         // 判断是视频通话还是语音通话
                         const appState = window.WeChat.App.State;
-                        const isVideo = (appState.videoCallState?.open && 
-                                        appState.videoCallState?.sessionId === targetId) || false;
-                        
+                        const isVideo = (appState.videoCallState?.open &&
+                            appState.videoCallState?.sessionId === targetId) || false;
+
                         if (isVideo) {
                             // 视频通话：获取摄像头和麦克风
                             await WebRTC.startVideoCall();
@@ -518,10 +518,10 @@ window.WeChat.Services.Chat = {
         // [Robustness] Capture call state AT THE START of the action sequence execution
         // This prevents messages from "leaking" into the main chat if the call ends while AIs are still speaking
         const appState = window.WeChat.App.State;
-        
+
         // [USER REQUEST] 检查是否在通话中（已接通状态）
         const isInActiveCall = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId && appState.voiceCallState?.status === 'connected') ||
-                               (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'connected');
+            (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'connected');
         const isInCallWithTarget = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId) ||
             (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId);
 
@@ -538,8 +538,8 @@ window.WeChat.Services.Chat = {
                 // 检查是否在通话中
                 const appState = window.WeChat.App.State;
                 const isDialing = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId && appState.voiceCallState?.status === 'dialing') ||
-                                 (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'dialing');
-                
+                    (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'dialing');
+
                 if (isDialing) {
                     // 立即接通，避免超时保护误判
                     this._autoAnswerIfDialing(targetId);
@@ -801,6 +801,71 @@ window.WeChat.Services.Chat = {
                     }
                     break;
 
+                case 'update_rumor':
+                    // [New] 自动更新角色视角的主观流言
+                    try {
+                        const rumorTargetA = action.targetA || action.nodeA;
+                        const rumorTargetB = action.targetB || action.nodeB;
+                        // 支持 v2 双向更新
+                        const rumorViewAtoB = action.viewAtoB || action.contentAtoB || action.view;
+                        const rumorViewBtoA = action.viewBtoA || action.contentBtoA || action.view; // 默认是对称的
+                        const rumorReason = action.reason || action.content;
+
+                        if (rumorTargetA && rumorTargetB && (rumorViewAtoB || rumorViewBtoA || rumorReason)) {
+                            // 调用 RelationshipGraph 服务
+                            if (window.WeChat.Services.RelationshipGraph) {
+                                // 我们的 saveRumor 目前是原子化的，但只暴露了单一 content 参数在 v1 逻辑
+                                // 我们需要扩展 Services.RelationshipGraph.saveRumor 或者直接存取数据? 
+                                // 最好是扩展 Services.RelationshipGraph.saveRumor 支持 object 参数
+
+                                // 偷个懒，直接用 window.sysStore 读取修改，或者假设 RelationshipGraph 已经升级
+                                // 让我们假设 RelationshipGraph.saveRumor 依然是旧签名 (observerId, nodeA, nodeB, content)
+                                // 所以我们需要手动构建数据结构并保存，或者更新 saveRumor 方法。
+                                // 刚才我们在 v50 看到 saveRumor 是 (observerId, nodeA, nodeB, content)。
+                                // 让我们用一个更底层的逻辑：
+
+                                const obsId = targetId; // 当前思考的角色就是观察者
+                                const svc = window.WeChat.Services.RelationshipGraph;
+
+                                // 读取现有流言以合并
+                                const rumors = window.sysStore.get('rg_rumors_v1') || {};
+                                const pairId = [rumorTargetA, rumorTargetB].sort().join('_');
+                                const key = `${obsId}|${pairId}`;
+                                const existing = rumors[key] || {};
+
+                                const sortedIds = [rumorTargetA, rumorTargetB].sort();
+                                const isReversed = sortedIds[0] !== rumorTargetA;
+
+                                // 归一化存入
+                                const finalAtoB = isReversed ? rumorViewBtoA : rumorViewAtoB;
+                                const finalBtoA = isReversed ? rumorViewAtoB : rumorViewBtoA;
+
+                                rumors[key] = {
+                                    ...existing,
+                                    observerId: obsId,
+                                    nodeA: sortedIds[0],
+                                    nodeB: sortedIds[1],
+                                    contentAtoB: finalAtoB || existing.contentAtoB || '',
+                                    contentBtoA: finalBtoA || existing.contentBtoA || '',
+                                    reason: rumorReason || existing.reason || '',
+                                    updatedAt: Date.now()
+                                };
+
+                                // 兼容旧字段
+                                rumors[key].content = rumors[key].contentAtoB;
+
+                                window.sysStore.set('rg_rumors_v1', rumors);
+                                console.log(`[Chat] Auto-updated rumor for ${obsId} regarding ${rumorTargetA}-${rumorTargetB}`);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[Chat] Failed to auto-update rumor', e);
+                    }
+                    if (action.content && typeof action.content === 'string') {
+                        // 如果有附带文本，也可以显示（可选）
+                    }
+                    break;
+
                 // --- 扩展功能 Hooks (留口子) ---
                 case 'transfer': // 发起转账
                 case 'redpacket': // 发红包
@@ -930,8 +995,200 @@ window.WeChat.Services.Chat = {
                 case 'change_music':   // 换歌
                 case 'qzone_post':     // 发朋友圈
                     console.log(`[Feature Placeholder] Character used feature: ${action.type}`, action);
-                    // 暂时以系统提示展示，让用户知道 AI 想干什么
-                    // this.persistAndShow('system', `(AI 尝试使用功能: ${action.type})`, 'system');
+                    break;
+
+                case 'create_event':
+                    // [Events System] 事件账本系统 - 记录重要事件
+                    try {
+                        const eventsService = window.WeChat.Services.Events;
+                        if (eventsService) {
+                            // 处理参与者列表
+                            let participants = action.participants || ['USER_SELF'];
+                            // 将 "user"/"self" 规范化
+                            participants = participants.map(p => {
+                                if (p === 'user' || p === 'me') return 'USER_SELF';
+                                if (p === 'self') return targetId;
+                                return p;
+                            });
+                            // 确保当前角色和用户都在参与者中
+                            if (!participants.includes(targetId)) participants.push(targetId);
+                            if (!participants.includes('USER_SELF')) participants.push('USER_SELF');
+
+                            // 处理关系变化中的 "self" 和 "user" 引用
+                            const relationshipChanges = (action.relationship_changes || []).map(change => ({
+                                from: change.from === 'self' ? targetId : (change.from === 'user' ? 'USER_SELF' : change.from),
+                                to: change.to === 'self' ? targetId : (change.to === 'user' ? 'USER_SELF' : change.to),
+                                viewChange: change.viewChange || change.view_change,
+                                attitudeChange: parseFloat(change.attitudeChange || change.attitude_change || 0)
+                            }));
+
+                            const eventData = {
+                                type: action.event_type || 'conversation',
+                                participants: participants,
+                                summary: action.summary || action.content || '',
+                                relationshipChanges: relationshipChanges,
+                                scheduleInfo: action.schedule || null,
+                                statusSnapshots: {},
+                                metadata: {
+                                    source: 'chat_action',
+                                    originatingChar: targetId
+                                }
+                            };
+
+                            // 如果有状态快照
+                            if (action.status) {
+                                eventData.statusSnapshots[targetId] = action.status;
+                            }
+
+                            const createdEvent = eventsService.createEvent(eventData);
+                            console.log('[Chat] Created event:', createdEvent.id, createdEvent.summary);
+
+                            // 如果有日程，显示提示
+                            if (action.schedule) {
+                                const scheduleStr = `${action.schedule.date || ''} ${action.schedule.time || ''} ${action.schedule.activity || ''}`.trim();
+                                this.persistAndShow(targetId, `(已添加日程: ${scheduleStr})`, 'system');
+                            }
+                        } else {
+                            console.warn('[Chat] Events service not available');
+                        }
+                    } catch (e) {
+                        console.error('[Chat] Failed to create event:', e);
+                    }
+                    break;
+
+
+                case 'update_relationship':
+                    // [New Feature] AI 自主更新关系网 (v31: 支持任意两人关系)
+                    console.log('[Chat] AI is updating relationship graph:', action);
+                    try {
+                        const rgService = window.WeChat.Services.RelationshipGraph;
+                        if (!rgService) break;
+
+                        const myId = targetId; // 当前聊天的角色 ID (观察者)
+
+                        // 1. 解析双方 ID (Source & Target)
+                        // 默认 Source 是用户 (USER_SELF)
+                        let sourceNodeId = 'USER_SELF';
+                        let targetNodeId = action.target_id;
+
+                        const allNodes = rgService.getAllNodes();
+
+                        // 查找 Source
+                        if (action.source_id) {
+                            sourceNodeId = action.source_id;
+                        } else if (action.source_name) {
+                            // 让 AI 可以说 "D" 或 "User"
+                            if (action.source_name.toLowerCase() === 'user' || action.source_name === '我') {
+                                sourceNodeId = 'USER_SELF';
+                            } else {
+                                const match = allNodes.find(n => n.name.includes(action.source_name));
+                                if (match) sourceNodeId = match.id;
+                            }
+                        }
+
+                        // 查找 Target
+                        if (!targetNodeId && action.target_name) {
+                            const match = allNodes.find(n => n.name.includes(action.target_name));
+                            if (match) targetNodeId = match.id;
+                        }
+
+                        // [Safety] 防止自己连自己
+                        if (sourceNodeId === targetNodeId) break;
+
+                        // 只有当涉及到“第三方”时才处理
+                        // 只要 Source 或 Target 其中之一不是我自己(myId)，就说明是“我在观察别人的关系”
+                        // 或者是我自己在跟其中一人发生关系
+                        if (targetNodeId && sourceNodeId) {
+
+                            // 获取现存关系 (注意顺序可能是反的，getRelationship 会自动处理)
+                            let rel = rgService.getRelationship(sourceNodeId, targetNodeId);
+                            let isNew = false;
+
+                            // 如果关系不存在，而且 AI 断定由于“出轨/八卦”需要创建它
+                            if (!rel) {
+                                isNew = true;
+                                rel = {
+                                    nodeA: sourceNodeId,
+                                    nodeB: targetNodeId,
+                                    aViewOfB: action.relation || "未知关系",
+                                    aTowardB: "未知",
+                                    bViewOfA: action.relation || "未知关系",
+                                    bTowardA: "未知",
+                                    visibleTo: [], // 初始谁都不可见
+                                    backstory: `[自动记录] 由 ${targetId} 在聊天中发现/推断出此关系。`
+                                };
+                            }
+
+                            // 核心动作：可视性更新
+                            // 如果 action.visibility 是 'add_self'，或者这是个新关系，
+                            // 则把当前聊天角色(myId)加入 visibleTo，表示“我知道了”
+                            if (action.visibility === 'add_self' || isNew) {
+                                const currentVis = rel.visibleTo || [];
+                                if (!currentVis.includes(myId)) {
+
+                                    // [v33 Logic] 罗生门检查
+                                    // 如果我只是一个旁观者 (myId 不是 A 也不是 B)
+                                    // 并且我试图定义的关系 (action.relation) 与客观事实不符
+                                    // 那么我不应该修改客观事实，而应该产生一条“流言”
+                                    const isObserver = (rel.nodeA !== myId && rel.nodeB !== myId);
+
+                                    // 判断关系描述是否冲突 (简单字符串包含检查)
+                                    // 例如客观是"仇人"，我说"恋人"，则冲突
+                                    // 如果客观是"未知"，我说"恋人"，则不算冲突，可以直接更新
+                                    const conflictA = rel.aViewOfB && action.relation && !rel.aViewOfB.includes(action.relation) && rel.aViewOfB !== '未知关系';
+                                    const conflictB = rel.bViewOfA && action.relation && !rel.bViewOfA.includes(action.relation) && rel.bViewOfA !== '未知关系';
+
+                                    if (isObserver && (conflictA || conflictB)) {
+                                        // 产生流言！
+                                        rgService.saveRumor(myId, rel.nodeA, rel.nodeB, action.relation);
+
+                                        // 同时也必须让自己可见这条关系（虽然看到的将是流言）
+                                        const newVis = [...currentVis, myId];
+                                        const saveData = { ...rel, visibleTo: newVis }; // 只更新可见性，不更新 View
+                                        rgService.saveRelationship(saveData);
+
+                                        console.log(`[RG] Rumor Created: ${myId} thinks ${rel.nodeA}-${rel.nodeB} is ${action.relation}`);
+                                        this.persistAndShow('system', `(系统提示: ${targetId} 对 ${action.source_name || rel.nodeA} 与 ${action.target_name || rel.nodeB} 的关系产生了【主观误解/流言】，这不会影响事实真相)`, 'system');
+
+                                    } else {
+                                        // 没有冲突，或者我是当事人 -> 更新客观事实
+                                        const newVis = [...currentVis, myId];
+                                        const saveData = {
+                                            nodeA: rel.nodeA,
+                                            nodeB: rel.nodeB,
+                                            aViewOfB: rel.aViewOfB,
+                                            aTowardB: rel.aTowardB,
+                                            bViewOfA: rel.bViewOfA,
+                                            bTowardA: rel.bTowardA,
+                                            visibleTo: newVis,
+                                            backstory: rel.backstory
+                                        };
+
+                                        // 更新 View
+                                        if (action.relation) {
+                                            // 因为 AI 给的一个 relation 不分方向，我们这里假设双向更新，或者仅是一个模糊更新
+                                            // 但因为这通常是新建关系或者 User 参与的关系，直接更新是可以接受的
+                                            // 如果是第三方无冲突更新，也可以更新
+                                            // v33: 尽量保守，只在非第三方或新关系时更新文本
+                                            if (!isObserver || isNew) {
+                                                saveData.backstory = (saveData.backstory || '') + `\n[${new Date().toLocaleDateString()}] ${myId} 发现了这段关系: "${action.relation}"`;
+                                                // 这里不强行覆盖 aViewOfB，除非是 Unknown
+                                            }
+                                        }
+
+                                        rgService.saveRelationship(saveData);
+
+                                        const sName = (sourceNodeId === 'USER_SELF') ? '你' : (action.source_name || sourceNodeId);
+                                        const tName = (targetNodeId === 'USER_SELF') ? '你' : (action.target_name || targetNodeId);
+                                        this.persistAndShow('system', `(系统提示: ${targetId} 记住了 ${sName} 与 ${tName} 的关系，关系网已更新)`, 'system');
+                                        console.log(`[RG] Relation ${sourceNodeId}-${targetNodeId} is now visible to ${myId}`);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[Chat] Failed to update relationship:', e);
+                    }
                     break;
             }
         }
@@ -1059,7 +1316,7 @@ window.WeChat.Services.Chat = {
         // [Fix] 如果 extra 中指定了 sender_id 和 receiver_id，使用它们；否则使用默认逻辑
         const senderId = extra.sender_id !== undefined ? extra.sender_id : targetId;
         const receiverId = extra.receiver_id !== undefined ? extra.receiver_id : 'user';
-        
+
         // [Fix] 防止创建无效会话（如果 targetId 是 'user' 或 'me'，且没有明确指定 receiver_id）
         if (senderId === 'me' || senderId === 'user') {
             // 如果发送者是用户，接收者必须是角色ID（targetId）
@@ -1068,12 +1325,12 @@ window.WeChat.Services.Chat = {
                 return;
             }
         }
-        
+
         // [OPTIMIZATION] 清除上下文缓存，因为新消息已添加
         if (targetId === this._activeSession) {
             this._contextCache = null;
         }
-        
+
         const msg = window.sysStore.addMessage({
             sender_id: senderId,
             receiver_id: receiverId,
@@ -1172,7 +1429,7 @@ window.WeChat.Services.Chat = {
 
         // [Sync Fix] Never append voice-call specific messages to the main chat view DOM (for session switch recovery)
         if (msg.type === 'voice_text') return;
-        
+
         // [Fix] Skip hidden system messages (visible to AI but not in UI)
         if (msg.type === 'system' && msg.hidden === true) return;
 
@@ -1207,7 +1464,7 @@ window.WeChat.Services.Chat = {
         // Auto-detect session derived from the message itself
         const activeSess = isMe ? msg.receiver_id : msg.sender_id;
         const messages = window.sysStore.getMessagesBySession(activeSess);
-        
+
         // [Fix] Sort messages by timestamp to ensure correct order
         const sortedMessages = [...messages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 

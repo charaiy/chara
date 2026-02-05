@@ -783,7 +783,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         const contacts = (window.WeChat.Services && window.WeChat.Services.Contacts)
             ? window.WeChat.Services.Contacts.getContacts()
             : [];
-        
+
         // Debug: Log contacts count
         console.log('[Views] renderContactList: contacts count =', contacts.length);
 
@@ -860,6 +860,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 </div>
                 <div class="wx-cell-group">
                     ${this._renderCell({ text: '视频号', iconColor: '#fa9d3b', iconType: 'video', showArrow: true })}
+                    ${this._renderCell({ text: '关系网', iconColor: '#07c160', iconType: 'relationship', showArrow: true, onClick: 'window.WeChat.App.openRelationshipGraph()' })}
                     ${this._renderCell({ text: '直播', iconColor: '#fa9d3b', iconType: 'live', showArrow: true })}
                 </div>
                 <div class="wx-cell-group">
@@ -1058,6 +1059,10 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 case 'group': svgContent = '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="white"/>'; break;
                 case 'tag': svgContent = '<path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" fill="white"/>'; break;
                 case 'offical': svgContent = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" fill="white"/>'; break;
+                case 'relationship': svgContent = '<circle cx="6" cy="6" r="3" fill="white"/><circle cx="18" cy="6" r="3" fill="white"/><circle cx="12" cy="18" r="3" fill="white"/><line x1="8" y1="7" x2="11" y2="16" stroke="white" stroke-width="1.5"/><line x1="16" y1="7" x2="13" y2="16" stroke="white" stroke-width="1.5"/><line x1="8" y1="6" x2="16" y2="6" stroke="white" stroke-width="1.5"/>'; break;
+                case 'video': svgContent = '<path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z" fill="white"/>'; break;
+                case 'live': svgContent = '<circle cx="12" cy="12" r="2" fill="white"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" stroke="white" stroke-width="2" fill="none"/>'; break;
+                case 'mini': svgContent = '<rect x="3" y="3" width="18" height="18" rx="3" stroke="white" stroke-width="2" fill="none"/><circle cx="8" cy="16" r="2" fill="white"/><circle cx="16" cy="16" r="2" fill="white"/>'; break;
                 default: svgContent = '<rect x="6" y="6" width="12" height="12" fill="white"/>';
             }
             const iconStyle = `display:flex; align-items:center; justify-content:center; background-color:${iconColor}; width:36px; height:36px; border-radius:4px; margin-right:12px; flex-shrink:0;`;

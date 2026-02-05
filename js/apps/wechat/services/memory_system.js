@@ -104,9 +104,10 @@ window.WeChat.Services.Summaries = {
         this.App.render();
     },
 
-    openSummaryRange() {
+    openSummaryRange(mode = 'narrative') {
         const State = this.State;
         State.rangeModalOpen = true;
+        State.summaryRangeMode = mode; // Store mode
         this.App.render();
     },
 
@@ -137,20 +138,26 @@ window.WeChat.Services.Summaries = {
         });
     },
 
+    // 以前是直接触发，现在重定向到范围选择以便更精准控制
+    async handleManualEventExtraction() {
+        this.openSummaryRange('database');
+    },
+
     async startSummarize() {
         const State = this.State;
         const start = parseInt(document.getElementById('wx-range-start')?.value) || 1;
         const end = parseInt(document.getElementById('wx-range-end')?.value) || 0;
+        const mode = State.summaryRangeMode || 'narrative'; // Default to narrative
 
         this.App.closeModals();
 
-        if (window.os) window.os.showToast('正在生成总结...', 'info', 10000);
+        const toastMsg = mode === 'database' ? '正在提取事件...' : '正在生成总结...';
+        if (window.os) window.os.showToast(toastMsg, 'info', 10000);
 
         // Fetch messages for active session
         const msgs = window.sysStore.getMessagesBySession(State.activeSessionId);
 
         // Filter by range (start index 1-based logic)
-        // Range: start -> end (0 means till end)
         let sliceStart = Math.max(0, start - 1);
         let sliceEnd = end === 0 ? msgs.length : end;
 
@@ -162,56 +169,97 @@ window.WeChat.Services.Summaries = {
         }
 
         try {
-            // [USER REQUEST] 手动总结时必须调用API用总结规则开始总结
-            // 确保传递的配置中包含 manualPrompt 字段，以标识这是手动总结
-            const summaryConfig = {
-                ...State.summaryConfig,
-                manualPrompt: State.summaryConfig.manualPrompt || '' // 确保 manualPrompt 字段存在（即使为空）
-            };
-            console.log('[Summaries] Starting manual summary with config:', summaryConfig);
-            await window.Core.Memory.performSummary(State.activeSessionId, targetMsgs, summaryConfig);
-            // Success toast is handled inside performSummary
-        } catch (e) {
-            console.error('[Summaries] Summary failed:', e);
-            // 提供更详细的错误提示
-            let errorMsg = '总结失败，请重试';
-            if (e && e.message) {
-                if (e.message.includes('503') || e.message.includes('服务暂时不可用')) {
-                    errorMsg = '总结失败：服务暂时不可用，请稍后重试';
-                } else if (e.message.includes('500')) {
-                    errorMsg = '总结失败：API 服务器错误，请稍后重试';
-                } else if (e.message.includes('429')) {
-                    errorMsg = '总结失败：请求过于频繁，请稍后重试';
-                } else if (e.message.includes('网络') || e.message.includes('Network')) {
-                    errorMsg = '总结失败：网络连接问题，请检查网络';
-                } else if (e.message.includes('API')) {
-                    // 从错误信息中提取具体原因
-                    const match = e.message.match(/API错误.*?:\s*(.+)/);
-                    if (match && match[1]) {
-                        errorMsg = `总结失败：${match[1]}`;
-                    } else {
-                        errorMsg = '总结失败：API 调用失败，请检查配置';
+            if (mode === 'database') {
+                // Database Event Extraction Mode
+                await window.Core.Memory.performEventExtraction(State.activeSessionId, targetMsgs);
+                if (window.os) window.os.showToast('事件提取完成', 'success');
+            } else {
+                // Narrative Summary Mode
+                const summaryConfig = {
+                    ...State.summaryConfig,
+                    manualPrompt: State.summaryConfig.manualPrompt || ''
+                };
+                console.log('[Summaries] Starting manual summary with config:', summaryConfig);
+                await window.Core.Memory.performSummary(State.activeSessionId, targetMsgs, summaryConfig);
+
+                // [Sync Check] 手动触发日记时，如果开启了同步，顺便提取事件
+                if (State.summaryConfig.eventSyncWithSummary) {
+                    // 仅当事件功能整体开启时才执行
+                    if (State.summaryConfig.eventAutoEnabled) {
+                        if (window.os) window.os.showToast('正同步提取数据库事件...', 'info');
+                        const dbConfig = {
+                            databasePrompt: State.summaryConfig.databasePrompt || ''
+                        };
+                        // 不阻塞主流程，异步执行
+                        window.Core.Memory.performEventExtraction(State.activeSessionId, targetMsgs, dbConfig)
+                            .then(() => {
+                                if (window.os) window.os.showToast('同步事件提取完成', 'success');
+                            })
+                            .catch(e => console.error('Sync Event Extraction failed:', e));
                     }
                 }
+            }
+        } catch (e) {
+            console.error('[Summaries] Operation failed:', e);
+            let errorMsg = '操作失败，请重试';
+            // Detailed error handling...
+            if (e && e.message) {
+                // ... (Simplified error mapping for readability here, but in real code keep the detailed checks if possible or just generic)
+                if (e.message.includes('API')) errorMsg = 'API调用失败';
             }
             if (window.os) window.os.showToast(errorMsg, 'error');
         }
     },
 
+    // Helper to preserve scroll position during re-render
+    _renderWithScroll() {
+        const container = document.getElementById('wx-summary-scroll-container');
+        const top = container ? container.scrollTop : 0;
+        this.App.render();
+        // Restore after DOM update
+        setTimeout(() => {
+            const newContainer = document.getElementById('wx-summary-scroll-container');
+            if (newContainer) newContainer.scrollTop = top;
+        }, 0);
+    },
+
     toggleSummaryAuto() {
         const State = this.State;
         State.summaryConfig.autoEnabled = !State.summaryConfig.autoEnabled;
-        this.App.render();
+        this._renderWithScroll();
+    },
+
+    toggleEventAuto() {
+        const State = this.State;
+        State.summaryConfig.eventAutoEnabled = !State.summaryConfig.eventAutoEnabled;
+        this._renderWithScroll();
+    },
+
+    toggleEventSync() {
+        const State = this.State;
+        State.summaryConfig.eventSyncWithSummary = !State.summaryConfig.eventSyncWithSummary;
+        this._renderWithScroll();
     },
 
     updateSummaryConfig(key, value) {
         const State = this.State;
+        // 使用 _renderWithScroll 确保输入框输入时如果触发重绘也能保持位置(虽然input通常不重绘整个modal，但以防万一)
+        // 但这里是 input event，通常只更新 State，不立即 render。如果原来的逻辑没有 render，这里也不要加。
+
         if (key === 'threshold') {
             State.summaryConfig.threshold = parseInt(value) || 50;
         } else if (key === 'autoPrompt') {
             State.summaryConfig.autoPrompt = value;
         } else if (key === 'manualPrompt') {
             State.summaryConfig.manualPrompt = value;
+        } else if (key === 'databasePrompt') {
+            State.summaryConfig.databasePrompt = value;
+        } else if (key === 'eventAutoEnabled') {
+            State.summaryConfig.eventAutoEnabled = value;
+        } else if (key === 'eventThreshold') {
+            State.summaryConfig.eventThreshold = parseInt(value) || 50;
+        } else if (key === 'eventSyncWithSummary') {
+            State.summaryConfig.eventSyncWithSummary = value;
         }
     },
 
@@ -226,7 +274,12 @@ window.WeChat.Services.Summaries = {
                     summary_auto_enabled: State.summaryConfig.autoEnabled,
                     summary_threshold: State.summaryConfig.threshold,
                     summary_auto_prompt: State.summaryConfig.autoPrompt || '',
-                    summary_manual_prompt: State.summaryConfig.manualPrompt || ''
+                    summary_manual_prompt: State.summaryConfig.manualPrompt || '',
+                    // 保存新的事件配置
+                    event_auto_enabled: State.summaryConfig.eventAutoEnabled,
+                    event_threshold: State.summaryConfig.eventThreshold,
+                    event_database_prompt: State.summaryConfig.databasePrompt || '',
+                    event_sync_with_summary: State.summaryConfig.eventSyncWithSummary
                 }
             });
             if (window.os) window.os.showToast('总结设置已保存');

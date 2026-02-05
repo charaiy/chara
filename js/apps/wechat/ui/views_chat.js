@@ -23,7 +23,7 @@
 
 window.WeChat = window.WeChat || {};
 
-window.WeChat.Views = {
+window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
     renderChatSession(sessionId, startHidden = false) {
         // Fetch real messages from sysStore
         const messages = (window.sysStore && window.sysStore.getMessagesBySession)
@@ -58,10 +58,10 @@ window.WeChat.Views = {
         const listHtml = messages.map(m => {
             // [Fix] Skip voice-call specific messages in main chat
             if (m.type && m.type.startsWith('voice_')) return '';
-            
+
             // [Fix] Skip hidden system messages (visible to AI but not in UI)
             if (m.type === 'system' && m.hidden === true) return '';
-            
+
             // [Fix] Skip thought_chain messages (should not be displayed in chat)
             if (m.type === 'thought_chain') return '';
 
@@ -679,4 +679,4 @@ window.WeChat.Views = {
             return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${timeStr}`;
         }
     }
-};
+});

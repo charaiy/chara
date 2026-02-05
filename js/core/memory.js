@@ -89,233 +89,255 @@ const Memory = {
         return memoryItem;
     },
 
-    /**
-     * 检查是否需要触发自动总结
-     */
-    async checkAndSummarize(targetId) {
-        // Siri 暂时不自动总结聊天记录，因为它处理的是全局事件
-        if (targetId === 'siri') return;
 
-        const char = this.store.getCharacter(targetId);
-        if (!char) return;
-
-        // check config
-        const summaryConfig = char.settings?.summaryConfig || { autoEnabled: true, threshold: 50 };
-        if (!summaryConfig.autoEnabled) return;
-
-        // 获取该角色当前的聊天记录数量 (自上次总结以来?)
-        // 目前简化逻辑：如果 总消息数 % 阈值 == 0，则触发总结。
-        // 或者更智能点：记忆列表里最近一条 'summary' 类型的记忆是在多少条 'chat' 之前？
-
-        const messages = this.store.getMessagesBySession(targetId);
-        const lastSummaryTime = this.getLastSummaryTime(targetId);
-
-        // 过滤出在上次总结之后的消息
-        const newMessages = messages.filter(m => m.timestamp > lastSummaryTime);
-
-        if (newMessages.length >= summaryConfig.threshold) {
-            console.log(`[Memory] Threshold reached for ${targetId} (${newMessages.length} new msgs). Triggering summary...`);
-            await this.performSummary(targetId, newMessages, summaryConfig);
-        }
-    },
-
-    getLastSummaryTime(targetId) {
-        const memories = this.getMemories(targetId);
-        const lastSummary = memories.find(m => m.type === 'summary');
-        return lastSummary ? lastSummary.timestamp : 0;
-    },
 
     /**
-     * 执行总结逻辑 (LLM调用)
+     * 独立：执行数据库事件提取
+     * @param {string} targetId
+     * @param {Array} providedMsgs (可选) 指定要分析的消息列表
+     * @param {Object} config (可选) 配置
      */
-    async performSummary(targetId, messages, config) {
+    async performEventExtraction(targetId, providedMsgs = null, config = null) {
         if (!window.API) return;
 
         const char = this.store.getCharacter(targetId);
         const userName = this.store.get('user_realname') || '用户';
 
-        // 1. Prepare System Prompt
-        // [USER REQUEST] 手动总结时必须使用总结规则
-        // 判断是否为手动总结：如果 config 中有 manualPrompt 字段（即使为空字符串），则认为是手动总结
-        const isManualSummary = 'manualPrompt' in config;
-        let basePrompt;
-        
-        if (isManualSummary) {
-            // 手动总结：优先使用 manualPrompt，如果为空或未设置则使用默认总结规则
-            if (config.manualPrompt && config.manualPrompt.trim()) {
-                basePrompt = config.manualPrompt;
-                console.log('[Memory] Manual summary: Using custom manual prompt');
-            } else {
-                basePrompt = window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
-                console.log('[Memory] Manual summary: Using default summary prompt');
-            }
-        } else {
-            // 自动总结：使用 autoPrompt 或默认规则
-            basePrompt = config.autoPrompt || window.WeChat?.Defaults?.SUMMARY_PROMPT || "请总结对话，以第三人称视角记录。";
-            console.log('[Memory] Auto summary: Using auto prompt or default');
+        // 1. 确定配置
+        const summaryConfig = config || char.settings?.summaryConfig || { databasePrompt: '' };
+        const dbCustomPrompt = summaryConfig.databasePrompt || summaryConfig.event_database_prompt;
+
+        // 2. 准备语料 (如果没有提供，默认取最近 30 条作为上下文)
+        let messages = providedMsgs;
+        if (!messages) {
+            const allMsgs = this.store.getMessagesBySession(targetId);
+            messages = allMsgs.slice(-30);
         }
-        
-        const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
-        // [CRITICAL FIX] 明确告诉 AI 两个时间的区别
-        let systemPrompt = basePrompt;
-        // 只有在自动总结时才添加时间处理规则（手动总结时，如果用户自定义了规则，应该已经包含时间处理）
-        if (!isManualSummary) {
-            systemPrompt += `\n\n【时间处理严格规定】：
-1. 这里的 "当前执行时间: ${nowStr}" 仅供你计算 "昨天"、"前天" 等相对概念，**绝不可作为 Summary 的时间头**！
-2. 生成的 "年份日期星期时间" 必须提取自 **下方对话记录中的实际时间戳 [YYYY/... ]**。
-3. 如果对话跨越也必须标明！不要把昨天发生的事写成今天！
-4. 例子：如果对话发生在昨天23:00，你的Summary必须写 "202x年x月x日23:00(昨天实际日期)..."，而不能写今天的日期。`;
-        }
-        // [FIX] 明确要求使用第三人称
-        systemPrompt += `\n\n【视角要求（强制）】：
-1. **必须使用第三人称**：使用角色名或"他/她"来称呼角色，使用"你"或用户姓名来称呼用户。
-2. 禁止使用第一人称（"我"）来总结角色自己的行为。
-3. 示例格式："2025年4月2日8:30，星期三，（角色名）和你聊了关于早餐的话题。"`;
+        if (!messages || messages.length === 0) return;
 
-        systemPrompt += `\n\n【图片和表情包识别要求（强制）】：
-1. **表情包识别**：如果对话中包含表情包，你必须准确识别表情包的含义（如"生气"、"开心"、"担心"等），并在总结中明确描述。禁止使用"发送了表情包"这种模糊描述。
-2. **图片识别**：如果对话中包含图片，你必须仔细观察图片内容，准确描述图片中的内容（人物、物品、场景等），禁止编造不存在的内容。
-3. **禁止编造**：如果图片无法清晰识别，请如实说明"图片内容不清晰"或"无法识别"，绝不可编造图片内容。`;
-
-        systemPrompt += `\n\n【其它要求】：\n1. 总结精简(100字内)。\n2. 所有总结必须使用第三人称。`;
-
-        // 2. Build Multimodal Content
-        // [FIX] 检查是否真的需要多模态格式（是否有图片/表情包）
-        const hasMultimodalContent = messages.some(m => m.type === 'image' || m.type === 'sticker');
-        let userContentParts = [];
-        let currentTextBuffer = systemPrompt + "\n\n[对话记录开始]\n";
-
+        // 3. 构建文本 Buffer (简化版，不需要多模态，只提取文本事实)
+        let textBuffer = "[对话上下文]\n";
         messages.forEach(m => {
             const sender = (m.sender_id === 'user' || m.sender_id === 'me') ? userName : (char.name || '角色');
             const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
-            // [FIX] 安全处理 content，避免 undefined/null 导致的问题
-            const safeContent = (m.content != null) ? String(m.content) : '';
-
-            if (m.type === 'image' || m.type === 'sticker') {
-                // [USER REQUEST] 表情包必须能识别正确含义
-                let label = '';
-                let description = '';
-                
-                if (m.type === 'sticker') {
-                    // 尝试从 Stickers 服务获取表情包的含义标签
-                    if (window.WeChat && window.WeChat.Services && window.WeChat.Services.Stickers) {
-                        const allStickers = window.WeChat.Services.Stickers.getAll();
-                        const sticker = allStickers.find(s => s.url === safeContent);
-                        if (sticker && sticker.tags && sticker.tags.length > 0) {
-                            // 过滤掉"自定义"、"收藏"等元数据标签，只保留含义标签
-                            const meaningTags = sticker.tags.filter(t => !['自定义', '收藏', '未分类'].includes(t));
-                            if (meaningTags.length > 0) {
-                                description = `[表情包含义: ${meaningTags.join(', ')}]`;
-                            }
-                        }
-                    }
-                    label = description ? `[发送了表情包 ${description}]` : '[发送了表情包]';
-                } else {
-                    label = '[发送了图片]';
-                }
-                
-                const imageText = `[${timeStr}] ${sender} ${label}: ${safeContent}\n`;
-                
-                // 同时添加到多模态格式和文本缓冲区（用于回退）
-                if (currentTextBuffer) {
-                    userContentParts.push({ type: 'text', text: currentTextBuffer });
-                    currentTextBuffer = "";
-                }
-                userContentParts.push({ type: 'text', text: `\n${imageText}` });
-                userContentParts.push({ type: 'image_url', image_url: { url: safeContent } });
-                
-                // [FIX] 也在文本缓冲区中保留图片描述，以便回退到纯文本格式时使用
-                currentTextBuffer += imageText;
-            } else if (m.type === 'voice_text' || m.type === 'voice') {
-                // [Logic] Mark as Voice Call to prevent AI from thinking it was a text chat
-                // [FIX] 如果 content 为空，使用默认描述
-                const voiceContent = safeContent || '[语音通话内容]';
-                currentTextBuffer += `[${timeStr}] ${sender} [语音通话]: ${voiceContent}\n`;
-            } else if (m.type === 'call_summary') {
-                // [Logic] Integrate call metadata
-                let data = {};
-                try { 
-                    if (safeContent) {
-                        data = JSON.parse(safeContent);
-                    }
-                } catch (e) { }
-                currentTextBuffer += `[${timeStr}] 系统提示: ${sender} 与你进行了一次通话 (时长: ${data.duration || '未知'})\n`;
-            } else {
-                // [FIX] 确保所有文本消息的 content 都被安全处理
-                currentTextBuffer += `[${timeStr}] ${sender}: ${safeContent}\n`;
-            }
+            textBuffer += `[${timeStr}] ${sender}: ${m.content}\n`;
         });
+        textBuffer += "\n[结束]\n";
 
-        currentTextBuffer += "\n[对话记录结束]\n\n请输出总结：";
-        
-        // [FIX] 只在需要多模态格式时才填充 userContentParts
-        if (hasMultimodalContent) {
-            userContentParts.push({ type: 'text', text: currentTextBuffer });
+        // 4. 定义 Prompt
+        const dbSystemPrompt = `
+你是一个无情的数据库记录员与社交网络观察家。
+任务：从对话文本中提取结构化事实，并深入分析【所有参与者及被提及对象】之间的人际关系、看法、流言及视角变化。
+
+输出且仅输出一个合法的 JSON 对象。无 Markdown。
+
+JSON 格式要求：
+{
+    "summary": "简练客观的一句话概括(15字内)。",
+    "type": "必须是 [conversation, schedule, milestone, background, offline] 之一",
+    "schedule": null 或 { "date": "YYYY-MM-DD", "time": "HH:MM", "activity": "内容" },
+    "social_graph_updates": [
+        {
+             "target_name": "用户" 或 "明确提及的角色名",
+             "public_relation": "如：死党、情敌、互助 (仅在发生质变时填写)",
+             "private_attitude": "内心对该目标的真实看法/流言/新印象 (简短)",
+             "affection_delta": 0.0 // 如果是好感度变化，请给出分值(仅对目标为'用户'有用)
         }
+    ]
+}
+
+${dbCustomPrompt ? `用户额外规则：${dbCustomPrompt}` : ''}
+
+注意：
+1. 你的分析主体是 ${char.name}。分析 TA 对别的人（包括用户和其他 NPC）看法的改变。
+2. 即使目标人没有参与对话，只要 ${char.name} 表达了对 TA 的看法（包括背后议论、提及流言），也请在 social_graph_updates 中记录。
+3. 若无任何显著变化，数组留空 []。
+`;
 
         try {
-            // 3. Call API with appropriate format
-            // [USER REQUEST] 修复：有图片/表情包时也要能总结
-            // [FIX] 如果包含图片/表情包，尝试使用多模态格式；如果失败则回退到纯文本格式
-            let summaryText = null;
-            let messagesPayload;
-            
-            if (hasMultimodalContent) {
-                console.log('[Memory] Calling AI (Vision) for summary with multimodal content...');
-                console.log('[Memory] Multimodal content parts:', userContentParts.length);
-                console.log('[Memory] System prompt emphasizes: image recognition, sticker meaning, third-person perspective');
-                
-                // 尝试使用多模态格式
-                try {
-                    messagesPayload = [
-                        {
-                            role: 'user',
-                            content: userContentParts
-                        }
-                    ];
-                    summaryText = await window.API.chat(messagesPayload);
-                } catch (multimodalError) {
-                    console.warn('[Memory] Multimodal summary failed, falling back to text-only format:', multimodalError);
-                    // 回退到纯文本格式（只使用文本描述，不包含图片）
-                    console.log('[Memory] Falling back to text-only summary...');
-                    messagesPayload = [
-                        {
-                            role: 'user',
-                            content: currentTextBuffer
-                        }
-                    ];
-                    summaryText = await window.API.chat(messagesPayload);
-                }
-            } else {
-                console.log('[Memory] Calling AI for text-only summary...');
-                // Use simple text format when no images/stickers
-                messagesPayload = [
-                    {
-                        role: 'user',
-                        content: currentTextBuffer
-                    }
-                ];
-                summaryText = await window.API.chat(messagesPayload);
+            console.log('[Memory] Starting Standalone Database Event Extraction...');
+            const dbPayload = [
+                { role: 'system', content: dbSystemPrompt },
+                { role: 'user', content: textBuffer }
+            ];
+
+            const dbResponse = await window.API.chat(dbPayload);
+
+            let eventData = {};
+            try {
+                const cleanJson = dbResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                eventData = JSON.parse(cleanJson);
+            } catch (parseError) {
+                console.warn('[Memory] JSON Parse failed:', parseError);
+                // Fallback
+                eventData = {
+                    summary: '对话记录归档',
+                    type: 'conversation'
+                };
             }
 
-            // 4. Save Summary
-            if (summaryText) {
-                this.addMemory(targetId, summaryText, 'summary', false);
-                console.log('[Memory] Summary saved successfully.');
-                if (window.os) window.os.showToast('长期记忆已更新', 'success');
-                
-                // [USER REQUEST] 实时刷新UI，不需要手动刷新页面
-                if (window.WeChat && window.WeChat.App && window.WeChat.App.render) {
-                    window.WeChat.App.render();
+            // [Logic] 处理复杂的社会化关系更新 (Social Graph & Gossip)
+            const updates = eventData.social_graph_updates || eventData.relationship_update;
+            const updateList = Array.isArray(updates) ? updates : (updates ? [updates] : []);
+
+            if (updateList.length > 0) {
+                const relService = window.WeChat?.Services?.RelationshipGraph;
+
+                for (const update of updateList) {
+                    let targetNodeId = null;
+                    const name = update.target_name || '用户';
+
+                    // 1. 智能匹配 ID
+                    if (['用户', '我', 'User', 'Me', 'Self'].some(k => name.toLowerCase().includes(k.toLowerCase()))) {
+                        targetNodeId = 'USER_SELF';
+                    } else {
+                        // 寻找 NPC ID
+                        const allChars = this.store.getAllCharacters ? this.store.getAllCharacters() : [];
+                        const found = allChars.find(c => c.name === name || (c.id && c.id.toLowerCase() === name.toLowerCase()));
+                        if (found) targetNodeId = found.id;
+                    }
+
+                    if (!targetNodeId) {
+                        console.warn(`[Memory] Cannot find character ID for social target: ${name}`);
+                        continue;
+                    }
+
+                    // 2. 更新关系网描述 (核心视角变更)
+                    if (relService && relService.updateRelationship) {
+                        const updateData = {};
+                        if (update.public_relation || update.char_to_user_public_relation)
+                            updateData.char_to_user_public_relation = update.public_relation || update.char_to_user_public_relation;
+
+                        if (update.private_attitude || update.char_to_user_private_attitude)
+                            updateData.char_to_user_private_attitude = update.private_attitude || update.char_to_user_private_attitude;
+
+                        if (Object.keys(updateData).length > 0) {
+                            // 主体是 targetId (当前角色), 客体是 targetNodeId
+                            relService.updateRelationship(targetId, targetNodeId, updateData);
+                            console.log(`[Memory] Social Connection Updated/Created: ${targetId} -> ${targetNodeId}`, updateData);
+                        }
+                    }
+
+                    // 3. 处理好感度变化 (仅针对对用户的好感)
+                    const delta = update.affection_delta || update.affection_change;
+                    if (targetNodeId === 'USER_SELF' && typeof delta === 'number' && delta !== 0) {
+                        const currentAffection = parseFloat(char.status?.affection || 0);
+                        const newAffection = Math.round((currentAffection + delta) * 10) / 10;
+                        this.store.updateCharacter(targetId, {
+                            status: { ...char.status, affection: newAffection }
+                        });
+                    }
                 }
+            }
+
+            // 写入事件账本
+            const eventsService = window.WeChat?.Services?.Events;
+            if (eventsService) {
+                eventsService.createEvent({
+                    type: eventData.type || 'conversation',
+                    participants: [targetId, 'USER_SELF'],
+                    summary: eventData.summary || '未命名事件',
+                    scheduleInfo: eventData.schedule || null,
+                    metadata: {
+                        source: 'ai_social_extraction',
+                        msg_count: messages.length,
+                        has_social_updates: updateList.length > 0
+                    }
+                });
+                console.log('[Memory] Database Event Logged:', eventData);
             }
 
         } catch (e) {
-            console.error('[Memory] Summary failed:', e);
-            if (window.os) window.os.showToast('总结失败，请检查网络或配置', 'error');
+            console.error('[Memory] Event Extraction API Failed:', e);
             throw e;
         }
     },
+
+    /**
+     * 检查是否需要触发自动总结 (双重检查)
+     */
+    async checkAndSummarize(targetId) {
+        if (targetId === 'siri') return;
+
+        const char = this.store.getCharacter(targetId);
+        if (!char) return;
+
+        // Config Defs
+        const settings = char.settings || {};
+        const config = settings.summaryConfig || {};
+
+        const narrativeEnabled = settings.summary_auto_enabled ?? config.autoEnabled ?? true;
+        const narrativeThreshold = settings.summary_threshold ?? config.threshold ?? 50;
+
+        const eventEnabled = settings.event_auto_enabled ?? config.eventAutoEnabled ?? false;
+        const eventThreshold = settings.event_threshold ?? config.eventThreshold ?? 50;
+        const eventSync = settings.event_sync_with_summary ?? config.eventSyncWithSummary ?? true;
+
+        const messages = this.store.getMessagesBySession(targetId);
+
+        // --- Check 1: Narrative Diary ---
+        if (narrativeEnabled) {
+            const lastSummaryTime = this.getLastSummaryTime(targetId);
+            const newNarrativeMsgs = messages.filter(m => m.timestamp > lastSummaryTime);
+
+            if (newNarrativeMsgs.length >= narrativeThreshold) {
+                console.log(`[Memory] Narrative Threshold reached (${newNarrativeMsgs.length})...`);
+
+                // 1. Perform Narrative Summary
+                const runConfig = {
+                    autoPrompt: settings.summary_auto_prompt ?? config.autoPrompt,
+                    autoEnabled: true
+                };
+                await this.performSummary(targetId, newNarrativeMsgs, runConfig);
+
+                // 2. If Sync is ON, also perform Event Extraction on the same batch
+                if (eventEnabled && eventSync) {
+                    console.log(`[Memory] Sync Trigger: Performing Event Extraction...`);
+                    const dbConfig = {
+                        databasePrompt: settings.event_database_prompt ?? config.databasePrompt
+                    };
+                    // Use catch to ensure narrative success isn't blocked by event failure
+                    try {
+                        await this.performEventExtraction(targetId, newNarrativeMsgs, dbConfig);
+                        // Update event timestamp
+                        this.store.updateCharacter(targetId, {
+                            settings: {
+                                ...this.store.getCharacter(targetId).settings, // refresh settings
+                                last_event_scan_time: Date.now()
+                            }
+                        });
+                    } catch (err) {
+                        console.error('[Memory] Sync Event Extraction failed:', err);
+                    }
+                }
+            }
+        }
+
+        // --- Check 2: Event Extraction (Independent Mode only) ---
+        if (eventEnabled && !eventSync) {
+            const lastEventScanTime = settings.last_event_scan_time || 0;
+            const newEventMsgs = messages.filter(m => m.timestamp > lastEventScanTime);
+
+            if (newEventMsgs.length >= eventThreshold) {
+                console.log(`[Memory] Event Threshold reached (${newEventMsgs.length})...`);
+                const runConfig = {
+                    databasePrompt: settings.event_database_prompt ?? config.databasePrompt
+                };
+
+                await this.performEventExtraction(targetId, newEventMsgs, runConfig);
+
+                // 更新时间戳
+                this.store.updateCharacter(targetId, {
+                    settings: {
+                        ...settings,
+                        last_event_scan_time: Date.now()
+                    }
+                });
+            }
+        }
+    },
+
+
 
     /**
      * 线下事件同步接口

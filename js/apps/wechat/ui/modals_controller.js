@@ -213,75 +213,140 @@ window.WeChat.UI.Modals = {
             </div>`;
         }
 
+
+
         // Modal 2: Summary Management
         if (State.summaryModalOpen && !State.rangeModalOpen) {
             const promptPlaceholder = "未设置则使用系统默认规则 (精准提取锚点细节，第一人称格式)";
 
+            const isSync = State.summaryConfig.eventSyncWithSummary !== false; // Default true
+
             return `
             <div class="wx-modal-overlay active" onclick="if(event.target===this) window.WeChat.App.closeModals()">
-                <div class="wx-modal" onclick="event.stopPropagation()">
-                    <div class="wx-modal-header clean">
-                        <div class="wx-modal-title clean">对话总结管理</div>
+                <div class="wx-modal" onclick="event.stopPropagation()" style="background: #f2f2f7; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
+                    
+                    <!-- Sticky Header -->
+                    <div class="wx-modal-header clean" style="flex-shrink: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 0.5px solid rgba(0,0,0,0.1); padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <div class="wx-modal-title clean" style="font-size: 17px; font-weight: 600;">对话总结与记忆管理</div>
+                        <div style="cursor: pointer; padding: 4px; border-radius: 50%; background: #e5e5ea; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;" onclick="window.WeChat.App.closeModals()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </div>
                     </div>
-                    <div class="wx-ios-modal-body">
 
-                        <!-- Group 1: Auto Summary -->
-                        <div>
-                            <div class="wx-ios-section-header">自动智能总结 (随聊天触发)</div>
-                            <div class="wx-ios-card">
-                                <div class="wx-ios-row">
-                                    <div class="wx-ios-label">启用自动总结</div>
-                                    <div class="wx-switch ${State.summaryConfig.autoEnabled ? 'checked' : ''}" onclick="window.WeChat.App.toggleSummaryAuto()">
+                    <!-- Scrollable Body -->
+                    <div id="wx-summary-scroll-container" class="wx-ios-modal-body" style="flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 16px 40px 16px;">
+
+                        <!-- Section 1: Narrative Auto -->
+                        <div style="margin-bottom: 24px;">
+                            <div style="font-size: 13px; color: #8a8a8e; margin-bottom: 8px; padding-left: 12px; text-transform: uppercase;">叙事日记</div>
+                            <div style="background: #fff; border-radius: 12px; overflow: hidden;">
+                                <div class="wx-ios-row" style="padding: 14px 16px;">
+                                    <div class="wx-ios-label" style="font-weight: 500;">启用自动总结</div>
+                                    <div class="wx-switch ${State.summaryConfig.autoEnabled ? 'checked' : ''}" onclick="window.WeChat.Services.Summaries.toggleSummaryAuto()">
                                         <div class="wx-switch-node"></div>
                                     </div>
                                 </div>
 
                                 ${State.summaryConfig.autoEnabled ? `
-                                        <div class="wx-ios-row">
-                                            <div class="wx-ios-label">触发阈值 (消息数)</div>
-                                            <input type="number" class="wx-ios-value" 
-                                                value="${State.summaryConfig.threshold}" 
-                                                oninput="window.WeChat.App.updateSummaryConfig('threshold', this.value)" />
-                                        </div>
-                                        <div class="wx-ios-input-container">
-                                            <div class="wx-ios-input-label">自动总结规则 (Prompt)</div>
-                                            <textarea class="wx-ios-textarea" 
-                                                placeholder="${promptPlaceholder}"
-                                                oninput="window.WeChat.App.updateSummaryConfig('autoPrompt', this.value)">${State.summaryConfig.autoPrompt}</textarea>
-                                        </div>
-                                        ` : ''}
+                                    <div class="wx-ios-row" style="padding: 14px 16px; border-top: 0.5px solid #efefef;">
+                                        <div class="wx-ios-label">触发阈值 (条)</div>
+                                        <input type="number" class="wx-ios-value" style="text-align: right; color: #007aff; font-weight: 500;"
+                                            value="${State.summaryConfig.threshold}" 
+                                            oninput="window.WeChat.Services.Summaries.updateSummaryConfig('threshold', this.value)" />
+                                    </div>
+                                    <div style="padding: 12px 16px; border-top: 0.5px solid #efefef;">
+                                        <div style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">个性化 Prompt (可选)</div>
+                                        <textarea class="wx-ios-textarea" 
+                                            style="background: #f2f2f7; border-radius: 8px; padding: 10px; font-size: 14px; min-height: 80px;"
+                                            placeholder="${promptPlaceholder}"
+                                            oninput="window.WeChat.Services.Summaries.updateSummaryConfig('autoPrompt', this.value)">${State.summaryConfig.autoPrompt}</textarea>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
 
-                        <!-- Group 2: Manual Summary -->
-                        <div>
-                            <div class="wx-ios-section-header">手动范围总结 (即时执行)</div>
-                            <div class="wx-ios-card">
-                                <div class="wx-ios-input-container">
-                                    <div class="wx-ios-input-label">手动总结规则 (Prompt)</div>
-                                    <textarea class="wx-ios-textarea"
-                                        style="min-height: 60px;"
-                                        placeholder="例如：重点总结关于某次约会的细节... (留空则使用默认规则)"
-                                        oninput="window.WeChat.App.updateSummaryConfig('manualPrompt', this.value)">${State.summaryConfig.manualPrompt}</textarea>
+                        <!-- Section 2: Database Events -->
+                        <div style="margin-bottom: 24px;">
+                            <div style="font-size: 13px; color: #8a8a8e; margin-bottom: 8px; padding-left: 12px; text-transform: uppercase;">事实数据库</div>
+                            <div style="background: #fff; border-radius: 12px; overflow: hidden;">
+                                <div class="wx-ios-row" style="padding: 14px 16px;">
+                                    <div class="wx-ios-label" style="font-weight: 500;">启用自动提取</div>
+                                    <div class="wx-switch ${State.summaryConfig.eventAutoEnabled ? 'checked' : ''}" onclick="window.WeChat.Services.Summaries.toggleEventAuto()">
+                                        <div class="wx-switch-node"></div>
+                                    </div>
                                 </div>
 
-                                <div class="wx-ios-row" style="padding-top: 0; padding-bottom: 0px; border-bottom: none;">
-                                    <div class="wx-ios-action-link" style="width: 100%; border-top: 0.5px solid var(--wx-border);" onclick="window.WeChat.App.openSummaryRange()">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59L14 6z" transform="rotate(180 12 12)" /></svg>
-                                        去选择范围并立即执行
+                                ${State.summaryConfig.eventAutoEnabled ? `
+                                    <div class="wx-ios-row" style="padding: 14px 16px; border-top: 0.5px solid #efefef;">
+                                        <div class="wx-ios-label">与日记总结同步</div>
+                                        <div class="wx-switch ${isSync ? 'checked' : ''}" onclick="window.WeChat.Services.Summaries.toggleEventSync()">
+                                            <div class="wx-switch-node"></div>
+                                        </div>
+                                    </div>
+
+                                    ${!isSync ? `
+                                        <div class="wx-ios-row" style="padding: 14px 16px; border-top: 0.5px solid #efefef;">
+                                            <div class="wx-ios-label">独立触发阈值 (条)</div>
+                                            <input type="number" class="wx-ios-value" style="text-align: right; color: #007aff; font-weight: 500;"
+                                                value="${State.summaryConfig.eventThreshold || 50}" 
+                                                placeholder="50"
+                                                oninput="window.WeChat.Services.Summaries.updateSummaryConfig('eventThreshold', this.value)" />
+                                        </div>
+                                    ` : `
+                                        <div class="wx-ios-row" style="padding: 14px 16px; border-top: 0.5px solid #efefef; background: #fafafa;">
+                                            <div class="wx-ios-label" style="color: #8e8e93;">触发频率</div>
+                                            <div class="wx-ios-value" style="font-size: 13px; color: #8e8e93;">跟随日记自动执行</div>
+                                        </div>
+                                    `}
+
+                                    <div style="padding: 12px 16px; border-top: 0.5px solid #efefef;">
+                                        <div style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">提取规则 (Prompt)</div>
+                                        <textarea class="wx-ios-textarea"
+                                            style="background: #f2f2f7; border-radius: 8px; padding: 10px; font-size: 14px; min-height: 80px;"
+                                            placeholder="例如：提取时间、地点、参与者、动作... (留空则使用系统默认)"
+                                            oninput="window.WeChat.Services.Summaries.updateSummaryConfig('databasePrompt', this.value)">${State.summaryConfig.databasePrompt || ''}</textarea>
+                                    </div>
+                                ` : ''}
+
+                                <div class="wx-ios-row" style="padding: 0; border-top: 0.5px solid #efefef;">
+                                    <div class="wx-ios-action-link" style="width: 100%; padding: 16px; display: flex; align-items: center; justify-content: center; color: #007aff; font-weight: 500; cursor: pointer;" onclick="window.WeChat.Services.Summaries.openSummaryRange('database')">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                                        手动选择范围并提取事件
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Footer Button -->
-                        <div class="wx-ios-primary-btn" onclick="window.WeChat.App.saveSummarySettings()">
-                            保存并完成
+                        <!-- Section 3: Manual Task -->
+                        <div style="margin-bottom: 12px;">
+                             <div style="font-size: 13px; color: #8a8a8e; margin-bottom: 8px; padding-left: 12px; text-transform: uppercase;">手动执行</div>
+                             <div style="background: #fff; border-radius: 12px; overflow: hidden;">
+                                <div style="padding: 12px 16px;">
+                                    <div style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">单次日记 Prompt (可选)</div>
+                                    <textarea class="wx-ios-textarea"
+                                        style="background: #f2f2f7; border-radius: 8px; padding: 10px; font-size: 14px; min-height: 60px;"
+                                        placeholder="例如：重点总结关于某次约会的细节..."
+                                        oninput="window.WeChat.Services.Summaries.updateSummaryConfig('manualPrompt', this.value)">${State.summaryConfig.manualPrompt}</textarea>
+                                </div>
+                                <div class="wx-ios-row" style="padding: 0; border-top: 0.5px solid #efefef;">
+                                    <div class="wx-ios-action-link" style="width: 100%; padding: 16px; display: flex; align-items: center; justify-content: center; color: #007aff; font-weight: 500; cursor: pointer;" onclick="window.WeChat.Services.Summaries.openSummaryRange('narrative')">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><path d="M14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59L14 6z" transform="rotate(180 12 12)" /></svg>
+                                        生成日记 (支持同步)
+                                    </div>
+                                </div>
+                             </div>
                         </div>
 
                     </div>
+                    
+                    <!-- Footer -->
+                    <div style="padding: 16px; background: rgba(255,255,255,0.9); border-top: 0.5px solid rgba(0,0,0,0.1); backdrop-filter: blur(5px);">
+                        <div class="wx-ios-primary-btn" style="border-radius: 12px; height: 50px; font-size: 17px; font-weight: 600;" onclick="window.WeChat.Services.Summaries.saveSummarySettings()">
+                            保存并完成
+                        </div>
+                    </div>
                 </div>
-                </div>
+            </div>
             `;
         }
 
@@ -386,18 +451,8 @@ window.WeChat.UI.Modals = {
             `;
         }
 
-        // --- Exclusive Panels (One at a time) ---
-        if (State.characterPanelOpen) {
-            return modalHtml + window.WeChat.Views.renderCharacterPanel(State.activeSessionId);
-        }
-
-        if (State.relationshipPanelOpen) {
-            return modalHtml + window.WeChat.Views.renderRelationshipPanel(State.activeSessionId);
-        }
-
-        if (State.statusHistoryPanelOpen) {
-            return modalHtml + window.WeChat.Views.renderStatusHistoryPanel(State.activeSessionId);
-        }
+        // --- Exclusive Panels Logic Moved to End of Function ---
+        // (Deleted early returns for characterPanelOpen, relationshipPanelOpen, statusHistoryPanelOpen)
 
         if (State.locationModalOpen) {
             // Re-use the existing return or continue to a combined markup
@@ -554,6 +609,146 @@ window.WeChat.UI.Modals = {
             `;
         }
 
-        return modalHtml + (window.WeChat.Views.renderPromptModal ? window.WeChat.Views.renderPromptModal(State.promptModal) : '') + (window.WeChat.Views.renderAlertModal ? window.WeChat.Views.renderAlertModal() : '') + (window.WeChat.Views.renderConfirmationModal ? window.WeChat.Views.renderConfirmationModal() : '');
+        // --- Subjective Relationship Graph Modal ---
+        if (State.subjectiveGraphId) {
+            modalHtml += window.WeChat.Views.renderRelationshipGraph();
+        }
+
+        // --- [MOVED HERE] Event Manager Modals (Highest Priority) ---
+        // 确保它们在 DOM 树的最后，覆盖在 CharacterPanel (z-index: 2000) 之上
+        let eventModalsHtml = '';
+        if (State.eventManagerOpen && State.activeEventSessionId) {
+            eventModalsHtml += window.WeChat.Views.renderEventManagerModal(State.activeEventSessionId);
+        }
+        if (State.eventEditorOpen && State.activeEventSessionId) {
+            eventModalsHtml += window.WeChat.Views.renderEventEditorModal(State.activeEventSessionId, State.activeEventId);
+        }
+
+        // 最终组装所用 HTML
+        // 注意：如果是 Exclusive Panels (如 characterPanelOpen)，之前的逻辑是直接 return
+        // 我们需要修改那部分的逻辑，或者简单地追加到最后。
+
+        let finalHtml = modalHtml;
+
+        // --- Exclusive Panels (One at a time) ---
+        if (State.characterPanelOpen) {
+            finalHtml += window.WeChat.Views.renderCharacterPanel(State.activeSessionId);
+        } else if (State.relationshipPanelOpen) {
+            finalHtml += window.WeChat.Views.renderRelationshipPanel(State.activeSessionId);
+        } else if (State.statusHistoryPanelOpen) {
+            finalHtml += window.WeChat.Views.renderStatusHistoryPanel(State.activeSessionId);
+        }
+
+        // Append Event Modals on top of everything
+        finalHtml += eventModalsHtml;
+
+        return finalHtml + (window.WeChat.Views.renderPromptModal ? window.WeChat.Views.renderPromptModal(State.promptModal) : '') + (window.WeChat.Views.renderAlertModal ? window.WeChat.Views.renderAlertModal() : '') + (window.WeChat.Views.renderConfirmationModal ? window.WeChat.Views.renderConfirmationModal() : '');
+    },
+
+    // --- Event Manager Actions ---
+
+    openEventManager(sessionId) {
+        const State = window.WeChat.App.State;
+        State.eventManagerOpen = true;
+        State.activeEventSessionId = sessionId;
+        window.WeChat.App.render();
+    },
+
+    closeEventManager() {
+        const State = window.WeChat.App.State;
+        State.eventManagerOpen = false;
+        State.activeEventSessionId = null;
+        window.WeChat.App.render();
+    },
+
+    toggleEventComplete(eventId, sessionId) {
+        window.WeChat.Services.Events.toggleEventComplete(eventId);
+        window.WeChat.App.render();
+    },
+
+    addEvent(sessionId) {
+        const State = window.WeChat.App.State;
+        State.eventEditorOpen = true;
+        State.activeEventSessionId = sessionId;
+        State.activeEventId = null; // New event
+        window.WeChat.App.render();
+    },
+
+    editEvent(eventId, sessionId) {
+        const State = window.WeChat.App.State;
+        State.eventEditorOpen = true;
+        State.activeEventSessionId = sessionId;
+        State.activeEventId = eventId;
+        window.WeChat.App.render();
+    },
+
+    closeEventEditor() {
+        const State = window.WeChat.App.State;
+        State.eventEditorOpen = false;
+        State.activeEventId = null;
+        window.WeChat.App.render();
+    },
+
+    deleteEvent(eventId, sessionId) {
+        if (confirm('确定要删除这条事件吗？此操作不可撤销。')) {
+            window.WeChat.Services.Events.deleteEvent(eventId);
+            if (window.os) window.os.showToast('事件已删除');
+            // Refresh
+            window.WeChat.App.render();
+        }
+    },
+
+    saveEvent(sessionId, eventId) {
+        const type = document.getElementById('evt-editor-type').value;
+        const summary = document.getElementById('evt-editor-summary').value;
+        const hasSchedule = document.getElementById('evt-editor-has-schedule').checked;
+
+        let scheduleInfo = null;
+        if (hasSchedule) {
+            scheduleInfo = {
+                date: document.getElementById('evt-sch-date').value,
+                time: document.getElementById('evt-sch-time').value,
+                activity: document.getElementById('evt-sch-activity').value
+            };
+        }
+
+        if (!summary) {
+            if (window.os) window.os.showToast('请输入事件摘要', 'error');
+            return;
+        }
+
+        const eventsService = window.WeChat.Services.Events;
+
+        if (eventId) {
+            // Update
+            eventsService.updateEvent(eventId, {
+                type,
+                summary,
+                scheduleInfo
+            });
+            if (window.os) window.os.showToast('事件已更新');
+        } else {
+            // Create New
+            eventsService.createEvent({
+                type,
+                summary,
+                scheduleInfo,
+                participants: [sessionId, 'USER_SELF'], // Default participants
+                timestamp: Date.now()
+            });
+            if (window.os) window.os.showToast('事件已创建');
+        }
+
+        this.closeEventEditor();
+    },
+
+    compressEvents(sessionId) {
+        if (confirm('确定要压缩旧事件吗？這将保留摘要但删除详细快照。')) {
+            // 只需要压缩与该角色相关的，或者全局压缩。
+            // 这里我们调用全局压缩，但可以通过参数优化
+            window.WeChat.Services.Events.compressOldEvents(30, 100); // Default rules
+            if (window.os) window.os.showToast('事件压缩完成');
+            window.WeChat.App.render();
+        }
     }
 };

@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="css/apps/settings.css">
     <link rel="stylesheet" href="css/apps/wechat.css?v=6">
     <link rel="stylesheet" href="css/apps/worldbook.css">
+    <link rel="stylesheet" href="css/apps/relationship_graph.css?v=58">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
@@ -267,14 +268,14 @@
 
     <!-- JS Modules -->
     <script src="js/utils/error_handler.js?v=6"></script>
-    
+
     <!-- Global Error Handler -->
     <script>
         // 统一全局错误处理
         window.onerror = function (msg, url, line, col, error) {
             // 忽略无关紧要的错误
             if (msg.includes('ResizeObserver') || msg.includes('Script error')) return false;
-            
+
             // 使用统一错误处理服务
             if (window.ErrorHandler) {
                 window.ErrorHandler.handle(error || new Error(msg), {
@@ -292,7 +293,7 @@
         };
 
         // 处理未捕获的Promise拒绝
-        window.addEventListener('unhandledrejection', function(event) {
+        window.addEventListener('unhandledrejection', function (event) {
             if (window.ErrorHandler) {
                 window.ErrorHandler.handle(event.reason || new Error('Unhandled Promise Rejection'), {
                     level: window.ErrorHandler.Level.ERROR,
@@ -305,7 +306,7 @@
             }
         });
     </script>
-    
+
     <script src="js/utils/helpers.js?v=5"></script>
     <script src="js/utils/dom.js?v=5"></script>
     <script src="js/utils/time.js?v=5"></script>
@@ -338,13 +339,17 @@
     <script src="js/apps/wechat/ui/components.js?v=5"></script>
     <script src="js/apps/wechat/ui/ui_interactions.js?v=5"></script>
     <script src="js/apps/wechat/ui/bubbles.js?v=5"></script>
-    <script src="js/apps/wechat/ui/modals_controller.js?v=5"></script>
+    <script src="js/apps/wechat/ui/modals_controller.js?v=46"></script>
     <script src="js/apps/wechat/ui/views_chat.js?v=5"></script>
-    <script src="js/apps/wechat/ui/views_settings.js?v=5"></script>
-    <script src="js/apps/wechat/ui/views_modals.js?v=5"></script>
+    <script src="js/apps/wechat/ui/views_settings.js?v=56"></script>
+    <script src="js/apps/wechat/ui/views_modals.js?v=46"></script>
     <script src="js/apps/wechat/services/stickers.js?v=5"></script>
+    <script src="js/apps/wechat/services/events.js?v=1"></script>
+    <script src="js/apps/wechat/services/relationship_graph.js?v=9"></script>
+    <script src="js/apps/wechat/ui/relationship_graph_god.js?v=57"></script>
+    <script src="js/apps/wechat/ui/relationship_graph_modal.js?v=57"></script>
     <script src="js/apps/wechat/ui/sticker_view.js?v=5"></script>
-    <script src="js/apps/wechat/index.js?v=5"></script>
+    <script src="js/apps/wechat/index.js?v=58"></script>
     <script src="js/apps/worldbook/index.js?v=5"></script>
     <script src="js/core/os.js?v=5"></script>
     <script src="js/utils/pwa_guide.js?v=1"></script>

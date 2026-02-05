@@ -101,6 +101,18 @@ window.BackgroundActivityManager = (function () {
                 }
             }
 
+            // 4. [Events System] 每日压缩旧事件（每24小时执行一次）
+            const lastEventCompress = s.get('last_event_compress') || 0;
+            const now = Date.now();
+            if (now - lastEventCompress > 24 * 60 * 60 * 1000) {
+                const eventsService = window.WeChat?.Services?.Events;
+                if (eventsService) {
+                    console.log('[后台活动] 执行事件记录压缩...');
+                    eventsService.compressOldEvents(30, 100); // 保留30天内或100条
+                    s.set('last_event_compress', now);
+                }
+            }
+
         } catch (e) {
             console.error('[后台活动] 任务执行出错:', e);
         }

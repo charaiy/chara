@@ -74,7 +74,8 @@ const State = {
 
     // Custom Modals
     confirmationModal: { open: false, title: '', content: '', onConfirm: '', onCancel: '' },
-    promptModal: { open: false, title: '', content: '', value: '', onConfirm: '', onCancel: '' }
+    promptModal: { open: false, title: '', content: '', value: '', onConfirm: '', onCancel: '' },
+    subjectiveGraphId: null // [v44] 新增：主观关系网视角 ID
 };
 
 window.WeChat = window.WeChat || {};
@@ -227,6 +228,16 @@ window.WeChat.App = {
             rightBtnContent = `
                 <div id="wx-nav-gen-btn" title="随机填充未锁定项" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 15h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4H7v-2h2v2zm0-4H7v-2h2v2zm8-4h-2V6h2v2zm-4 0h-2V6h2v2zm-4 0H7V6h2v2z"/></svg>
+                </div>
+            `;
+        }
+        else if (rightIcon === 'reset') {
+            rightBtnContent = `
+                <div title="重置视图" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
                 </div>
             `;
         }
@@ -402,6 +413,12 @@ window.WeChat.App = {
                 contentHtml = Views.renderVoiceVideoSettings(State.activeSessionId);
                 rightIcon = null;
                 showBack = true;
+            } else if (State.currentTab === 'relationship_graph') {
+                navTitle = '关系网';
+                contentHtml = (window.WeChat.Views && window.WeChat.Views.renderRelationshipGraph) ? window.WeChat.Views.renderRelationshipGraph() : '<div style="padding:20px;text-align:center;color:#999;">正在初始化关系网组件...</div>';
+                rightIcon = 'reset';
+                rightAction = 'window.WeChat.UI.RelationshipGraphGod.resetView()';
+                showBack = true;
             } else {
                 switch (State.currentTab) {
                     case 0: navTitle = '微信'; contentHtml = Views.renderChatList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.toggleAddFriendMenu()'; break;
@@ -412,6 +429,7 @@ window.WeChat.App = {
             }
 
             const showTabBar = (typeof State.currentTab === 'number');
+            const isRG = (State.currentTab === 'relationship_graph');
             const selectionModeClass = State.msgSelectionMode ? 'wx-msg-selection-active' : '';
 
             // --- Enhanced Scroll Preservation ---
@@ -424,7 +442,7 @@ window.WeChat.App = {
 
             State.root.innerHTML = `
                     <div class="wechat-app ${selectionModeClass}">
-                        ${this.renderNavBarOverride({ title: navTitle, showBack, rightIcon, rightAction })}
+                        ${isRG ? '' : this.renderNavBarOverride({ title: navTitle, showBack, rightIcon, rightAction })}
                         ${contentHtml}
                         ${showTabBar ? Components.renderTabBar(State.currentTab) : ''}
                         ${State.msgSelectionMode ? this.renderMsgSelectionFooter() : ''}
@@ -1260,24 +1278,49 @@ window.WeChat.App = {
         // And we also try to scroll immediately after a short delay (for DOM update)
         setTimeout(() => {
             const view = document.getElementById('wx-view-session');
-            if (view) {
-                view.scrollTop = view.scrollHeight;
-            }
+            if (view) view.scrollTop = view.scrollHeight;
         }, 100);
     },
-    openCharacterPanel() {
+
+    /**
+     * v44: 改写打开逻辑
+     * 如果有 observerId，则作为浮层弹出（不切Tab）
+     * 如果没有，则切换到关系网 Tab（上帝模式）
+     */
+    openRelationshipGraph(observerId) {
+        console.log('[WeChat] openRelationshipGraph called:', observerId);
+        if (observerId) {
+            // v54: 视角模式 - 使用独立组件
+            if (window.WeChat.UI && window.WeChat.UI.RelationshipGraphSubjective) {
+                window.WeChat.UI.RelationshipGraphSubjective.open(observerId);
+            }
+        } else {
+            // v54: 上帝模式 - 使用独立组件
+            State.prevTab = State.currentTab;
+            State.currentTab = 'relationship_graph';
+            this.render(); // 渲染基础页面结构
+
+            if (window.WeChat.UI && window.WeChat.UI.RelationshipGraphGod) {
+                window.WeChat.UI.RelationshipGraphGod.init();
+            }
+        }
+    },
+
+    openCharacterPanel(sessionId) {
+        if (sessionId) State.activeSessionId = sessionId;
         State.relationshipPanelOpen = false;
         State.statusHistoryPanelOpen = false;
         State.characterPanelOpen = true;
         this.render();
     },
+
     closeCharacterPanel() {
         State.characterPanelOpen = false;
-        // Ensure others are closed too just in case
         State.relationshipPanelOpen = false;
         State.statusHistoryPanelOpen = false;
         this.render();
     },
+
     openRelationshipPanel() {
         const char = window.sysStore.getCharacter(State.activeSessionId) || {};
         const status = char.status || {};
@@ -1285,11 +1328,11 @@ window.WeChat.App = {
         const relSettings = settings.relationship || {};
 
         // [Migration Logic] Handle transition from single-field+toggle to dual-field
+        // Preserve legacy values if new ones don't exist
         const oldCharView = relSettings.char_to_user_view || status.relationship_they_to_me?.opinion || '';
-        const oldCharSecret = relSettings.char_view_is_secret || false;
-
+        // const oldCharSecret = relSettings.char_view_is_secret || false;
         const oldUserView = relSettings.user_to_char_view || status.relationship_me_to_they?.opinion || '';
-        const oldUserSecret = relSettings.user_view_is_secret || false;
+        // const oldUserSecret = relSettings.user_view_is_secret || false;
 
         State.pendingRelationship = {
             // Dynamic Stats
@@ -1300,14 +1343,18 @@ window.WeChat.App = {
             // 1. Social Contract
             public_relation: relSettings.public_relation || status.relationship_they_to_me?.relation || '',
 
-            // 2. Character's Lens (Dual Layer)
-            // If new fields exist, use them. Else migrate: if old was secret -> secret field, else public field.
-            char_to_user_public: relSettings.char_to_user_public || (!oldCharSecret ? oldCharView : ''),
-            char_to_user_secret: relSettings.char_to_user_secret || (oldCharSecret ? oldCharView : ''),
+            // 2. Character's Lens (NPC -> User)
+            char_to_user_public_attitude: relSettings.char_to_user_public_attitude || relSettings.char_to_user_public || oldCharView,
+            char_to_user_private_attitude: relSettings.char_to_user_private_attitude || relSettings.char_to_user_secret || '',
+            user_knows_char_private: relSettings.user_knows_char_private === true,
 
-            // 3. User's Lens (Dual Layer)
-            user_to_char_public: relSettings.user_to_char_public || (!oldUserSecret ? oldUserView : ''),
-            user_to_char_secret: relSettings.user_to_char_secret || (oldUserSecret ? oldUserView : '')
+            // 3. User's Lens (User -> NPC)
+            user_to_char_public_attitude: relSettings.user_to_char_public_attitude || relSettings.user_to_char_public || oldUserView,
+            user_to_char_private_attitude: relSettings.user_to_char_private_attitude || relSettings.user_to_char_secret || '',
+            char_knows_user_private: relSettings.char_knows_user_private === true,
+
+            // 4. Backstory
+            backstory: relSettings.backstory || ''
         };
 
         State.characterPanelOpen = false;
@@ -1324,10 +1371,13 @@ window.WeChat.App = {
             difficulty: 'normal',
             ladder_persona: [],
             public_relation: '',
-            char_to_user_public: '',
-            char_to_user_secret: '',
-            user_to_char_public: '',
-            user_to_char_secret: ''
+            char_to_user_public_attitude: '',
+            char_to_user_private_attitude: '',
+            user_knows_char_private: false,
+            user_to_char_public_attitude: '',
+            user_to_char_private_attitude: '',
+            char_knows_user_private: false,
+            backstory: ''
         };
 
         if (window.os) window.os.showToast('设定已清空，请保存生效');
@@ -1424,6 +1474,13 @@ window.WeChat.App = {
         }
         if (!silent) this.render();
     },
+
+    togglePendingRelationshipBool(field) {
+        if (!State.pendingRelationship) return;
+        State.pendingRelationship[field] = !State.pendingRelationship[field];
+        this.render();
+    },
+
     addLadderPersona() {
         if (!State.pendingRelationship) return;
         State.pendingRelationship.ladder_persona.push({
@@ -1476,17 +1533,23 @@ window.WeChat.App = {
                 ...(char?.settings?.relationship || {}),
                 public_relation: rel.public_relation,
 
-                // Save the Dual Layers
-                char_to_user_public: rel.char_to_user_public,
-                char_to_user_secret: rel.char_to_user_secret,
+                // Save the Dual Layers with Correct Keys
+                char_to_user_public_attitude: rel.char_to_user_public_attitude,
+                char_to_user_view: rel.char_to_user_public_attitude, // Legacy Sync
+                char_to_user_private_attitude: rel.char_to_user_private_attitude,
+                user_knows_char_private: rel.user_knows_char_private,
 
-                user_to_char_public: rel.user_to_char_public,
-                user_to_char_secret: rel.user_to_char_secret,
+                user_to_char_public_attitude: rel.user_to_char_public_attitude,
+                user_to_char_view: rel.user_to_char_public_attitude, // Legacy Sync
+                user_to_char_private_attitude: rel.user_to_char_private_attitude,
+                char_knows_user_private: rel.char_knows_user_private,
 
-                // Clear old single fields to keep data clean
-                char_to_user_view: null,
+                backstory: rel.backstory,
+
+                // Clear outdated/ambiguous fields if they exist
+                char_to_user_public: null,
+                char_to_user_secret: null,
                 char_view_is_secret: null,
-                user_to_char_view: null,
                 user_view_is_secret: null
             }
         };
@@ -1524,6 +1587,8 @@ window.WeChat.App = {
             State.characterPanelOpen = true; // Return to character panel
             this.render();
         }
+
+        if (window.os) window.os.showToast('关系设定已保存');
     },
     closeRelationshipPanel() {
         State.pendingRelationship = null;
@@ -1912,13 +1977,13 @@ window.WeChat.App = {
             try { amount = JSON.parse(msg.content).amount; } catch (e) { }
 
             const charId = msg.sender_id; // 转账发送者的ID（角色ID）
-            
+
             // 使用 persistAndShow 添加用户侧的消息气泡
             if (window.WeChat.Services && window.WeChat.Services.Chat && window.WeChat.Services.Chat.persistAndShow) {
-                window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({ 
-                    status: 'received', 
-                    text: `已收款 ¥${amount}`, 
-                    amount: amount 
+                window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({
+                    status: 'received',
+                    text: `已收款 ¥${amount}`,
+                    amount: amount
                 }), 'transfer_status', {
                     sender_id: 'user',  // 用户侧显示
                     receiver_id: charId
@@ -2003,10 +2068,10 @@ window.WeChat.App = {
 
             // Add user-side transfer_status message (显示在用户侧)
             if (window.WeChat.Services && window.WeChat.Services.Chat && window.WeChat.Services.Chat.persistAndShow) {
-                window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({ 
-                    status: 'refunded', 
-                    text: `已拒绝 ¥${amount}`, 
-                    amount: amount 
+                window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({
+                    status: 'refunded',
+                    text: `已拒绝 ¥${amount}`,
+                    amount: amount
                 }), 'transfer_status', {
                     sender_id: 'user',  // 用户侧显示
                     receiver_id: charId

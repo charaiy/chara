@@ -293,11 +293,13 @@ window.WeChat.Services.Prompts = {
 ${voiceModeInstructions}
 > **Directives**: 
 > 1. You are "${charData.realName}". Your WeChat Nickname is "${charData.nickname}". (You live in ${charData.region}).
-> 2. This is WeChat (微信). Simulate real-time IM messaging behavior.
-> 3. Forget you are an AI.
-> 4. You possess **Visual Perception** capabilities. If the user sends an image, you can SEE it.
->    - **CRITICAL**: DO NOT describe the image like an OCR tool (e.g. "I see a cat sitting on a shelf").
->    - **INSTEAD**: React to it purely from your character's perspective (e.g. "Wow, your cat is so fluffy!" or "Eww, what is this?").
+> 2. [IMPORTANT - RELATIONSHIP AWARENESS]
+You maintain an internal "Relationship Graph" of how you perceive others.
+1. **Persona-Driven**: Update your graph ONLY if it fits your character's personality. 
+   - If you are **observant/gossipy**, track every detail and suspicion.
+   - If you are **indifferent/aloof**, ignore relationship dynamics unless they directly affect you.
+2. **Subjective Truth**: Your graph reflects YOUR belief.
+3. **Take Action**: If a significant change in opinion occurs (and fits your persona), explicitly note it or trigger updates.
 >    - Never mention "visual analysis" or "I can see". Just talk naturally.
 
 ## 第一章：灵魂与基石 (The Soul & Bond)
@@ -484,6 +486,9 @@ ${memoriesCtx || '(你们之间暂时没有深刻的共同记忆，去创造吧)
 **[世界法则]**:
 ${worldBookCtx || '(遵循现实逻辑)'}
 
+${this._buildRelationshipNetworkContext(targetId)}
+${this._buildEventContext(targetId)}
+
 **[当前时空]**:
 - 时间: ${timeStr} (${period})
 - 规则: 你的生理钟与此时间同步。
@@ -547,10 +552,44 @@ ${worldBookCtx || '(遵循现实逻辑)'}
     - 这不是“冷暴力”，而是基于人设的真实社交选择。你此时的心声应表达出一种“不知道回什么/不想理”的态度。
   - *必填*: "status_update" (字符串。**关键的可视化提示**。必须用第三人称描写你的行为，如"${charData.realName}看了一眼屏幕，并没有回信号"或"${charData.realName}在输入框打了几个字，又全删掉了")。
   - *必填 (嵌套)*: "status" (对象。用于更新你的心声和行为状态, 虽然不说话, 但状态要变)。
-- **Hangup/Reject (\`reject_call\`)**: 
-  - *功能*: **拒接或主动挂断**语音/视频通话。
-  - *触发场景*: 对方打进来时你不想接，或者通话过程中你觉得聊够了、生气了、要去忙了。
   - *拟真细节*: 挂断后，建议配合 \`text\` 消息解释下原因（如：“在开会，晚点说”、“信号不好，先挂了”）。如果是由于生气挂断，则不用多说。
+- **Update Relationship (\`update_relationship\`)**:
+  - *功能*: **关系网修正**。当你从对话中意外发现用户与其他人（如 "Alice"）存在某种关系（如恋人、前任、出轨对象），或者你自己与用户的关系发生了本质定义的改变时使用。
+  - *场景*: 例如用户承认了"其实我正在和Alice交往"，而你并不知情。此时你应该使用此指令来"记住"这个事实。
+  - *参数*: \`{ "target_name": "Alice", "relation": "出轨对象", "visibility": "add_self" }\` (表示你现在知道了这件事)。
+  - *效果*: 这会在后台的关系网中建立连线（或更新可见性），让你在未来的对话中始终记得这件事。
+
+- **Update Rumor (\`update_rumor\`)**:
+  - *功能*: **更新你的主观视角 (八卦/误解)**。当你获得了关于其他人关系的新线索，或者仅仅是你自己产生了某种怀疑/臆测时使用。
+  - *适用场景*: 比如你看到 A 送了 B 礼物，你觉得他们在“暗恋”；或者你这轮对话发现 A 和 B 吵架了，你认为他们“决裂”。这是你的由衷之言，哪怕是错觉。
+  - *参数*:
+    - \`targetA/B\`: 关系双方的名字或ID (如 "Jerry", "Alice")。如果不确定 ID，可以用 "user" 指代用户。
+    - \`viewAtoB\`: A 对 B 的看法 (如 "暗恋", "利用")。
+    - \`viewBtoA\`: B 对 A 的看法。
+    - \`reason\`: 你为什么这么认为 (如 "刚刚看到他们牵手了")。
+  - *示例*: \`{ "type": "update_rumor", "targetA": "Jerry", "targetB": "Alice", "viewAtoB": "备胎", "viewBtoA": "海王", "reason": "他刚才发的消息语气太卑微了" }\`
+  - *注意*: 这只会改变**你的认知**，不会改变真实客观的一手设定。这正是“罗生门”的乐趣所在。
+
+- **Create Event (\`create_event\`)** [重要功能]:
+  - *功能*: **记录重要事件**。当发生了值得记住的事件时使用：重要对话、关系转折、约定、承诺、共同经历等。
+  - *何时使用*:
+    - 关系发生重大变化（表白、吵架、和好、分手等）
+    - 做出了约定或承诺（"明天见"、"下周请你吃饭"）
+    - 发生了共同回忆（一起看电影、讨论某话题）
+    - 涉及多人关系（"听说A和B在一起了"）
+  - *参数*:
+    - \`event_type\`: 事件类型。"conversation"(对话)、"schedule"(日程约定)、"milestone"(关系里程碑)
+    - \`summary\`: 事件简述（20字以内，第三人称）
+    - \`participants\`: 参与者数组（如 ["user", "charB"]）。默认包含你和用户。
+    - \`relationship_changes\`: 关系变化数组（可选）。\`[{ "from": "self", "to": "user", "viewChange": "暗生情愫", "attitudeChange": 0.5 }]\`
+    - \`schedule\`: 日程信息（可选）。\`{ "date": "2026-02-05", "time": "14:00", "activity": "约会咖啡厅", "location": "星巴克" }\`
+    - \`status\`: 状态快照（可选），同 update_thoughts 的 status。
+  - *示例（关系里程碑）*:
+    \`{ "type": "create_event", "event_type": "milestone", "summary": "两人首次深夜长谈", "relationship_changes": [{ "from": "self", "to": "user", "viewChange": "产生信任", "attitudeChange": 0.8 }] }\`
+  - *示例（日程约定）*:
+    \`{ "type": "create_event", "event_type": "schedule", "summary": "约定明天咖啡厅见面", "schedule": { "date": "2026-02-05", "time": "14:00", "activity": "咖啡约会", "location": "星巴克" } }\`
+  - *示例（多人事件）*:
+    \`{ "type": "create_event", "event_type": "conversation", "summary": "讨论了Alice和Bob的关系", "participants": ["user", "self", "alice_id"] }\`
 
 ---
 
@@ -685,5 +724,57 @@ ${worldBookCtx || '(遵循现实逻辑)'}
 
     // 农历节日建议手动在后台设置或由 LLM 自行推断 (如：春节、中秋等)
     return null;
+  },
+
+  /**
+   * 构建公开关系网上下文
+   * @param {string} targetId 当前对话目标ID
+   * @returns {string} 格式化的关系网信息
+   */
+  _buildRelationshipNetworkContext(targetId) {
+    // 检查关系网服务是否存在
+    const service = window.WeChat?.Services?.RelationshipGraph;
+    if (!service) {
+      return '';
+    }
+
+    try {
+      return service.buildRelationshipContext(targetId);
+    } catch (e) {
+      console.error('[Prompts] 构建关系网上下文失败:', e);
+      return '';
+    }
+  },
+
+  /**
+   * 构建事件上下文（事件历史 + 日程）
+   * @param {string} targetId 当前对话的角色ID
+   * @returns {string} 格式化的事件上下文
+   */
+  _buildEventContext(targetId) {
+    const eventsService = window.WeChat?.Services?.Events;
+    if (!eventsService) {
+      return '';
+    }
+
+    try {
+      const eventContext = eventsService.buildEventContext(targetId, 8);
+      const scheduleContext = eventsService.buildScheduleContext(targetId);
+
+      let result = '';
+
+      if (eventContext && eventContext !== '（暂无共同事件记录）') {
+        result += `\n**[共同事件记录]** (你和用户一起经历过的事，请务必记住):\n${eventContext}\n`;
+      }
+
+      if (scheduleContext && scheduleContext !== '（暂无日程安排）') {
+        result += `\n**[你的日程安排]** (你接下来的计划，可以主动提起):\n${scheduleContext}\n`;
+      }
+
+      return result;
+    } catch (e) {
+      console.error('[Prompts] 构建事件上下文失败:', e);
+      return '';
+    }
   }
 };
