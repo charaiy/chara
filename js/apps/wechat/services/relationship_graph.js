@@ -825,27 +825,69 @@ window.WeChat.Services.RelationshipGraph = {
      * @param {string} nodeB - 关系方B
      * @param {string} content - 流言内容
      */
-    saveRumor(observerId, nodeA, nodeB, content) {
-        const pairId = [nodeA, nodeB].sort().join('_');
+    /**
+     * [v2 Upgrade] 保存主观流言
+     * @param {string} observerId - 谁的认知
+     * @param {string} nodeA - 关系方A
+     * @param {string} nodeB - 关系方B
+     * @param {string|object} contentOrData - 流言内容。如果是字符串，则为旧版单向内容；如果是对象，需包含 { viewAtoB, viewBtoA, reason }
+     */
+    saveRumor(observerId, nodeA, nodeB, contentOrData) {
+        const sorted = [nodeA, nodeB].sort();
+        const pairId = sorted.join('_');
         const key = `${observerId}|${pairId}`;
 
         const rumors = window.sysStore.get('rg_rumors_v1') || {};
+        const existing = rumors[key] || {};
+
+        // Determine V2 data
+        let contentAtoB = '';
+        let contentBtoA = '';
+        let reason = '';
+        let simpleContent = '';
+
+        const isReversed = sorted[0] !== nodeA; // Did the caller pass [B, A] vs [A, B]?
+
+        if (typeof contentOrData === 'string') {
+            // [Compatibility Mode]
+            simpleContent = contentOrData;
+            contentAtoB = contentOrData;
+            contentBtoA = contentOrData;
+        } else if (typeof contentOrData === 'object') {
+            // [V2 Mode]
+            // Caller passed data relative to (nodeA, nodeB) arguments
+            const rawAtoB = contentOrData.viewAtoB || contentOrData.contentAtoB || contentOrData.view || '';
+            const rawBtoA = contentOrData.viewBtoA || contentOrData.contentBtoA || contentOrData.view || '';
+
+            // Map to sorted storage
+            contentAtoB = isReversed ? rawBtoA : rawAtoB;
+            contentBtoA = isReversed ? rawAtoB : rawBtoA;
+            reason = contentOrData.reason || '';
+
+            // Simple content fallback (use the first non-empty view)
+            simpleContent = contentAtoB || contentBtoA || '';
+        }
+
         rumors[key] = {
+            ...existing,
             id: key,
-            observerId,
-            nodeA,
-            nodeB,
-            nodeA,
-            nodeB,
-            // 兼容 v1 简单流言
-            content,
-            contentAtoB: content,
-            contentBtoA: content,
+            observerId: observerId,
+            nodeA: sorted[0],
+            nodeB: sorted[1],
+
+            // 兼容 v1
+            content: simpleContent,
+
+            // V2 Fields
+            contentAtoB: contentAtoB || existing.contentAtoB || '',
+            contentBtoA: contentBtoA || existing.contentBtoA || '',
+            reason: reason || existing.reason || '',
+
             updatedAt: Date.now()
         };
 
         window.sysStore.set('rg_rumors_v1', rumors);
-        console.log(`[RelationshipGraph] Rumor implanted for ${observerId}:`, content);
+        console.log(`[RelationshipGraph] Rumor updated for ${observerId} on ${nodeA}-${nodeB}`, contentOrData);
 
         // 可选：如果真实关系不存在，创建一个空的真实关系以承载这个流言 (Ghost Relationship)
         if (!this.getRelationship(nodeA, nodeB)) {

@@ -254,11 +254,11 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 </div>
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                        <span style="font-size: 15px; font-weight: 500; color: var(--wx-text);">${chat.name}</span>
+                        <span style="font-size: 15px; font-weight: 500; color: var(--wx-text);">${this.escapeHtml(chat.name)}</span>
                         <span style="font-size: 9px; color: var(--wx-text-sec);">${chat.time}</span>
                     </div>
                     <div style="font-size: 12px; color: var(--wx-text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 30px;">
-                        ${chat.lastMsg}
+                        ${this.escapeHtml(chat.lastMsg)}
                     </div>
                 </div>
             </div>
@@ -300,9 +300,9 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 <!-- Members Area -->
                 <div style="background: var(--wx-cell-bg); padding: 16px 20px 24px 20px; display: flex; flex-wrap: wrap; gap: 24px; margin-top: 0;">
                      <!-- Member: Peer (Clickable) -->
-                     <div onclick="window.WeChat.App.openUserProfile('${sessionId}', '${realName}')" style="display: flex; flex-direction: column; align-items: center; width: 56px; cursor: pointer;">
+                     <div onclick="window.WeChat.App.openUserProfile('${sessionId}', '${this.escapeQuote(realName)}')" style="display: flex; flex-direction: column; align-items: center; width: 56px; cursor: pointer;">
                         <img src="${avatar}" style="width: 56px; height: 56px; border-radius: 6px; margin-bottom: 6px; object-fit: cover;" onerror="this.src='assets/images/avatar_placeholder.png'">
-                        <span style="font-size: 11px; color: var(--wx-text-sec); width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${realName}</span>
+                        <span style="font-size: 11px; color: var(--wx-text-sec); width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(realName)}</span>
                      </div>
                      <!-- Add Button -->
                      <div style="display: flex; flex-direction: column; align-items: center; width: 56px;">
@@ -486,7 +486,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                     <div style="display: flex; align-items: flex-start; margin-bottom: 10px;">
                         <img src="${avatar}" style="width: 36px; height: 36px; border-radius: 4px; margin-right: 10px; background: #eee; object-fit: cover;">
                         <div style="flex: 1;">
-                            <div style="font-size: 15px; font-weight: 500; color: var(--wx-text); margin-bottom: 2px;">${name}</div>
+                            <div style="font-size: 15px; font-weight: 500; color: var(--wx-text); margin-bottom: 2px;">${this.escapeHtml(name)}</div>
                             <div style="font-size: 12px; color: var(--wx-text-sec);">${dateStr}</div>
                         </div>
                         <div style="display: flex; gap: 16px;">
@@ -498,7 +498,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                             </div>
                         </div>
                     </div>
-                    <div style="font-size: 15px; line-height: 1.6; color: var(--wx-text); white-space: pre-wrap;">${mem.content}</div>
+                    <div style="font-size: 15px; line-height: 1.6; color: var(--wx-text); white-space: pre-wrap;">${this.escapeHtml(mem.content)}</div>
                 </div>
             `;
         }).join('');

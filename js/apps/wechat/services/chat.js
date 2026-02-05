@@ -159,10 +159,18 @@ window.WeChat.Services.Chat = {
             if (!Api) throw new Error('Core API module not found');
 
             console.log('[Chat] Sending Request...');
-            const responseText = await Api.chat([
+
+            // 60s Timeout Promise
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('请求超时 (60s)')), 60000)
+            );
+
+            const apiPromise = Api.chat([
                 { role: "system", content: systemPrompt },
                 ...history
             ]);
+
+            const responseText = await Promise.race([apiPromise, timeoutPromise]);
 
             // 5. 增强型 JSON 解析 (Robust JSON Parsing)
             let actions = this._parseAIResponse(responseText);
@@ -560,6 +568,12 @@ window.WeChat.Services.Chat = {
                 // Rule: First message 0 delay, subsequent messages 2000ms
                 const delay = isFirstDisplayable ? 0 : 2000;
                 await new Promise(r => setTimeout(r, delay));
+
+                // [Robustness] Re-check connection after delay
+                if (this._activeSession !== targetId) {
+                    console.log('[Chat] Session switched, aborting action execution.');
+                    return;
+                }
             } else {
                 // Internal parsing/thought events: Instant
                 await new Promise(r => setTimeout(r, 20));
@@ -596,6 +610,7 @@ window.WeChat.Services.Chat = {
                                     .slice(0, 4) || [textContent];
 
                                 for (let i = 0; i < fragments.length; i++) {
+                                    if (this._activeSession !== targetId) return; // Re-check
                                     this.persistAndShow(targetId, fragments[i], 'voice_text');
                                     if (i < fragments.length - 1) await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
                                 }
@@ -814,48 +829,16 @@ window.WeChat.Services.Chat = {
                         if (rumorTargetA && rumorTargetB && (rumorViewAtoB || rumorViewBtoA || rumorReason)) {
                             // 调用 RelationshipGraph 服务
                             if (window.WeChat.Services.RelationshipGraph) {
-                                // 我们的 saveRumor 目前是原子化的，但只暴露了单一 content 参数在 v1 逻辑
-                                // 我们需要扩展 Services.RelationshipGraph.saveRumor 或者直接存取数据? 
-                                // 最好是扩展 Services.RelationshipGraph.saveRumor 支持 object 参数
-
-                                // 偷个懒，直接用 window.sysStore 读取修改，或者假设 RelationshipGraph 已经升级
-                                // 让我们假设 RelationshipGraph.saveRumor 依然是旧签名 (observerId, nodeA, nodeB, content)
-                                // 所以我们需要手动构建数据结构并保存，或者更新 saveRumor 方法。
-                                // 刚才我们在 v50 看到 saveRumor 是 (observerId, nodeA, nodeB, content)。
-                                // 让我们用一个更底层的逻辑：
-
-                                const obsId = targetId; // 当前思考的角色就是观察者
-                                const svc = window.WeChat.Services.RelationshipGraph;
-
-                                // 读取现有流言以合并
-                                const rumors = window.sysStore.get('rg_rumors_v1') || {};
-                                const pairId = [rumorTargetA, rumorTargetB].sort().join('_');
-                                const key = `${obsId}|${pairId}`;
-                                const existing = rumors[key] || {};
-
-                                const sortedIds = [rumorTargetA, rumorTargetB].sort();
-                                const isReversed = sortedIds[0] !== rumorTargetA;
-
-                                // 归一化存入
-                                const finalAtoB = isReversed ? rumorViewBtoA : rumorViewAtoB;
-                                const finalBtoA = isReversed ? rumorViewAtoB : rumorViewBtoA;
-
-                                rumors[key] = {
-                                    ...existing,
-                                    observerId: obsId,
-                                    nodeA: sortedIds[0],
-                                    nodeB: sortedIds[1],
-                                    contentAtoB: finalAtoB || existing.contentAtoB || '',
-                                    contentBtoA: finalBtoA || existing.contentBtoA || '',
-                                    reason: rumorReason || existing.reason || '',
-                                    updatedAt: Date.now()
-                                };
-
-                                // 兼容旧字段
-                                rumors[key].content = rumors[key].contentAtoB;
-
-                                window.sysStore.set('rg_rumors_v1', rumors);
-                                console.log(`[Chat] Auto-updated rumor for ${obsId} regarding ${rumorTargetA}-${rumorTargetB}`);
+                                window.WeChat.Services.RelationshipGraph.saveRumor(
+                                    targetId, // observer (当前思考的角色)
+                                    rumorTargetA,
+                                    rumorTargetB,
+                                    {
+                                        viewAtoB: rumorViewAtoB,
+                                        viewBtoA: rumorViewBtoA,
+                                        reason: rumorReason
+                                    }
+                                );
                             }
                         }
                     } catch (e) {

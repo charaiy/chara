@@ -50,6 +50,19 @@ window.WeChat.UI.Bubbles = {
     // Timer for click disambiguation
     _clickTimer: null,
 
+    /**
+     * Helper: Escape HTML characters to prevent XSS
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     handleAvatarClick(senderId, type) {
         if (this._clickTimer) clearTimeout(this._clickTimer);
 
@@ -190,6 +203,9 @@ window.WeChat.UI.Bubbles = {
                         if (isReceived) subText = isTransferMe ? "已被接收" : "已收款";
                         if (isRefunded) subText = isTransferMe ? "已被退还" : "已退还";
 
+                        const safeAmount = this.escapeHtml(trans.amount);
+                        const safeSubText = this.escapeHtml(subText);
+
                         return `
                             <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
                                 <div style="padding: 12px; display: flex; flex-direction: row; align-items: center;">
@@ -199,8 +215,8 @@ window.WeChat.UI.Bubbles = {
                                         </svg>
                                     </div>
                                     <div style="display: flex; flex-direction: column; color: ${mainTextColor};">
-                                        <div style="font-size: 15px; font-weight: 500;">¥${trans.amount}</div>
-                                        <div style="font-size: 12px; opacity: 0.8;">${subText}</div>
+                                        <div style="font-size: 15px; font-weight: 500;">¥${safeAmount}</div>
+                                        <div style="font-size: 12px; opacity: 0.8;">${safeSubText}</div>
                                     </div>
                                 </div>
                                 <div style="height: 20px; padding: 0 12px; display: flex; align-items: center; border-top: 1px solid ${borderColor};">
@@ -210,22 +226,26 @@ window.WeChat.UI.Bubbles = {
                         `;
                     } catch (e) { }
                 }
-                return msg.content ? String(msg.content).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                return msg.content ? this.escapeHtml(msg.content) : '';
 
             case 'sticker':
-                return `<img src="${msg.content}" style="max-width: 120px; vertical-align: bottom;">`;
+                return `<img src="${String(msg.content).replace(/"/g, '&quot;')}" style="max-width: 120px; vertical-align: bottom;">`;
 
             case 'image':
-                return `<img src="${msg.content}" style="max-width: 140px; border-radius: 4px; vertical-align: bottom;">`;
+                return `<img src="${String(msg.content).replace(/"/g, '&quot;')}" style="max-width: 140px; border-radius: 4px; vertical-align: bottom;">`;
 
             case 'location':
                 let loc = {};
                 try { loc = JSON.parse(msg.content); } catch (e) { loc = { name: msg.content, detail: '' }; }
+
+                const safeName = this.escapeHtml(loc.name || '位置信息');
+                const safeDetail = this.escapeHtml(loc.detail || '');
+
                 return `
                     <div style="width: 210px; background: white; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
                         <div style="padding: 8px 10px; display: flex; flex-direction: column;">
-                            <div style="font-size: 14px; font-weight: 500; color: #000; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${loc.name || '位置信息'}</div>
-                            <div style="font-size: 10px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${loc.detail || ''}</div>
+                            <div style="font-size: 14px; font-weight: 500; color: #000; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${safeName}</div>
+                            <div style="font-size: 10px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeDetail}</div>
                         </div>
                         <div style="height: 75px; background: #e0e0e0; position: relative; overflow: hidden;">
                             <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 15px 15px; opacity: 0.5;"></div>
@@ -264,6 +284,9 @@ window.WeChat.UI.Bubbles = {
                 if (isReceived) subText = isTransferMe ? "已被接收" : "已收款";
                 if (isRefunded) subText = isTransferMe ? "已被退还" : "已退还";
 
+                const safeAmount = this.escapeHtml(trans.amount);
+                const safeSubText = this.escapeHtml(subText);
+
                 return `
                     <div onclick="event.stopPropagation(); window.WeChat.App.handleTransferClick('${msg.id}')" style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer;">
                         <div style="padding: 12px; display: flex; flex-direction: row; align-items: center;">
@@ -273,8 +296,8 @@ window.WeChat.UI.Bubbles = {
                                 </svg>
                             </div>
                             <div style="display: flex; flex-direction: column; color: ${mainTextColor};">
-                                <div style="font-size: 15px; font-weight: 500; color: ${mainTextColor}">¥${trans.amount}</div>
-                                <div style="font-size: 12px; color: ${subTextColor};">${subText}</div>
+                                <div style="font-size: 15px; font-weight: 500; color: ${mainTextColor}">¥${safeAmount}</div>
+                                <div style="font-size: 12px; color: ${subTextColor};">${safeSubText}</div>
                             </div>
                         </div>
                         <div style="height: 20px; padding: 0 12px; display: flex; align-items: center; border-top: 1px solid ${borderColor};">
@@ -296,6 +319,9 @@ window.WeChat.UI.Bubbles = {
                 const borderColor = 'rgba(255,255,255,0.2)';
                 const statusIconPath = isRefund ? "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" : "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
 
+                const safeAmount = statusData.amount ? '¥' + this.escapeHtml(statusData.amount) : '';
+                const safeText = this.escapeHtml(statusData.text);
+
                 return `
                     <div style="width: 230px; background: ${bubbleBg}; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; cursor: default;">
                         <div style="padding: 12px; display: flex; flex-direction: row; align-items: center;">
@@ -305,8 +331,8 @@ window.WeChat.UI.Bubbles = {
                                 </svg>
                             </div>
                             <div style="display: flex; flex-direction: column; color: ${txtColor};">
-                                <div style="font-size: 15px; font-weight: 500;">${statusData.amount ? '¥' + statusData.amount : ''}</div>
-                                <div style="font-size: 12px; opacity: 0.9;">${statusData.text}</div>
+                                <div style="font-size: 15px; font-weight: 500;">${safeAmount}</div>
+                                <div style="font-size: 12px; opacity: 0.9;">${safeText}</div>
                             </div>
                         </div>
                         <div style="height: 20px; padding: 0 12px; display: flex; align-items: center; border-top: 1px solid ${borderColor};">
@@ -317,7 +343,7 @@ window.WeChat.UI.Bubbles = {
             }
 
             case 'voice':
-                const voiceText = msg.content || '';
+                const voiceText = this.escapeHtml(msg.content || '');
                 const calcDuration = Math.max(1, Math.min(60, Math.ceil(voiceText.length / 3)));
                 const duration = msg.duration || calcDuration;
 
@@ -403,6 +429,8 @@ window.WeChat.UI.Bubbles = {
                 const isMe = msg.sender === 'me';
                 const isVideo = sumData.type === 'video';
 
+                const safeDuration = this.escapeHtml(sumData.duration);
+
                 // 高精度图标
                 let iconHtml = '';
                 if (isVideo) {
@@ -419,7 +447,7 @@ window.WeChat.UI.Bubbles = {
 
                 return `
                     <div onclick="window.WeChat.App.openCallSummary('${msg.id}')" style="display: flex; align-items: center; min-height: 24px; cursor: pointer; flex-direction: ${isMe ? 'row' : 'row-reverse'};">
-                        <span style="font-size: 16px; line-height: 1.4; flex: 1; letter-spacing: 0.3px; text-align: ${isMe ? 'right' : 'left'};">通话时长 ${sumData.duration}</span>
+                        <span style="font-size: 16px; line-height: 1.4; flex: 1; letter-spacing: 0.3px; text-align: ${isMe ? 'right' : 'left'};">通话时长 ${safeDuration}</span>
                         ${iconHtml}
                     </div>
                 `;
@@ -429,7 +457,7 @@ window.WeChat.UI.Bubbles = {
                 const isMe = msg.sender === 'me';
                 const isVideo = msg.isVideo;
                 let rawStatus = msg.content; // "reject", "cancel", "no_answer", "busy"
-                
+
                 // [Fix] 获取消息的 initiatedByUser 标记
                 // 优先从 msg 对象获取，如果没有则从 store 查找
                 let initiatedByUser = msg.initiatedByUser === true;
@@ -463,6 +491,8 @@ window.WeChat.UI.Bubbles = {
                     };
                     statusText = map[rawStatus] || rawStatus;
                 }
+
+                statusText = this.escapeHtml(statusText); // Sanitize status text
 
                 // --- 高精度空心图标 ---
                 let iconHtml = '';

@@ -1337,7 +1337,12 @@ window.WeChat.App = {
         // If graphRel exists, map its V2 fields to the settings structure expected below
         const relSettings = graphRel ? {
             // Mapped from RelationshipGraph Structure
-            public_relation: graphRel.a_to_b_public_relation, // Npc -> User relation
+            // [Fix] Map both directions of public relation
+            char_to_user_public_relation: graphRel.a_to_b_public_relation, // Npc -> User relation
+            user_to_char_public_relation: graphRel.b_to_a_public_relation, // User -> Npc relation
+
+            // Legacy fallback if needed (though we prefer specific keys now)
+            public_relation: graphRel.a_to_b_public_relation,
 
             char_to_user_public_attitude: graphRel.a_to_b_public_attitude,
             char_to_user_private_attitude: graphRel.a_to_b_private_attitude,
@@ -1353,9 +1358,7 @@ window.WeChat.App = {
         // [Migration Logic] Handle transition from single-field+toggle to dual-field
         // Preserve legacy values if new ones don't exist
         const oldCharView = relSettings.char_to_user_view || status.relationship_they_to_me?.opinion || '';
-        // const oldCharSecret = relSettings.char_view_is_secret || false;
         const oldUserView = relSettings.user_to_char_view || status.relationship_me_to_they?.opinion || '';
-        // const oldUserSecret = relSettings.user_view_is_secret || false;
 
         State.pendingRelationship = {
             // Dynamic Stats
@@ -1364,8 +1367,12 @@ window.WeChat.App = {
             // [Fix] Deep copy array of objects to prevent reference pollution on cancel
             ladder_persona: (status.ladder_persona || []).map(p => ({ ...p })),
 
-            // 1. Social Contract
+            // 1. Social Contract (Legacy/Fallback)
             public_relation: relSettings.public_relation || status.relationship_they_to_me?.relation || '',
+
+            // 1.5 [Fix] New Explicit Relation Fields (Must init or UI shows empty)
+            char_to_user_public_relation: relSettings.char_to_user_public_relation || relSettings.public_relation || status.relationship_they_to_me?.relation || '',
+            user_to_char_public_relation: relSettings.user_to_char_public_relation || relSettings.public_relation || status.relationship_they_to_me?.relation || '',
 
             // 2. Character's Lens (NPC -> User)
             char_to_user_public_attitude: relSettings.char_to_user_public_attitude || relSettings.char_to_user_public || oldCharView,
@@ -1555,7 +1562,7 @@ window.WeChat.App = {
             ...(char?.settings || {}),
             relationship: {
                 ...(char?.settings?.relationship || {}),
-                public_relation: rel.public_relation,
+                public_relation: rel.char_to_user_public_relation, // [Fix] Alignment
 
                 // Save the Dual Layers with Correct Keys
                 char_to_user_public_attitude: rel.char_to_user_public_attitude,
@@ -1610,11 +1617,11 @@ window.WeChat.App = {
             const graphPayload = {
                 nodeA: sessionId,
                 nodeB: 'USER_SELF',
-                a_to_b_public_relation: rel.public_relation,
+                a_to_b_public_relation: rel.char_to_user_public_relation, // [Fix] Use correct field from UI
                 a_to_b_public_attitude: rel.char_to_user_public_attitude,
                 a_to_b_private_attitude: rel.char_to_user_private_attitude,
                 b_knows_a_private: rel.user_knows_char_private,
-                b_to_a_public_relation: rel.user_to_char_public_relation || rel.public_relation,
+                b_to_a_public_relation: rel.user_to_char_public_relation, // [Fix] Remove dangerous fallback
                 b_to_a_public_attitude: rel.user_to_char_public_attitude,
                 b_to_a_private_attitude: rel.user_to_char_private_attitude,
                 a_knows_b_private: rel.char_knows_user_private,
