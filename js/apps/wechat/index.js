@@ -1325,7 +1325,30 @@ window.WeChat.App = {
         const char = window.sysStore.getCharacter(State.activeSessionId) || {};
         const status = char.status || {};
         const settings = char.settings || {};
-        const relSettings = settings.relationship || {};
+
+        // [Sync Logic] Try to fetch dynamic data from Relationship Graph first
+        let graphRel = null;
+        if (window.WeChat.Services && window.WeChat.Services.RelationshipGraph) {
+            graphRel = window.WeChat.Services.RelationshipGraph.getRelationship(State.activeSessionId, 'USER_SELF');
+            if (graphRel) console.log('[Settings] Loaded relationship from Graph:', graphRel);
+        }
+
+        // Merge: Graph Data > Settings Data
+        // If graphRel exists, map its V2 fields to the settings structure expected below
+        const relSettings = graphRel ? {
+            // Mapped from RelationshipGraph Structure
+            public_relation: graphRel.a_to_b_public_relation, // Npc -> User relation
+
+            char_to_user_public_attitude: graphRel.a_to_b_public_attitude,
+            char_to_user_private_attitude: graphRel.a_to_b_private_attitude,
+            user_knows_char_private: graphRel.b_knows_a_private,
+
+            user_to_char_public_attitude: graphRel.b_to_a_public_attitude,
+            user_to_char_private_attitude: graphRel.b_to_a_private_attitude,
+            char_knows_user_private: graphRel.a_knows_b_private,
+
+            backstory: graphRel.backstory
+        } : (settings.relationship || {});
 
         // [Migration Logic] Handle transition from single-field+toggle to dual-field
         // Preserve legacy values if new ones don't exist
@@ -1338,7 +1361,8 @@ window.WeChat.App = {
             // Dynamic Stats
             affection: parseFloat(status.affection || 0),
             difficulty: status.relationship_difficulty || 'normal',
-            ladder_persona: [...(status.ladder_persona || [])],
+            // [Fix] Deep copy array of objects to prevent reference pollution on cancel
+            ladder_persona: (status.ladder_persona || []).map(p => ({ ...p })),
 
             // 1. Social Contract
             public_relation: relSettings.public_relation || status.relationship_they_to_me?.relation || '',
@@ -1580,6 +1604,26 @@ window.WeChat.App = {
             updates.status_history = history.slice(0, 5);
         }
         window.sysStore.updateCharacter(sessionId, updates);
+
+        // [Sync Logic] Update Relationship Graph
+        if (window.WeChat.Services && window.WeChat.Services.RelationshipGraph) {
+            const graphPayload = {
+                nodeA: sessionId,
+                nodeB: 'USER_SELF',
+                a_to_b_public_relation: rel.public_relation,
+                a_to_b_public_attitude: rel.char_to_user_public_attitude,
+                a_to_b_private_attitude: rel.char_to_user_private_attitude,
+                b_knows_a_private: rel.user_knows_char_private,
+                b_to_a_public_relation: rel.user_to_char_public_relation || rel.public_relation,
+                b_to_a_public_attitude: rel.user_to_char_public_attitude,
+                b_to_a_private_attitude: rel.user_to_char_private_attitude,
+                a_knows_b_private: rel.char_knows_user_private,
+                backstory: rel.backstory,
+                visibleTo: ['all']
+            };
+            window.WeChat.Services.RelationshipGraph.saveRelationship(graphPayload);
+            console.log('[Settings] Synced to Graph:', graphPayload);
+        }
 
         if (!silent) {
             State.pendingRelationship = null;

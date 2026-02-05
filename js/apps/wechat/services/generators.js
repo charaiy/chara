@@ -23,7 +23,7 @@ window.WeChat.Services.Generators = {
      */
     _parseJsonSafely(jsonStr) {
         if (!jsonStr) return null;
-        
+
         // 辅助函数：清理 JSON 字符串中的控制字符
         const cleanJsonString = (str) => {
             // 移除未转义的控制字符（保留已转义的 \n, \t 等）
@@ -37,7 +37,7 @@ window.WeChat.Services.Generators = {
                 return escapeMap[code] || '';
             });
         };
-        
+
         try {
             // 第一次尝试：直接解析
             return JSON.parse(jsonStr);
@@ -130,7 +130,12 @@ window.WeChat.Services.Generators = {
             'real-name', 'bio', 'region', 'region-mapping', 'wealth',
             'species', 'birthday', 'age', 'nickname', 'persona',
             'gender', 'period-start',
-            'public_relation', 'char_to_user_public', 'char_to_user_secret', 'user_to_char_public', 'user_to_char_secret'
+            // [Rel V1 Legacy]
+            'public_relation',
+            // [Rel V2 New IDs]
+            'char-obj', 'char-pub-att', 'char-pvt-att',
+            'user-obj', 'user-pub-att', 'user-pvt-att',
+            'backstory'
         ];
 
         const userId = (type === 'persona' || type === 'rel') ? (State.activeUserId || State.activeSessionId) : null;
@@ -534,7 +539,7 @@ Strict JSON Object.`;
 
             const cleanResponse = jsonPart; // Use jsonPart directly
             let data = null;
-            
+
             try {
                 const match = cleanResponse.match(/\{[\s\S]*\}/);
                 if (match) {
@@ -611,11 +616,13 @@ Strict JSON Object.`;
         }
 
         const fieldMap = {
-            'public_relation': 'wx-rel-public_relation',
-            'char_to_user_public': 'wx-rel-char_to_user_public',
-            'char_to_user_secret': 'wx-rel-char_to_user_secret',
-            'user_to_char_public': 'wx-rel-user_to_char_public',
-            'user_to_char_secret': 'wx-rel-user_to_char_secret'
+            'char_to_user_public_relation': 'wx-rel-char-obj',
+            'char_to_user_public_attitude': 'wx-rel-char-pub-att',
+            'char_to_user_private_attitude': 'wx-rel-char-pvt-att',
+            'user_to_char_public_relation': 'wx-rel-user-obj',
+            'user_to_char_public_attitude': 'wx-rel-user-pub-att',
+            'user_to_char_private_attitude': 'wx-rel-user-pvt-att',
+            'backstory': 'wx-rel-backstory'
         };
 
         const contextParts = [];
@@ -697,28 +704,32 @@ ${contextParts.join('\n')}
 2. **保持角色底色**：生成的关系设定必须完全符合角色原有的性格特质，不得为了"戏剧张力"而改变角色的本质。如果角色是理性冷静的，关系设定也应保持理性；如果角色是温和的，关系设定也应保持温和。
 3. **简洁自然**：描述要简洁、生活化，避免过度渲染或极端化表达。使用日常语言，像真实的人在描述关系。
 4. **关系字段**：
-   - public_relation: 对外的名义关系（如：朋友、同事、室友等，必须少于5个字）
-   - char_to_user_public: 角色对用户表现出的态度（必须少于30字）
-   - char_to_user_secret: 角色对用户内心的真实想法（必须少于30字）
-   - user_to_char_public: 用户对角色表现出的态度（必须少于30字）
-   - user_to_char_secret: 用户对角色内心的真实想法（必须少于30字）
+   - char_to_user_public_relation: 角色认为他和用户的客观关系（如：恩人、宿敌，少于10字）
+   - char_to_user_public_attitude: 角色对用户**表现出来**的态度（少于30字）
+   - char_to_user_private_attitude: 角色对用户**内心真实**的想法（少于30字）
+   - user_to_char_public_relation: 用户认为他和角色的客观关系（如：工具人，少于10字）
+   - user_to_char_public_attitude: 用户对角色**表现出来**的态度（少于30字）
+   - user_to_char_private_attitude: 用户对角色**内心真实**的想法（少于30字）
+   - backstory: **关键**！两人的过往背景故事简述（如何相识、重要回忆），必须少于100字，作为一切关系的基础。
 5. **好感度阶段(ladder_persona)**：生成5个阶段，每个阶段必须严格遵循角色原有性格底色，只是社交距离和信任度的自然变化，而非性格改变。
    - 每个阶段：affection_threshold(0, 20, 50, 80, 100) 和 content(简洁描述该阶段的行为特征，必须少于30字)
 
 [输出格式]
 仅输出 JSON 对象：
 {
-    "public_relation": "少于5个字",
-    "char_to_user_public": "少于30字",
-    "char_to_user_secret": "少于30字",
-    "user_to_char_public": "少于30字",
-    "user_to_char_secret": "少于30字",
+    "char_to_user_public_relation": "...",
+    "char_to_user_public_attitude": "...",
+    "char_to_user_private_attitude": "...",
+    "user_to_char_public_relation": "...",
+    "user_to_char_public_attitude": "...",
+    "user_to_char_private_attitude": "...",
+    "backstory": "...",
     "ladder_persona": [
-        { "affection_threshold": 0, "content": "少于30字" },
-        { "affection_threshold": 20, "content": "少于30字" },
-        { "affection_threshold": 50, "content": "少于30字" },
-        { "affection_threshold": 80, "content": "少于30字" },
-        { "affection_threshold": 100, "content": "少于30字" }
+        { "affection_threshold": 0, "content": "..." },
+        { "affection_threshold": 20, "content": "..." },
+        { "affection_threshold": 50, "content": "..." },
+        { "affection_threshold": 80, "content": "..." },
+        { "affection_threshold": 100, "content": "..." }
     ]
 }
 

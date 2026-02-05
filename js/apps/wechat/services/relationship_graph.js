@@ -221,10 +221,10 @@ window.WeChat.Services.RelationshipGraph = {
             nodeA: sorted[0],
             nodeB: sorted[1],
             // 如果顺序反了，交换视角数据
-            aViewOfB: isReversed ? bViewOfA : aViewOfB,
-            aTowardB: isReversed ? bTowardA : aTowardB,
-            bViewOfA: isReversed ? aViewOfB : bViewOfA,
-            bTowardA: isReversed ? aTowardB : bTowardA,
+            aViewOfB: (isReversed ? (bViewOfA || data.b_to_a_public_relation) : (aViewOfB || data.a_to_b_public_relation)) || '',
+            aTowardB: (isReversed ? (bTowardA || data.b_to_a_public_attitude) : (aTowardB || data.a_to_b_public_attitude)) || '',
+            bViewOfA: (isReversed ? (aViewOfB || data.a_to_b_public_relation) : (bViewOfA || data.b_to_a_public_relation)) || '',
+            bTowardA: (isReversed ? (aTowardB || data.a_to_b_public_attitude) : (bTowardA || data.b_to_a_public_attitude)) || '',
 
             // 完整字段 (V2 标准) - Persistence
             a_to_b_public_relation: isReversed ? data.b_to_a_public_relation : data.a_to_b_public_relation,

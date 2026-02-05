@@ -550,8 +550,9 @@
         var sortedIds = [nodeAId, nodeBId].sort();
         var isReversed = sortedIds[0] !== nodeAId; // 如果当前 A 不是排序后的第一个，说明被反转了
 
-        var valAtoB = isReversed ? (existingRumor.contentBtoA || '') : (existingRumor.contentAtoB || '');
-        var valBtoA = isReversed ? (existingRumor.contentAtoB || '') : (existingRumor.contentBtoA || '');
+        var contentRaw = existingRumor.content || '';
+        var valAtoB = (isReversed ? (existingRumor.contentBtoA || '') : (existingRumor.contentAtoB || '')) || contentRaw;
+        var valBtoA = (isReversed ? (existingRumor.contentAtoB || '') : (existingRumor.contentBtoA || '')) || contentRaw;
         var reason = existingRumor.reason || '';
 
         var html = '<div class="rg-modal-overlay" onclick="if(event.target===this) window.WeChat.UI.RelationshipGraphSubjective.closeModal()">' +
