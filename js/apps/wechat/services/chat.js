@@ -327,13 +327,15 @@ window.WeChat.Services.Chat = {
         const lastMessageId = allMessages.length > 0 ? allMessages[allMessages.length - 1].id : null;
         const lastMessageTime = allMessages.length > 0 ? allMessages[allMessages.length - 1].timestamp : 0;
 
-        // 检查缓存
+        // 检查缓存（增加时效检查，确保时间锚点不过期）
         if (this._contextCache) {
             const cache = this._contextCache;
+            const cacheAge = Date.now() - (cache.createdAt || 0);
             if (cache.targetId === targetId &&
                 cache.lastMessageId === lastMessageId &&
                 cache.lastMessageTime === lastMessageTime &&
-                cache.limit === limit) {
+                cache.limit === limit &&
+                cacheAge < 120000) { // 缓存2分钟内有效
                 // 缓存命中，直接返回
                 console.log('[Chat] buildContext: Cache hit, reusing context');
                 return cache.history;
@@ -434,12 +436,32 @@ window.WeChat.Services.Chat = {
             }
         }
 
+        // [时间锚点] 如果最后一条消息距今超过5分钟，注入当前真实时间提醒
+        if (allMessages.length > 0) {
+            const lastMsgTime = allMessages[allMessages.length - 1].timestamp;
+            const nowTime = Date.now();
+            const diffMinutes = (nowTime - lastMsgTime) / 60000;
+            if (diffMinutes > 5) {
+                const pad = n => String(n).padStart(2, '0');
+                const now = new Date();
+                const nowStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                const diffDesc = diffMinutes >= 60
+                    ? `${Math.floor(diffMinutes / 60)}小时${Math.round(diffMinutes % 60)}分钟`
+                    : `${Math.round(diffMinutes)}分钟`;
+                history.push({
+                    role: 'user',
+                    content: `[系统时间锚点] 现在的真实时间是 ${nowStr}，距离用户最后一条消息已过去 ${diffDesc}。你现在才看到/回复这条消息。请根据当前时间更新你的状态（地点、服装、行为、心声），体现出"刚看到消息"的自然感觉。`
+                });
+            }
+        }
+
         // [OPTIMIZATION] 缓存构建好的上下文
         this._contextCache = {
             targetId: targetId,
             lastMessageId: lastMessageId,
             lastMessageTime: lastMessageTime,
             limit: limit,
+            createdAt: Date.now(),
             history: history
         };
 
@@ -532,6 +554,10 @@ window.WeChat.Services.Chat = {
             (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId && appState.videoCallState?.status === 'connected');
         const isInCallWithTarget = (appState.voiceCallState?.open && appState.voiceCallState?.sessionId === targetId) ||
             (appState.videoCallState?.open && appState.videoCallState?.sessionId === targetId);
+
+        // 追踪是否发送了可见消息（用于兜底系统提示）
+        let hasSentVisibleMessage = false;
+        let lastBehavior = null;
 
         for (const action of actions) {
             console.log('[Chat] Executing Action:', action.type);
@@ -763,8 +789,10 @@ window.WeChat.Services.Chat = {
                     if (action.status && typeof action.status === 'object') {
                         const sOutfit = ensureStr(action.status.outfit);
                         const sBehavior = ensureStr(action.status.behavior);
+                        const sLocation = ensureStr(action.status.location);
                         if (sOutfit) statusUpdate.outfit = sOutfit;
                         if (sBehavior) statusUpdate.behavior = sBehavior;
+                        if (sLocation) statusUpdate.location = sLocation;
                     }
                     // 扁平结构兜底
                     if (!statusUpdate.outfit && action.outfit) {
@@ -774,6 +802,74 @@ window.WeChat.Services.Chat = {
                     if (!statusUpdate.behavior && action.behavior) {
                         const fBehavior = ensureStr(action.behavior);
                         if (fBehavior) statusUpdate.behavior = fBehavior;
+                    }
+                    if (!statusUpdate.location && action.location) {
+                        const fLocation = ensureStr(action.location);
+                        if (fLocation) statusUpdate.location = fLocation;
+                    }
+
+                    // 2.5 提取每日作息时间表 (daily_schedule) - 智能合并
+                    {
+                        let newSchedule = null;
+                        if (action.status && Array.isArray(action.status.daily_schedule)) {
+                            newSchedule = action.status.daily_schedule;
+                        } else if (Array.isArray(action.daily_schedule)) {
+                            newSchedule = action.daily_schedule;
+                        }
+
+                        if (newSchedule && newSchedule.length > 0) {
+                            const existingChar = window.sysStore.getCharacter(targetId);
+                            const existingSchedule = existingChar?.status?.daily_schedule;
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            const scheduleDate = existingChar?.status?._schedule_date;
+
+                            if (Array.isArray(existingSchedule) && existingSchedule.length > 0 && scheduleDate === todayStr) {
+                                // 已有当天日程 → 智能合并：锁定已过去的时段，未来时段允许更新
+                                const nowHour = new Date().getHours();
+                                const nowMin = new Date().getMinutes();
+                                const nowTotal = nowHour * 60 + nowMin;
+
+                                // 辅助函数：从时间表项中提取结束时间（分钟数）
+                                const getEndMinutes = (item) => {
+                                    let timeStr = typeof item === 'string' ? item : (item?.time || '');
+                                    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*[-–~]\s*(\d{1,2}):(\d{2})/);
+                                    if (match) return parseInt(match[3]) * 60 + parseInt(match[4]);
+                                    return -1;
+                                };
+
+                                // 从旧日程中保留已过去的时段（结束时间 <= 当前时间）
+                                const pastSlots = existingSchedule.filter(item => {
+                                    const endMin = getEndMinutes(item);
+                                    return endMin > 0 && endMin <= nowTotal;
+                                });
+
+                                // 从新日程中只取未来时段（结束时间 > 当前时间）
+                                const futureSlots = newSchedule.filter(item => {
+                                    const endMin = getEndMinutes(item);
+                                    return endMin <= 0 || endMin > nowTotal;
+                                });
+
+                                // 如果未来时段与旧日程实质相同（内容未变），跳过更新
+                                const oldFuture = existingSchedule.filter(item => {
+                                    const endMin = getEndMinutes(item);
+                                    return endMin <= 0 || endMin > nowTotal;
+                                });
+                                const futureChanged = JSON.stringify(futureSlots) !== JSON.stringify(oldFuture);
+
+                                if (futureChanged) {
+                                    statusUpdate.daily_schedule = [...pastSlots, ...futureSlots];
+                                    statusUpdate._schedule_date = todayStr;
+                                    console.log('[Schedule] 合并日程: 保留过去时段', pastSlots.length, '更新未来时段', futureSlots.length);
+                                } else {
+                                    console.log('[Schedule] 日程未变化，跳过更新');
+                                }
+                            } else {
+                                // 今天首次生成日程 或 跨天重置 → 直接使用新日程
+                                statusUpdate.daily_schedule = newSchedule;
+                                statusUpdate._schedule_date = todayStr;
+                                console.log('[Schedule] 首次生成当天日程，共', newSchedule.length, '条');
+                            }
+                        }
                     }
 
                     // 3. 处理好感度变化
@@ -806,6 +902,10 @@ window.WeChat.Services.Chat = {
                         // Allow negative scores (No Math.max(0, ...))
                         const newAffection = Math.min(100, currentAffection + change);
                         statusUpdate.affection = newAffection.toFixed(1);
+
+                        // 存储变化信息用于面板显示
+                        statusUpdate._last_affection_change = parseFloat(change.toFixed(2));
+                        statusUpdate._last_affection_reason = action.affection_reason || action.status?.inner_voice || action.inner_voice || '';
 
                         console.log(`[Affection] ${currentAffection} + ${change.toFixed(2)} = ${statusUpdate.affection} (难度: ${difficulty})`);
                     }
@@ -907,17 +1007,37 @@ window.WeChat.Services.Chat = {
 
                 case 'ignore_and_log':
                     // 1. Show System Tip (Visual reminder for user)
-                    // Priority: status_update (string) > reason
-                    let systemTip = action.status_update || action.reason;
-                    if (typeof systemTip === 'string' && systemTip) {
-                        this.persistAndShow(targetId, `(${systemTip})`, 'system');
+                    // Priority: status_update (string) > reason > status.behavior
+                    let systemTip = null;
+                    if (typeof action.status_update === 'string' && action.status_update) {
+                        systemTip = action.status_update;
+                    } else if (typeof action.reason === 'string' && action.reason) {
+                        systemTip = action.reason;
                     }
 
-                    // 2. Perform background internal status update (if status_update is an object)
-                    if (action.status_update && typeof action.status_update === 'object') {
-                        this._applyStatusUpdate(targetId, action.status_update);
+                    // 2. Perform background internal status update
+                    // 支持 status_update (object) 和 status (object) 两种格式
+                    const ignoreStatusData = (action.status_update && typeof action.status_update === 'object')
+                        ? action.status_update
+                        : (action.status && typeof action.status === 'object')
+                            ? action.status
+                            : null;
+
+                    if (ignoreStatusData) {
+                        this._applyStatusUpdate(targetId, ignoreStatusData);
+                        // 如果没有显式的系统提示，但有 behavior 描写，自动用它作为系统提示
+                        if (!systemTip && ignoreStatusData.behavior) {
+                            systemTip = ignoreStatusData.behavior;
+                        }
                     }
-                    console.log(`[Chat] AI ignored user: ${systemTip}`);
+
+                    // 3. 显示系统提示
+                    if (systemTip) {
+                        this.persistAndShow(targetId, systemTip, 'system');
+                        hasSentVisibleMessage = true; // 避免兜底逻辑重复生成
+                    }
+
+                    console.log(`[Chat] AI ignored user: ${systemTip || '(无提示)'}`);
                     break;
 
                 case 'status_update':
@@ -925,7 +1045,7 @@ window.WeChat.Services.Chat = {
                     if (action.content || action.text || typeof action === 'string') {
                         const tipText = action.content || action.text || (typeof action === 'string' ? action : '');
                         if (tipText) {
-                            this.persistAndShow(targetId, `(${tipText})`, 'system');
+                            this.persistAndShow(targetId, tipText, 'system');
                         }
                     }
                     break;
@@ -1174,6 +1294,24 @@ window.WeChat.Services.Chat = {
                     }
                     break;
             }
+
+            // 标记可见消息类型
+            const visibleTypes = ['text', 'sticker', 'image', 'voice', 'nudge', 'transfer', 'location', 'video_call', 'link', 'send_and_recall'];
+            if (visibleTypes.includes(action.type)) {
+                hasSentVisibleMessage = true;
+            }
+            // 记录 behavior 用于兜底
+            if (action.type === 'update_thoughts' || action.type === 'ignore_and_log') {
+                const b = action.status?.behavior || action.behavior;
+                if (b) lastBehavior = b;
+            }
+        }
+
+        // 兜底：如果 AI 没发送任何可见消息，也没有 ignore_and_log 系统提示，
+        // 则用 behavior 自动生成系统提示
+        if (!hasSentVisibleMessage && lastBehavior && !isInActiveCall) {
+            this.persistAndShow(targetId, lastBehavior, 'system');
+            console.log('[Chat] 自动生成系统提示（无可见消息）:', lastBehavior);
         }
     },
 

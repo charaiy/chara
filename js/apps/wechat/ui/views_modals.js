@@ -71,7 +71,28 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
             }
         }
 
-        const relationDisplay = relationText ? `<span style="font-size: 13px; color: #666; font-weight: 400; margin-left: 6px;">(${relationText})</span>` : '';
+        // 极简高级好感度组件
+        const lastChange = parseFloat(status._last_affection_change || 0);
+        const lastReason = status._last_affection_reason || '';
+
+        // 1. 精致红色心形 SVG
+        const heartSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="#ff3b30" style="margin-right: 4px; filter: drop-shadow(0 1px 1px rgba(255,59,48,0.2));">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>`;
+
+        // 2. 好感数值行（红色）
+        const affectionValueStr = `<span style="font-size: 16px; font-weight: 700; color: #ff3b30; letter-spacing: -0.3px;">${status.affection || '0.0'}</span>`;
+
+        // 3. 变化数值（一律灰色，带箭头）
+        let changeIndicator = '<span style="font-size: 11px; color: #bbb; margin-left: 5px; font-weight: 400;">-</span>';
+        if (lastChange > 0) {
+            changeIndicator = `<span style="font-size: 11px; color: #bbb; margin-left: 5px; font-weight: 400;">↑${Math.abs(lastChange).toFixed(1)}</span>`;
+        } else if (lastChange < 0) {
+            changeIndicator = `<span style="font-size: 11px; color: #bbb; margin-left: 5px; font-weight: 400;">↓${Math.abs(lastChange).toFixed(1)}</span>`;
+        }
+
+        // 4. 变化原因（垂直布局，小字）
+        const reasonHtml = lastReason ? `<div style="font-size: 10.5px; color: #aaa; font-weight: 400; margin-top: 2px; letter-spacing: 0.1px;">${lastReason}</div>` : '';
 
         return `
             <div class="wx-char-panel-overlay active" onclick="if(event.target===this) window.WeChat.App.closeCharacterPanel()">
@@ -97,13 +118,67 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                         <style>.wx-char-panel-scrollable::-webkit-scrollbar { display: none; }</style>
                         <div class="wx-char-panel-main">
                             <img src="${char.avatar || 'assets/images/avatar_placeholder.png'}" class="wx-char-panel-avatar" style="object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
-                            <div class="wx-char-panel-name">${char.name || '未知角色'}</div>
-                            <div class="wx-char-panel-affection">❤️ ${status.affection || '0.0'}${relationDisplay}</div>
+                            <div class="wx-char-panel-name" style="margin-bottom: 8px;">${char.name || '未知角色'}</div>
+                            <div class="wx-char-panel-affection-premium" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; line-height: 1;">
+                                    ${heartSvg}
+                                    ${affectionValueStr}
+                                    ${changeIndicator}
+                                </div>
+                                ${reasonHtml}
+                            </div>
                         </div>
 
 
 
                         <div class="wx-char-panel-cards">
+                            <div class="wx-char-card">
+                                <div class="wx-char-card-header">
+                                    <div class="wx-char-card-title">
+                                        <span>📍</span> 地点
+                                    </div>
+                                </div>
+                                <div class="wx-char-card-content">
+                                    ${(() => {
+                if (status.location) return status.location;
+                // 兜底：如果 status 中没有地点，尝试从今日日程中推断
+                const schedule = status.daily_schedule || [];
+                const now = new Date();
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+                const currentItem = schedule.find(item => {
+                    const parts = item.time.split('-');
+                    if (parts.length < 1) return false;
+
+                    const parseTime = (t) => {
+                        const [h, m] = t.split(':').map(Number);
+                        return h * 60 + (m || 0);
+                    };
+
+                    const start = parseTime(parts[0]);
+                    const end = parts[1] ? parseTime(parts[1]) : 1440;
+                    return nowMinutes >= start && nowMinutes < end;
+                });
+
+                if (currentItem) {
+                    // 尝试从活动内容中提取地点关键词
+                    const act = currentItem.activity;
+                    if (act.includes('公司') || act.includes('上班') || act.includes('办公室')) return '公司里';
+                    if (act.includes('家') || act.includes('睡') || act.includes('起床')) return '家里';
+                    if (act.includes('饭') || act.includes('餐')) return '餐厅/食堂';
+                    if (act.includes('健身') || act.includes('运动')) return '健身房';
+                    if (act.includes('路') || act.includes('地铁') || act.includes('车')) return '路上';
+                    return act.split(/[，。！,;；]/)[0]; // 取第一句作为临时地点
+                }
+
+                // 最终兜底：根据时间
+                const hour = now.getHours();
+                if (hour >= 23 || hour < 7) return '家里卧室';
+                return '准备移动中';
+            })()}
+                                </div>
+                            </div>
+
                             <div class="wx-char-card">
                                 <div class="wx-char-card-header">
                                     <div class="wx-char-card-title">
@@ -148,27 +223,82 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
 
     /**
      * 渲染日程卡片
+     * 优先显示每日作息时间表 (daily_schedule)，其次显示事件系统中的日程
      */
     _renderScheduleCard(sessionId) {
-        const eventsService = window.WeChat.Services.Events;
-        if (!eventsService) return '';
+        const char = window.sysStore.getCharacter(sessionId) || {};
+        const dailySchedule = char.status?.daily_schedule;
 
-        const schedule = eventsService.getTodaySchedule(sessionId);
-        const futureSchedule = eventsService.getScheduleEvents(sessionId).slice(0, 3);
+        // 优先渲染 AI 生成的每日时间表
+        if (Array.isArray(dailySchedule) && dailySchedule.length > 0) {
+            const nowHour = new Date().getHours();
+            const nowMin = new Date().getMinutes();
+            const nowTotal = nowHour * 60 + nowMin; // 当前总分钟数
 
-        if (futureSchedule.length === 0) {
+            const scheduleHtml = dailySchedule.map(item => {
+                // 支持格式: { time: "8:00-9:00", activity: "起床洗漱" }
+                // 或简单字符串格式: "8:00-9:00 起床洗漱"
+                let time = '', activity = '';
+                if (typeof item === 'string') {
+                    // 从字符串中提取时间和活动
+                    const match = item.match(/^(\d{1,2}:\d{2}\s*[-–~]\s*\d{1,2}:\d{2})\s+(.*)/);
+                    if (match) {
+                        time = match[1];
+                        activity = match[2];
+                    } else {
+                        activity = item;
+                    }
+                } else if (typeof item === 'object') {
+                    time = item.time || '';
+                    activity = item.activity || item.content || '';
+                }
+
+                // 判断是否为当前时段
+                let isCurrent = false;
+                if (time) {
+                    const timeParts = time.match(/(\d{1,2}):(\d{2})\s*[-–~]\s*(\d{1,2}):(\d{2})/);
+                    if (timeParts) {
+                        const startTotal = parseInt(timeParts[1]) * 60 + parseInt(timeParts[2]);
+                        const endTotal = parseInt(timeParts[3]) * 60 + parseInt(timeParts[4]);
+                        isCurrent = nowTotal >= startTotal && nowTotal < endTotal;
+                    }
+                }
+
+                const highlightBg = isCurrent ? 'background: #f0f9ff; border-left: 3px solid #07c160; padding-left: 9px;' : 'padding-left: 12px;';
+                const timeColor = isCurrent ? 'color: #07c160; font-weight: 600;' : 'color: #999;';
+                const actColor = isCurrent ? 'color: #333; font-weight: 500;' : 'color: #666;';
+                const currentBadge = isCurrent ? '<span style="font-size: 10px; background: #07c160; color: #fff; padding: 1px 5px; border-radius: 8px; margin-left: 6px;">现在</span>' : '';
+
+                return `<div style="padding: 7px 0; border-bottom: 1px solid rgba(0,0,0,0.04); ${highlightBg}">
+                    <span style="font-size: 12px; ${timeColor}; font-family: 'SF Mono', 'Menlo', monospace; letter-spacing: -0.3px;">${time}</span>${currentBadge}
+                    <div style="font-size: 13px; ${actColor}; margin-top: 2px; line-height: 1.4;">${activity}</div>
+                </div>`;
+            }).join('');
+
             return `
                 <div class="wx-char-card">
                     <div class="wx-char-card-header">
                         <div class="wx-char-card-title">
-                            <span>📅</span> 日程
+                            <span>📅</span> 今日日程
                         </div>
                     </div>
-                    <div class="wx-char-card-content" style="color: #999; font-style: italic;">
-                        暂无日程安排
+                    <div class="wx-char-card-content" style="padding: 4px 0;">
+                        ${scheduleHtml}
                     </div>
                 </div>
             `;
+        }
+
+        // 兜底：从事件系统读取日程
+        const eventsService = window.WeChat.Services.Events;
+        if (!eventsService) {
+            return this._renderEmptyScheduleCard();
+        }
+
+        const futureSchedule = eventsService.getScheduleEvents(sessionId).slice(0, 3);
+
+        if (futureSchedule.length === 0) {
+            return this._renderEmptyScheduleCard();
         }
 
         const scheduleHtml = futureSchedule.map(e => {
@@ -197,6 +327,24 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
     },
 
     /**
+     * 渲染空日程卡片
+     */
+    _renderEmptyScheduleCard() {
+        return `
+            <div class="wx-char-card">
+                <div class="wx-char-card-header">
+                    <div class="wx-char-card-title">
+                        <span>📅</span> 日程
+                    </div>
+                </div>
+                <div class="wx-char-card-content" style="color: #999; font-style: italic;">
+                    暂无日程安排
+                </div>
+            </div>
+        `;
+    },
+
+    /**
      * 渲染事件历史卡片
      */
     _renderEventsCard(sessionId) {
@@ -209,8 +357,8 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         let eventsHtml;
         if (events.length === 0) {
             eventsHtml = `
-                <div class="wx-char-card-content" style="color: #999; font-style: italic;">
-                    暂无共同事件
+                    <div class="wx-char-card-content" style="color: #999; font-style: italic;">
+                        暂无共同事件
                 </div>`;
         } else {
             eventsHtml = events.map(e => {
@@ -649,7 +797,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
             return `
-    < div style = "background: #fff; border-radius: 20px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; position: relative;" >
+                <div style="background: #fff; border-radius: 20px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; position: relative;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <div style="font-size: 13px; color: #999; font-weight: 500;">${timeStr}</div>
                         <div style="cursor: pointer; padding: 4px; color: #ccc;" onclick="window.WeChat.App.deleteStatusHistoryRecord('${sessionId}', ${record.timestamp})">
@@ -658,6 +806,9 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                         <div style="font-size: 12px; color: gold; line-height: 1.5; width: 100%;">❤️ 好感度: ${record.status?.affection || '0.0'}</div>
+                        <div style="font-size: 12px; color: var(--wx-text); line-height: 1.5; width: 100%;">
+                            📍 地点: ${record.status?.location || '同步中...'}
+                        </div>
                         <div style="font-size: 12px; color: var(--wx-text); line-height: 1.5; width: 100%;">
                             👕 服装: ${record.status?.outfit || '暂无描述'}
                         </div>
@@ -668,46 +819,46 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                             心声: ${record.status?.inner_voice || '无'}
                         </div>
                     </div>
-                </div >
+                </div>
     `;
         }).join('');
 
         if (history.length === 0) {
             listHtml = `
-    < div style = "text-align: center; padding: 60px 20px; color: #ccc;" >
+                <div style="text-align: center; padding: 60px 20px; color: #ccc;">
                     <div style="font-size: 40px; margin-bottom: 16px; opacity: 0.5;">🕒</div>
                     <div style="font-size: 14px;">暂无历史状态记录</div>
-                </div >
+                </div>
     `;
         }
 
         return `
-    < div class= "wx-char-panel-overlay active" onclick = "if(event.target===this) window.WeChat.App.closeStatusHistoryPanel()" >
-    <div class="wx-char-panel" onclick="event.stopPropagation()" style="padding: 0;">
-        <!-- Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 10px 24px;">
-            <div style="cursor: pointer; padding: 4px; margin-left: -4px;" onclick="window.WeChat.App.openCharacterPanel()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </div>
-            <div style="font-size: 18px; font-weight: 700; color: #333;">状态历史</div>
-            <div style="width: 24px;"></div>
-        </div>
+            <div class="wx-char-panel-overlay active" onclick="if(event.target===this) window.WeChat.App.closeStatusHistoryPanel()">
+                <div class="wx-char-panel" onclick="event.stopPropagation()" style="padding: 0;">
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 10px 24px;">
+                        <div style="cursor: pointer; padding: 4px; margin-left: -4px;" onclick="window.WeChat.App.openCharacterPanel()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </div>
+                        <div style="font-size: 18px; font-weight: 700; color: #333;">状态历史</div>
+                        <div style="width: 24px;"></div>
+                    </div>
 
-        <!-- Scrollable Content -->
-        <div class="wx-char-panel-scrollable" style="flex: 1; overflow-y: auto; padding: 0 24px 24px 24px;">
-            <div style="margin-top: 20px;">
-                ${listHtml}
-            </div>
-        </div>
+                    <!-- Scrollable Content -->
+                    <div class="wx-char-panel-scrollable" style="flex: 1; overflow-y: auto; padding: 0 24px 24px 24px;">
+                        <div style="margin-top: 20px;">
+                            ${listHtml}
+                        </div>
+                    </div>
 
-        <!-- Footer -->
-        <div style="padding: 20px 24px 24px 24px; background: #fff; border-bottom-left-radius: 32px; border-bottom-right-radius: 32px;">
-            <div onclick="window.WeChat.App.closeStatusHistoryPanel()" style="width: 100%; height: 50px; background: #f5f6f8; color: #666; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer;">
-                关闭
+                    <!-- Footer -->
+                    <div style="padding: 20px 24px 24px 24px; background: #fff; border-bottom-left-radius: 32px; border-bottom-right-radius: 32px;">
+                        <div onclick="window.WeChat.App.closeStatusHistoryPanel()" style="width: 100%; height: 50px; background: #f5f6f8; color: #666; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; cursor: pointer;">
+                            关闭
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-            </div >
     `;
     },
     renderWorldBookSelection(sessionId) {
