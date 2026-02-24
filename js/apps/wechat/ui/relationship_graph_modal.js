@@ -91,7 +91,7 @@
             '<div class="wx-char-panel-close" onclick="window.WeChat.UI.RelationshipGraphSubjective.close()">' +
             '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
             '</div>' +
-            '<div style="font-size: 16px; font-weight: 600;">👁️ ' + esc(observerName) + ' 的视角</div>' +
+            '<div style="font-size: 16px; font-weight: 600; letter-spacing: -0.5px;">' + esc(observerName) + ' 的视角</div>' +
             '<div style="width: 24px; cursor: pointer;" onclick="window.WeChat.UI.RelationshipGraphSubjective.resetView()">' +
             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>' +
             '</div>' +
@@ -104,7 +104,7 @@
             '<div style="display: flex; flex-direction: column; height: 100%;">' +
 
             // Hint Bar
-            '<div style="background: #fff8e1; color: #f57f17; font-size: 12px; padding: 8px 16px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.05);">💡 这是 ' + esc(observerName) + ' 主观认为的关系网，可能与真实情况（上帝视角）不同</div>' +
+            '<div style="background: #fcfcfc; color: #999; font-size: 12px; padding: 12px 16px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.03); letter-spacing: 0.5px;">主观认知网络 · 视角来源于 ' + esc(observerName) + '</div>' +
 
             // Canvas Wrapper (Occupies remaining space)
             '<div class="rg-canvas-wrapper" id="rg-subjective-canvas-wrapper" style="flex: 1; position: relative; overflow: hidden; background: #f7f7f7;">' +
@@ -556,34 +556,40 @@
         var reason = existingRumor.reason || '';
 
         var html = '<div class="rg-modal-overlay" onclick="if(event.target===this) window.WeChat.UI.RelationshipGraphSubjective.closeModal()">' +
-            '<div class="rg-modal-card">' +
-            '<div class="rg-modal-header">👁️ 编辑流言</div>' +
-
-            '<div class="rg-modal-scrollable">' +
-            '<div class="rg-rumor-warning">⚠️ 这是 <strong>' + esc(observer.name) + '</strong> 以为的关系</div>' +
-
-            '<div class="rg-edit-pair">' +
-            '<div class="rg-edit-node"><img src="' + esc(nodeA.avatar) + '"><span>' + esc(nodeA.name) + '</span></div>' +
-            '<div class="rg-edit-arrow">⇄</div>' +
-            '<div class="rg-edit-node"><img src="' + esc(nodeB.avatar) + '"><span>' + esc(nodeB.name) + '</span></div>' +
+            '<div class="rg-modal-card premium">' +
+            '<div class="rg-modal-header">' +
+            '<div class="rg-modal-title">认知修正</div>' +
+            '<div class="rg-rumor-tag">当前处于 ' + esc(observer.name) + ' 的主观视角</div>' +
             '</div>' +
 
-            '<div class="rg-edit-section"><label>' + esc(observer.name) + ' 认为 ' + esc(nodeA.name) + ' 对 ' + esc(nodeB.name) + ' 是</label>' +
-            '<input type="text" id="rg-rumor-atob" value="' + esc(valAtoB) + '" placeholder="如：暗恋、利用..."></div>' +
+            '<div class="rg-modal-scrollable">' +
 
-            '<div class="rg-edit-section"><label>' + esc(observer.name) + ' 认为 ' + esc(nodeB.name) + ' 对 ' + esc(nodeA.name) + ' 是</label>' +
-            '<input type="text" id="rg-rumor-btoa" value="' + esc(valBtoA) + '" placeholder="如：不知情、讨厌..."></div>' +
+            '<div class="rg-edit-pair-minimal">' +
+            '<div class="rg-edit-node-flat"><img src="' + esc(nodeA.avatar) + '"><span>' + esc(nodeA.name) + '</span></div>' +
+            '<div class="rg-edit-sep">/</div>' +
+            '<div class="rg-edit-node-flat"><img src="' + esc(nodeB.avatar) + '"><span>' + esc(nodeB.name) + '</span></div>' +
+            '</div>' +
 
-            '<div class="rg-edit-section"><label>TA 认为的理由和发现</label>' +
-            '<textarea id="rg-rumor-reason" placeholder="记录 TA 这么认为的原因..." style="height: 80px; resize: none; font-family: inherit;">' + esc(reason) + '</textarea></div>' +
+            '<div class="rg-input-field">' +
+            '<label>在他看来, ' + esc(nodeA.name) + ' 对 ' + esc(nodeB.name) + ' 是</label>' +
+            '<input type="text" id="rg-rumor-atob" value="' + esc(valAtoB) + '" placeholder="尚未定义..."> ' +
+            '</div>' +
 
-            '<div style="height: 20px;"></div>' + // Spacer
+            '<div class="rg-input-field">' +
+            '<label>在他看来, ' + esc(nodeB.name) + ' 对 ' + esc(nodeA.name) + ' 是</label>' +
+            '<input type="text" id="rg-rumor-btoa" value="' + esc(valBtoA) + '" placeholder="尚未定义..."> ' +
+            '</div>' +
+
+            '<div class="rg-input-field">' +
+            '<label>产生此种认知的逻辑/理由</label>' +
+            '<textarea id="rg-rumor-reason" placeholder="输入其产生偏见的动机或证据..." style="height: 100px;">' + esc(reason) + '</textarea></div>' +
+
             '</div>' + // End scrollable
 
-            '<div class="rg-modal-actions">' +
-            '<button class="rg-btn rg-btn-cancel" onclick="window.WeChat.UI.RelationshipGraphSubjective.closeModal()">取消</button>' +
-            '<button class="rg-btn rg-btn-delete" onclick="window.WeChat.UI.RelationshipGraphSubjective.deleteRumor(\'' + nodeAId + '\', \'' + nodeBId + '\')">删除流言</button>' +
-            '<button class="rg-btn rg-btn-save" onclick="window.WeChat.UI.RelationshipGraphSubjective.saveRumor(\'' + nodeAId + '\', \'' + nodeBId + '\')">保存</button>' +
+            '<div class="rg-modal-actions-flat">' +
+            '<button class="rg-btn-text" onclick="window.WeChat.UI.RelationshipGraphSubjective.closeModal()">取消</button>' +
+            '<button class="rg-btn-ghost" onclick="window.WeChat.UI.RelationshipGraphSubjective.deleteRumor(\'' + nodeAId + '\', \'' + nodeBId + '\')">清除偏见</button>' +
+            '<button class="rg-btn-solid" onclick="window.WeChat.UI.RelationshipGraphSubjective.saveRumor(\'' + nodeAId + '\', \'' + nodeBId + '\')">确定并修改</button>' +
             '</div>' +
             '</div></div>';
 

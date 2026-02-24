@@ -576,17 +576,40 @@ window.WeChat.Services.RelationshipGraph = {
         const nodeMap = {};
         data.nodes.forEach(n => nodeMap[n.id] = n);
 
+        const relationships = Object.values(this.getAllRelationships());
         const rumors = window.sysStore.get('rg_rumors_v1') || {};
+
+        // [Realistic Constraint] 社交半径判定：你只知道你认识的人的关系
+        // 首先找出你直接认识的所有人 (你的社交邻居)
+        const knownNodeIds = new Set([targetId]);
+        relationships.forEach(rel => {
+            if (rel.isDeleted) return;
+            if (rel.nodeA === targetId) knownNodeIds.add(rel.nodeB);
+            if (rel.nodeB === targetId) knownNodeIds.add(rel.nodeA);
+        });
+
         let context = '';
         let hasContent = false;
 
         // 1. 遍历所有客观关系
         data.edges.forEach(rel => {
-            // 权限检查
+            const isParticipant = (rel.nodeA === targetId || rel.nodeB === targetId);
+
+            // [Reality Check] 如果你不是当事人，且你一个都不认识，那你就不可能知道这段关系
+            // (除非是特别标记为“世人皆知”的流言)
+            const knowsAnyone = knownNodeIds.has(rel.nodeA) || knownNodeIds.has(rel.nodeB);
+            const pairId = [rel.nodeA, rel.nodeB].sort().join('_');
+            const rumorKey = `${targetId}|${pairId}`;
+            const myRumor = rumors[rumorKey];
+
+            if (!isParticipant && !knowsAnyone && !myRumor) {
+                return; // 你根本不处于这个社交圈，无法感知
+            }
+
+            // 权限检查 (世俗可见性)
             const visibleTo = rel.visibleTo || [];
-            if (!visibleTo.includes('all') && !visibleTo.includes(targetId) &&
-                rel.nodeA !== targetId && rel.nodeB !== targetId) {
-                return; // 不可见
+            if (!isParticipant && !myRumor && !visibleTo.includes('all') && !visibleTo.includes(targetId)) {
+                return; // 虽然你认识他们，但他们保持隐秘，你也无从得知
             }
 
             const nodeA = nodeMap[rel.nodeA];
@@ -596,28 +619,25 @@ window.WeChat.Services.RelationshipGraph = {
                 // ----------------------------------------------------
                 // 场景区分：当事人 vs 旁观者 vs 流言信徒
                 // ----------------------------------------------------
-                const isParticipant = (nodeA.id === targetId || nodeB.id === targetId);
-                const pairId = [rel.nodeA, rel.nodeB].sort().join('_');
-                const rumorKey = `${targetId}|${pairId}`;
-                const myRumor = rumors[rumorKey]; // 我是否有关于这对关系的“主观流言”？
+
 
                 // ----------------------------------------------------
                 // Case A: 我被流言蒙蔽 (优先展示流言)
                 // ----------------------------------------------------
                 if (!isParticipant && myRumor) {
-                    context += `- [情报] 关于 **${nodeA.name}** 和 **${nodeB.name}** 的关系\n`;
+                    context += `- [情报/认知] 关于 **${nodeA.name}** (ID: ${nodeA.id}) 和 **${nodeB.name}** (ID: ${nodeB.id}) 的关系\n`;
 
                     // 双向主观流言
                     const viewAtoB = myRumor.contentAtoB || myRumor.content || '未知';
                     const viewBtoA = myRumor.contentBtoA || myRumor.content || '未知';
 
-                    context += `  - **你认为**: ${nodeA.name} 对 ${nodeB.name} 是「${viewAtoB}」，${nodeB.name} 对 ${nodeA.name} 是「${viewBtoA}」\n`;
+                    context += `  - **你的认知**: ${nodeA.name} 对 ${nodeB.name} 是「${viewAtoB}」，${nodeB.name} 对 ${nodeA.name} 是「${viewBtoA}」\n`;
 
                     if (myRumor.reason) {
-                        context += `  - **理由**: ${myRumor.reason}\n`;
+                        context += `  - **形成逻辑**: ${myRumor.reason}\n`;
                     }
 
-                    context += `  > [备注]: 此为你深信不疑的情报 (可能与事实有出入)。\n`;
+                    context += `  > [心理准则]: 这是你目前基于现有情报形成的“主观认知”。你可以选择深信不疑并据此行动，也可以根据对话逻辑产生疑虑并尝试去验证真实性。核心取决于你的性格设定。\n`;
                     hasContent = true;
                 }
 
@@ -631,7 +651,7 @@ window.WeChat.Services.RelationshipGraph = {
                     const otherView = (nodeA.id === targetId) ? rel.bViewOfA : rel.aViewOfB;
                     const otherToward = (nodeA.id === targetId) ? rel.bTowardA : rel.aTowardB;
 
-                    context += `- 与 **${otherNode.name}**\n`;
+                    context += `- 与 **${otherNode.name}** (ID: ${otherNode.id})\n`;
                     context += `  - 你的视角: 认为TA是「${myView || '?'}」，态度「${myToward || '?'}」\n`;
                     context += `  - 对方视角: 认为你是「${otherView || '?'}」，态度「${otherToward || '?'}」\n`;
                     if (rel.backstory) {
@@ -644,7 +664,7 @@ window.WeChat.Services.RelationshipGraph = {
                 // Case C: 我是旁观者，且没有流言 (看到表面真相)
                 // ----------------------------------------------------
                 else {
-                    context += `- [情报] 关于 **${nodeA.name}** 和 **${nodeB.name}** 的关系\n`;
+                    context += `- [情报] 关于 **${nodeA.name}** (ID: ${nodeA.id}) 和 **${nodeB.name}** (ID: ${nodeB.id}) 的关系\n`;
                     // 安全过滤: 隐藏 Toward
                     context += `  - 据你所知: ${nodeA.name} 视 ${nodeB.name} 为「${rel.aViewOfB || '?'}」，反之则视作「${rel.bViewOfA || '?'}」\n`;
 
@@ -658,11 +678,33 @@ window.WeChat.Services.RelationshipGraph = {
             }
         });
 
-        // 2. [New] 遍历“纯虚构流言”
-        // (如果系统中根本不存在 A-B 的关系，但我却听到了谣言，也应该显示)
-        // 遍历所有 rumors，如果 key 以 targetId 开头，且对应的 relationship 不在上面的循环中...
-        // 暂时简化：暂不处理“无中生有”的流言（即必须先建立一条空的关系线，才能附着流言）。
-        // 这样可以复用 visibleTo 逻辑。
+        // 2. [New] 遍历“纯虚构认知”
+        // 捕捉那些现实中不存在、但在认知中存在的空穴来风
+        const processedPairs = new Set();
+        data.edges.forEach(e => processedPairs.add([e.nodeA, e.nodeB].sort().join('_')));
+
+        Object.keys(rumors).forEach(key => {
+            const parts = key.split('|');
+            if (parts.length !== 2 || parts[0] !== targetId) return;
+
+            const pairId = parts[1];
+            if (processedPairs.has(pairId)) return; // 已处理
+
+            const rumor = rumors[key];
+            const nodesInPair = pairId.split('_');
+            const nodeA = nodeMap[nodesInPair[0]];
+            const nodeB = nodeMap[nodesInPair[1]];
+
+            if (nodeA && nodeB) {
+                context += `- [情报/空穴来风] 关于 **${nodeA.name}** (ID: ${nodeA.id}) 和 **${nodeB.name}** (ID: ${nodeB.id})\n`;
+                const vAtoB = rumor.contentAtoB || rumor.content || '未知';
+                const vBtoA = rumor.contentBtoA || rumor.content || '未知';
+                context += `  - **你的认知**: ${nodeA.name} 对 ${nodeB.name} 是「${vAtoB}」，${nodeB.name} 对 ${nodeA.name} 是「${vBtoA}」\n`;
+                if (rumor.reason) context += `  - **逻辑理由**: ${rumor.reason}\n`;
+                context += `  > [心理状态]: 你对他人的这段关系产生了某种“预设”或“偏见”，这会干扰你的判断。除非你找到强有力的证据，否则这种主观认知将作为你互动的基准。但作为独立人格，你拥有“怀疑”这份情报的权利。\n\n`;
+                hasContent = true;
+            }
+        });
 
         if (!hasContent) return '';
         return `### 社交关系网 (你所感知的世界)\n${context}`;
@@ -812,8 +854,34 @@ window.WeChat.Services.RelationshipGraph = {
             }
         });
 
-        // 2. (TODO) 处理“无中生有”的流言 (即 relationships 中不存在，但 rumors 中存在的 key)
-        // 目前暂不处理，假设流言必须依附于已存在的（即便是空）关系上
+        // 2. 处理“无中生有”的流言
+        const processedPairs = new Set();
+        edges.forEach(e => {
+            const pair = [e.nodeA, e.nodeB].sort().join('_');
+            processedPairs.add(pair);
+        });
+
+        Object.keys(rumors).forEach(key => {
+            const parts = key.split('|');
+            if (parts.length !== 2 || parts[0] !== observerId) return;
+
+            const pairId = parts[1];
+            if (processedPairs.has(pairId)) return;
+
+            const rumor = rumors[key];
+            const nodesInPair = pairId.split('_');
+            const contentRaw = rumor.content;
+
+            edges.push({
+                id: 'rumor_' + key,
+                nodeA: nodesInPair[0],
+                nodeB: nodesInPair[1],
+                aViewOfB: rumor.contentAtoB || contentRaw || '',
+                bViewOfA: rumor.contentBtoA || contentRaw || '',
+                isRumor: true,
+                backstory: rumor.reason || '（来自认知/主观臆测）'
+            });
+        });
 
         return { nodes, edges };
     },

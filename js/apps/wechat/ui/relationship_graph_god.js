@@ -554,14 +554,14 @@
             '</div>' +
 
             // Visible To
-            '<div class="rg-edit-section" style="border-top:1px solid #eee; padding-top:15px; margin-top:20px;">' +
-            '<label style="margin-bottom:10px; font-weight:600; display:block;">谁可见？(God Mode)</label>' +
-            '<label class="rg-switch-row" style="display:flex;align-items:center;margin-bottom:10px; cursor:pointer;">' +
-            '<input type="checkbox" id="rg-visible-all" ' + (isPublic ? 'checked' : '') + ' onchange="document.getElementById(\'rg-person-list\').style.display = this.checked ? \'none\' : \'block\'" style="width:16px;height:16px;accent-color:#8d6e63;margin-right:8px;">' +
-            '<span>公开 (所有人可见)</span>' +
+            '<div class="rg-edit-section" style="border-top:1px solid #f0f0f0; padding-top:20px; margin-top:24px;">' +
+            '<label style="margin-bottom:14px; font-weight:700; display:block; color:#1a1a1a;">情报分发权限 (God Mode)</label>' +
+            '<label class="rg-checkbox-item" style="display:flex; align-items:center; margin-bottom:12px; cursor:pointer; padding:8px 0;">' +
+            '<input type="checkbox" id="rg-visible-all" ' + (isPublic ? 'checked' : '') + ' onchange="document.getElementById(\'rg-person-list\').style.display = this.checked ? \'none\' : \'block\'" style="width:18px; height:18px; cursor:pointer; margin-right:10px; accent-color:#0052d9; display:block !important; opacity:1 !important; visibility:visible !important; position:static !important;">' +
+            '<span style="font-size:14px; font-weight:600; color:#333;">公开 (所有人可见)</span>' +
             '</label>' +
-            '<div id="rg-person-list" style="display:' + (isPublic ? 'none' : 'block') + '; background:#f9f9f9; padding:10px; border-radius:8px;">' +
-            '<div style="font-size:12px;color:#999;margin-bottom:8px;">除当事人外，还有谁知道：</div>' +
+            '<div id="rg-person-list" style="display:' + (isPublic ? 'none' : 'block') + '; background:#f8f9fa; padding:12px; border-radius:12px; margin-top:8px;">' +
+            '<div style="font-size:12px;color:#888;margin-bottom:10px;">选择指定知情者（除当事人外）：</div>' +
             visibilityHtml +
             '</div></div>' +
             '<div style="height:20px"></div>' +

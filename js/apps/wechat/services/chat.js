@@ -102,8 +102,8 @@ window.WeChat.Services.Chat = {
         this.updateUI(msg);
 
         if (this._activeSession !== 'me' && this._activeSession !== 'file_helper') {
-            // [Manual Mode] Auto-reply disabled. User must click the button.
-            // this.triggerAIReply(); 
+            // Priority 1: Trigger AI Reply
+            this.triggerAIReply();
 
             // Priority 2: Memory Summarization (Background)
             if (window.Core && window.Core.Memory) {
@@ -808,6 +808,99 @@ window.WeChat.Services.Chat = {
                         if (fLocation) statusUpdate.location = fLocation;
                     }
 
+                    // 2.3 处理秘密识破与洞察自动更新
+                    const charForSecret = window.sysStore.getCharacter(targetId);
+                    if (charForSecret) {
+                        const rel = charForSecret.settings?.relationship || {};
+                        let relChanged = false;
+
+                        // [Evolution] AI 自动演化关系看法
+                        if (action.new_public_relation) {
+                            rel.public_relation = ensureStr(action.new_public_relation);
+                            relChanged = true;
+                            console.log('[Rel] 客观关系更新为:', rel.public_relation);
+                        }
+                        if (action.new_inner_view) {
+                            rel.char_to_user_view = ensureStr(action.new_inner_view);
+                            relChanged = true;
+                            console.log('[Rel] 内心看法演化为:', rel.char_to_user_view);
+                        }
+                        // 更新背景故事 (Backstory)
+                        if (action.new_backstory) {
+                            rel.backstory = ensureStr(action.new_backstory);
+                            relChanged = true;
+                            console.log('[Rel] 背景故事更新');
+                        }
+
+                        // AI 发现自己的秘密泄露了
+                        if (action.char_secret_exposed === true && !rel.user_knows_char_private) {
+                            rel.user_knows_char_private = true;
+                            relChanged = true;
+                            console.log('[Secret] AI 判定其秘密已被用户识破');
+                        }
+                        // AI 识破了用户的秘密
+                        if (action.user_secret_discovered === true && !rel.char_knows_user_private) {
+                            rel.char_knows_user_private = true;
+                            relChanged = true;
+                            console.log('[Secret] AI 判定它已识破用户的秘密');
+                        }
+
+                        if (relChanged) {
+                            window.sysStore.updateCharacter(targetId, {
+                                settings: { ...charForSecret.settings, relationship: rel }
+                            });
+                        }
+                    }
+
+                    // 2.4 更新发掘记录 (discovered_knowledge)
+                    // AI 可以主动输出新发掘到的关于用户的信息点，持久化存储
+                    if (action.new_discovery) {
+                        const discovery = ensureStr(action.new_discovery);
+                        const existingChar = window.sysStore.getCharacter(targetId);
+                        const knowledge = existingChar?.status?.discovered_knowledge || [];
+                        if (discovery && !knowledge.includes(discovery)) {
+                            statusUpdate.discovered_knowledge = [...knowledge, discovery].slice(-20); // 保留最近20条
+                            console.log('[Knowledge] 记录新发掘点:', discovery);
+                        }
+                    }
+
+                    // [New] 2.5 更新对其他 NPC 的流言/视角 (update_npc_opinion)
+                    if (action.update_npc_opinion) {
+                        const opinion = action.update_npc_opinion;
+                        const otherNpcId = opinion.npc_id;
+                        if (otherNpcId && otherNpcId !== targetId) {
+                            const rumors = window.sysStore.get('rg_rumors_v1') || {};
+                            const pairId = [targetId, otherNpcId].sort().join('_');
+                            const rumorKey = `${targetId}|${pairId}`;
+
+                            const existingRumor = rumors[rumorKey] || {
+                                observerId: targetId,
+                                nodeA: [targetId, otherNpcId].sort()[0],
+                                nodeB: [targetId, otherNpcId].sort()[1]
+                            };
+
+                            const sortedIds = [targetId, otherNpcId].sort();
+                            const isReversed = sortedIds[0] !== targetId;
+
+                            if (opinion.opinion_of_them) {
+                                if (isReversed) existingRumor.contentBtoA = ensureStr(opinion.opinion_of_them);
+                                else existingRumor.contentAtoB = ensureStr(opinion.opinion_of_them);
+                            }
+                            if (opinion.their_opinion_of_me) {
+                                if (isReversed) existingRumor.contentAtoB = ensureStr(opinion.their_opinion_of_me);
+                                else existingRumor.contentBtoA = ensureStr(opinion.their_opinion_of_me);
+                            }
+                            if (opinion.reason) {
+                                existingRumor.reason = ensureStr(opinion.reason);
+                            }
+                            existingRumor.updatedAt = Date.now();
+
+                            rumors[rumorKey] = existingRumor;
+                            window.sysStore.set('rg_rumors_v1', rumors);
+                            console.log(`[Rumor] ${targetId} 自动演化了对 ${otherNpcId} 的主观视角`);
+                        }
+                    }
+
                     // 2.5 提取每日作息时间表 (daily_schedule) - 智能合并
                     {
                         let newSchedule = null;
@@ -893,6 +986,15 @@ window.WeChat.Services.Chat = {
 
                         // 限制变化范围 (仅限制正向涨幅，负向扣分不设限)
                         if (change > 0) {
+                            // [Inertia Optimization] 关系阻力硬编码
+                            // 如果是敌对/对立关系，好感度涨幅自动减半，除非完成关系进化
+                            const rel = char?.settings?.relationship || {};
+                            const pubRel = rel.public_relation || '';
+                            if (['仇敌', '死对头', '竞争对手', '前任', '对立面'].includes(pubRel)) {
+                                change *= 0.5;
+                                console.log('[Affection] 检测到对立关系，涨幅实施 0.5 倍阻力');
+                            }
+
                             change = Math.min(change, maxChange);
                         } else if (change < 0) {
                             // 负向扣分不设限 (Allow unlimited deduction)
