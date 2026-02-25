@@ -178,6 +178,12 @@ window.WeChat.Services.Chat = {
             // 6. 执行动作序列
             await this.executeActions(targetId, actions);
 
+            // 7. [Optimization] 顺便刷朋友圈 (省API高效模式)
+            // AI回复消息后，顺便检查一下朋友圈是否有需要互动的动态
+            if (window.WeChat?.Services?.Moments?._triggerReactions) {
+                window.WeChat.Services.Moments._triggerReactions(null, targetId);
+            }
+
         } catch (e) {
             // 使用统一错误处理
             const errorType = this._getErrorType(e);
@@ -1199,7 +1205,30 @@ window.WeChat.Services.Chat = {
                 case 'gomoku_move':    // 五子棋
                 case 'change_music':   // 换歌
                 case 'qzone_post':     // 发朋友圈
-                    console.log(`[Feature Placeholder] Character used feature: ${action.type}`, action);
+                    if (window.WeChat?.Services?.Moments?.generateMomentForChar) {
+                        window.WeChat.Services.Moments.generateMomentForChar(targetId, action.content || null);
+                    }
+                    break;
+
+                case 'comment_moment': // 互动朋友圈
+                    try {
+                        const moments = window.WeChat?.Services?.Moments;
+                        if (!moments || !action.post_id) break;
+
+                        if (action.action === 'comment') {
+                            moments.addComment(action.post_id, {
+                                authorId: targetId,
+                                content: action.content,
+                            });
+                        } else if (action.action === 'like') {
+                            moments.toggleLike(action.post_id, targetId);
+                        } else if (action.action === 'delete_comment' && action.comment_id) {
+                            moments.deleteComment(action.post_id, action.comment_id);
+                        }
+                        if (window.WeChat?.App?.render) window.WeChat.App.render();
+                    } catch (e) {
+                        console.warn('[Chat] comment_moment action failed:', e);
+                    }
                     break;
 
                 case 'create_event':

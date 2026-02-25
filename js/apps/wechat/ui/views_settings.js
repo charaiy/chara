@@ -110,7 +110,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
 
                 <!-- Moments Cell (With Gap) -->
                 <div class="wx-cell-group" style="margin-top: 8px;">
-                    <div class="wx-cell wx-hairline-bottom" style="padding: 12px 24px;">
+                    <div class="wx-cell wx-hairline-bottom" onclick="window.WeChat.App.openMomentsProfile('${user.id}')" style="padding: 12px 24px; cursor: pointer;">
                          <div class="wx-cell-content" style="font-size: 17px; font-weight: 400; color: var(--wx-text);">朋友圈</div>
                          <div class="wx-cell-arrow-custom" style="margin-left: 4px; display: flex; align-items: center;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -856,7 +856,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
             <div class="wx-view-container" id="wx-view-discover" onclick="window.WeChat.App.closeAllPanels()">
                 <div class="wx-nav-spacer" style="height: calc(var(--wx-nav-height) - 10px);"></div>
                 <div class="wx-cell-group">
-                    ${this._renderCell({ text: '朋友圈', iconColor: '#e0e0e0', iconType: 'moments', showArrow: true })}
+                    ${this._renderCell({ text: '朋友圈', iconColor: '#e0e0e0', iconType: 'moments', showArrow: true, onClick: 'window.WeChat.App.openMoments()' })}
                 </div>
                 <div class="wx-cell-group">
                     ${this._renderCell({ text: '视频号', iconColor: '#fa9d3b', iconType: 'video', showArrow: true })}
@@ -960,7 +960,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
 
                 <div class="wx-cell-group">
                      ${this._renderCell({ text: '收藏', iconColor: '#fa9d3b', iconType: 'fav', showArrow: true })}
-                     ${this._renderCell({ text: '朋友圈', iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true })}
+                     ${this._renderCell({ text: '朋友圈', iconColor: '#2782d7', iconType: 'moments_blue', showArrow: true, onClick: "window.WeChat.App.openMomentsProfile('USER_SELF')" })}
                      ${this._renderCell({ text: '卡包', iconColor: '#2782d7', iconType: 'card', showArrow: true })}
                      ${this._renderCell({ text: '表情', iconColor: '#ffc300', iconType: 'sticker', showArrow: true })}
                 </div>

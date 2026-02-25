@@ -75,7 +75,13 @@ const State = {
     // Custom Modals
     confirmationModal: { open: false, title: '', content: '', onConfirm: '', onCancel: '' },
     promptModal: { open: false, title: '', content: '', value: '', onConfirm: '', onCancel: '' },
-    subjectiveGraphId: null // [v44] 新增：主观关系网视角 ID
+    subjectiveGraphId: null, // [v44] 新增：主观关系网视角 ID
+
+    // Moments States (朋友圈)
+    momentsCommentTarget: null, // { postId, replyTo, replyToAuthorId } 当前正在评论的帖子
+    momentsComposeImages: [], // 发布朋友圈时的图片列表
+    momentsVisibleTo: [], // 发布朋友圈时"谁可以看"选中的联系人ID列表
+    momentsProfileTarget: null, // 当前查看的个人朋友圈目标ID
 };
 
 window.WeChat = window.WeChat || {};
@@ -183,14 +189,15 @@ window.WeChat.App = {
         // [Premier Design] Seamless white header for Profile & Chat Info
         const isMeTab = (State.currentTab === 3);
         const isWhitePage = (State.currentTab === 'user_profile');
-        const isGrayPage = (State.currentTab === 'chat_info' || State.currentTab === 'friend_settings' || State.currentTab === 'persona_settings');
+        const isMomentsPage = (State.currentTab === 'moments' || State.currentTab === 'moments_profile');
+        const isGrayPage = (State.currentTab === 'chat_info' || State.currentTab === 'friend_settings' || State.currentTab === 'persona_settings' || State.currentTab === 'moments_settings');
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
         const isSelectionMode = State.msgSelectionMode;
 
         let bgOverride = '';
         if (isSelectionMode) {
             bgOverride = 'background-color: var(--wx-bg) !important; border-bottom: 0.5px solid var(--wx-border) !important;';
-        } else if (isMeTab) {
+        } else if (isMeTab || isMomentsPage) {
             bgOverride = 'background-color: transparent !important; border-bottom: none !important; box-shadow: none !important;';
         } else if (isWhitePage) {
             bgOverride = 'background-color: var(--wx-cell-bg) !important; border-bottom: none !important; box-shadow: none !important;';
@@ -224,6 +231,8 @@ window.WeChat.App = {
         if (rightIcon === 'add') rightBtnContent = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
         else if (rightIcon === 'more') rightBtnContent = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
         else if (rightIcon === 'done') rightBtnContent = `<span style="color:var(--wx-green); font-size:16px; font-weight:600;">完成</span>`;
+        else if (rightIcon === 'publish') rightBtnContent = `<span style="background:#07c160;color:#fff;font-size:14px;font-weight:600;padding:6px 14px;border-radius:6px;">发表</span>`;
+        else if (rightIcon === 'camera') rightBtnContent = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
         else if (rightIcon === 'random') {
             rightBtnContent = `
                 <div id="wx-nav-gen-btn" title="随机填充未锁定项" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
@@ -310,9 +319,11 @@ window.WeChat.App = {
                 </div>
             </div>
         `;
+        // 朋友圈页面导航栏使用白色文字（深色封面背景）
+        const navTextColor = isMomentsPage ? 'color: #fff !important;' : '';
 
         return `
-            <div class="wx-navbar-override" style="${navStyle}" onclick="if(event.target === this) window.WeChat.App.closeAddFriendMenu()">
+            <div class="wx-navbar-override" style="${navStyle} ${navTextColor}" onclick="if(event.target === this) window.WeChat.App.closeAddFriendMenu()">
                 ${exitBtn}
                 ${backBtn}
                 <div id="wx-nav-title" 
@@ -418,6 +429,28 @@ window.WeChat.App = {
                 contentHtml = (window.WeChat.Views && window.WeChat.Views.renderRelationshipGraph) ? window.WeChat.Views.renderRelationshipGraph() : '<div style="padding:20px;text-align:center;color:#999;">正在初始化关系网组件...</div>';
                 rightIcon = 'reset';
                 rightAction = 'window.WeChat.UI.RelationshipGraphGod.resetView()';
+                showBack = true;
+            } else if (State.currentTab === 'moments') {
+                navTitle = '朋友圈';
+                contentHtml = Views.renderMoments();
+                rightIcon = 'camera';
+                rightAction = 'window.WeChat.App.openMomentsCompose()';
+                showBack = true;
+            } else if (State.currentTab === 'moments_profile') {
+                navTitle = '';
+                contentHtml = Views.renderMomentsProfile(State.momentsProfileTarget || 'USER_SELF');
+                rightIcon = null;
+                showBack = true;
+            } else if (State.currentTab === 'moments_settings') {
+                navTitle = '朋友圈设置';
+                contentHtml = Views.renderMomentsSettings(State.momentsProfileTarget);
+                rightIcon = null;
+                showBack = true;
+            } else if (State.currentTab === 'moments_compose') {
+                navTitle = '发表文字';
+                contentHtml = Views.renderMomentsCompose();
+                rightIcon = 'publish';
+                rightAction = 'window.WeChat.App.publishMoment()';
                 showBack = true;
             } else {
                 switch (State.currentTab) {
@@ -1955,6 +1988,15 @@ window.WeChat.App = {
                 if (State.currentTab === 'chat_session') State.shouldScrollToBottom = true;
             } else if (current === 'add_friend' || current === 'my_profile_settings') {
                 State.currentTab = (typeof prev === 'number') ? prev : 0;
+            } else if (current === 'moments') {
+                State.currentTab = 2; // 返回发现页
+            } else if (current === 'moments_profile') {
+                State.currentTab = State.prevTab === 'moments' ? 'moments' : 2;
+            } else if (current === 'moments_settings') {
+                State.currentTab = 'moments_profile';
+            } else if (current === 'moments_compose') {
+                State.momentsComposeImages = [];
+                State.currentTab = 'moments';
             } else {
                 State.currentTab = 0;
             }
@@ -2227,7 +2269,436 @@ window.WeChat.App = {
         // Only return ID if we are actually viewing the chat session
         if (State.currentTab === 'chat_session') return State.activeSessionId;
         return null;
-    }
+    },
+
+    // ==========================================
+    // 朋友圈功能方法
+    // ==========================================
+
+    openMoments() {
+        State.prevTab = State.currentTab;
+        State.currentTab = 'moments';
+        this.render();
+    },
+
+    openMomentsProfile(targetId) {
+        State.prevTab = State.currentTab;
+        State.momentsProfileTarget = targetId || 'USER_SELF';
+        State.currentTab = 'moments_profile';
+        this.render();
+    },
+
+    openMomentsSettings(charId) {
+        State.prevTab = State.currentTab;
+        State.momentsProfileTarget = charId;
+        State.currentTab = 'moments_settings';
+        this.render();
+    },
+
+    openMomentsCompose() {
+        State.prevTab = State.currentTab;
+        State.momentsComposeImages = [];
+        State.currentTab = 'moments_compose';
+        this.render();
+    },
+
+    /**
+     * 切换朋友圈操作菜单（点赞/评论/删除）
+     */
+    toggleMomentsActionMenu(postId) {
+        const menu = document.getElementById('moments-menu-' + postId);
+        if (!menu) return;
+        // 关闭所有其他菜单
+        document.querySelectorAll('.moments-action-menu').forEach(m => {
+            if (m.id !== 'moments-menu-' + postId) m.style.display = 'none';
+        });
+        const isOpening = menu.style.display === 'none';
+        menu.style.display = isOpening ? 'flex' : 'none';
+
+        // 打开时添加全局点击关闭
+        if (isOpening) {
+            const closeAll = (e) => {
+                if (!e.target.closest('.moments-action-menu') && !e.target.closest('.moments-action-btn')) {
+                    document.querySelectorAll('.moments-action-menu').forEach(m => m.style.display = 'none');
+                    document.removeEventListener('click', closeAll);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeAll), 50);
+        }
+    },
+
+    /**
+     * 切换点赞
+     */
+    toggleMomentLike(postId) {
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+        M.toggleLike(postId, 'USER_SELF');
+        // 关闭菜单
+        const menu = document.getElementById('moments-menu-' + postId);
+        if (menu) menu.style.display = 'none';
+        this.render();
+    },
+
+    /**
+     * 开始评论
+     */
+    startMomentComment(postId) {
+        State.momentsCommentTarget = { postId, replyTo: null, replyToAuthorId: null };
+        // 关闭菜单
+        const menu = document.getElementById('moments-menu-' + postId);
+        if (menu) menu.style.display = 'none';
+        this._showCommentInput();
+    },
+
+    /**
+     * 回复某条评论
+     */
+    startMomentReply(postId, commentId, commentAuthorId) {
+        const M = window.WeChat.Services.Moments;
+        State.momentsCommentTarget = { postId, replyTo: commentId, replyToAuthorId: commentAuthorId };
+        const replyToName = M ? M.getAuthorName(commentAuthorId) : '';
+        this._showCommentInput(replyToName);
+    },
+
+    /**
+     * 显示底部评论输入框
+     */
+    _showCommentInput(replyToName = '') {
+        // 移除已有的
+        const existing = document.getElementById('moments-comment-bar');
+        if (existing) existing.remove();
+
+        const placeholder = replyToName ? `回复 ${replyToName}` : '评论';
+        const bar = document.createElement('div');
+        bar.id = 'moments-comment-bar';
+        bar.className = 'moments-comment-input-bar';
+        bar.innerHTML = `
+            <input class="moments-comment-input" id="moments-comment-input" 
+                   placeholder="${placeholder}" autofocus />
+            <div class="moments-comment-send-btn" onclick="window.WeChat.App.sendMomentComment()">发送</div>
+        `;
+        // 添加到 WeChat 应用容器内
+        const appContainer = State.root?.querySelector('.wechat-app') || State.root;
+        if (appContainer) {
+            appContainer.appendChild(bar);
+        } else {
+            document.body.appendChild(bar);
+        }
+
+        // 聚焦 + 回车提交
+        setTimeout(() => {
+            const input = document.getElementById('moments-comment-input');
+            if (input) {
+                input.focus();
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        window.WeChat.App.sendMomentComment();
+                    }
+                });
+            }
+        }, 100);
+
+        // 点击外部关闭
+        const closeHandler = (e) => {
+            if (!bar.contains(e.target) && !e.target.closest('.moments-comment-item')) {
+                bar.remove();
+                State.momentsCommentTarget = null;
+                document.removeEventListener('click', closeHandler);
+            }
+            // 同时关闭所有操作菜单
+            document.querySelectorAll('.moments-action-menu').forEach(m => m.style.display = 'none');
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 200);
+    },
+
+    /**
+     * 发送评论
+     */
+    sendMomentComment() {
+        const M = window.WeChat.Services.Moments;
+        if (!M || !State.momentsCommentTarget) return;
+
+        const input = document.getElementById('moments-comment-input');
+        const content = input ? input.value.trim() : '';
+        if (!content) return;
+
+        const { postId, replyTo, replyToAuthorId } = State.momentsCommentTarget;
+        M.addComment(postId, {
+            authorId: 'USER_SELF',
+            content,
+            replyTo,
+            replyToAuthorId,
+        });
+
+        // 清除输入和状态
+        State.momentsCommentTarget = null;
+        const bar = document.getElementById('moments-comment-bar');
+        if (bar) bar.remove();
+
+        this.render();
+
+        // 触发角色互动（包括对用户评论的即时反应）
+        setTimeout(() => {
+            if (M && M._triggerReactions) {
+                M._triggerReactions(post);
+            }
+        }, 3000 + Math.random() * 5000);
+    },
+
+    /**
+     * 删除朋友圈
+     */
+    deleteMoment(postId) {
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+        this.openConfirmationModal({
+            title: '删除',
+            content: '确定删除这条朋友圈吗？',
+            onConfirm: () => {
+                M.deletePost(postId);
+                this.closeConfirmationModal();
+                this.render();
+            }
+        });
+    },
+
+    /**
+     * 更换朋友圈封面
+     */
+    changeMomentsCover(ownerId) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (re) => {
+                const M = window.WeChat.Services.Moments;
+                if (M) {
+                    M.setCoverImage(ownerId, re.target.result);
+                    this.render();
+                    if (window.os) window.os.showToast('封面已更新');
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    },
+
+    /**
+     * 添加图片到朋友圈发布
+     */
+    addMomentImage() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.onchange = (e) => {
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    State.momentsComposeImages.push(re.target.result);
+                    this._renderComposeImages();
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+        input.click();
+    },
+
+    /**
+     * 移除发布中的图片
+     */
+    removeMomentImage(index) {
+        State.momentsComposeImages.splice(index, 1);
+        this._renderComposeImages();
+    },
+
+    /**
+     * 刷新发布图片预览区
+     */
+    _renderComposeImages() {
+        const container = document.getElementById('wx-moments-compose-images');
+        if (!container) return;
+        container.innerHTML = State.momentsComposeImages.map((img, i) => `
+            <div class="moments-compose-img-item">
+                <img src="${img}" />
+                <div class="moments-compose-img-remove" onclick="window.WeChat.App.removeMomentImage(${i})">✕</div>
+            </div>
+        `).join('') + (State.momentsComposeImages.length < 9 ? `
+            <div class="moments-compose-add-img" onclick="window.WeChat.App.addMomentImage()">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1.5" stroke-linecap="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+            </div>
+        ` : '');
+    },
+
+    /**
+     * \u70b9\u51fb\u201c\u8c01\u53ef\u4ee5\u770b\u201d\uff0c\u5f39\u51fa\u53ef\u89c1\u6027\u9009\u62e9
+     */
+    cycleVisibility() {
+        const el = document.getElementById('wx-moments-compose-visibility');
+        const label = document.getElementById('wx-moments-visibility-label');
+        if (!el || !label) return;
+        const cur = el.value;
+        if (cur === '\u516c\u5f00') { el.value = '\u79c1\u5bc6'; label.textContent = '\u79c1\u5bc6'; State.momentsVisibleTo = []; }
+        else if (cur === '\u79c1\u5bc6') { this._openContactPicker(); }
+        else { el.value = '\u516c\u5f00'; label.textContent = '\u516c\u5f00'; State.momentsVisibleTo = []; }
+    },
+
+    /**
+     * \u5f39\u51fa\u8054\u7cfb\u4eba\u9009\u62e9\u5668\uff08\u9009\u62e9\u8c01\u53ef\u4ee5\u770b\u5e16\u5b50\uff09
+     */
+    _openContactPicker() {
+        const contacts = window.WeChat?.Services?.Contacts?.getContacts() || [];
+        const charContacts = contacts.filter(c => c.type !== 'system' && c.id !== 'me' && c.id !== 'file_helper');
+        const appContainer = State.root?.querySelector('.wechat-app') || State.root;
+        if (!appContainer) return;
+        const old = document.getElementById('moments-contact-picker');
+        if (old) old.remove();
+        const modal = document.createElement('div');
+        modal.id = 'moments-contact-picker';
+        modal.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:flex-end;';
+        const sel = new Set(State.momentsVisibleTo || []);
+        let listHtml = charContacts.map(c => {
+            const ch = window.sysStore?.getCharacter(c.id);
+            const nm = ch?.name || c.id;
+            const av = ch?.avatar || 'assets/images/avatar_placeholder.png';
+            return '<div style="display:flex;align-items:center;padding:12px 20px;border-bottom:0.5px solid var(--wx-border);cursor:pointer;" onclick="this.querySelector(\'input\').checked=!this.querySelector(\'input\').checked;">'
+                + '<input type="checkbox" class="mpick-cb" data-cid="' + c.id + '" ' + (sel.has(c.id) ? 'checked ' : '') + 'style="width:20px;height:20px;margin-right:12px;accent-color:#07c160;" onclick="event.stopPropagation();"/>'
+                + '<img src="' + av + '" style="width:36px;height:36px;border-radius:6px;object-fit:cover;margin-right:10px;" onerror="this.src=\'assets/images/avatar_placeholder.png\'" />'
+                + '<span style="font-size:15px;color:var(--wx-text);">' + nm + '</span></div>';
+        }).join('');
+        modal.innerHTML = '<div style="background:var(--wx-cell-bg);border-radius:12px 12px 0 0;width:100%;max-height:70%;display:flex;flex-direction:column;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:0.5px solid var(--wx-border);">'
+            + '<span onclick="document.getElementById(\'moments-contact-picker\').remove();" style="font-size:15px;color:var(--wx-text-sec);cursor:pointer;">\u53d6\u6d88</span>'
+            + '<span style="font-size:17px;font-weight:600;color:var(--wx-text);">\u8c01\u53ef\u4ee5\u770b</span>'
+            + '<span id="moments-picker-confirm" style="font-size:15px;color:#07c160;font-weight:600;cursor:pointer;">\u786e\u5b9a</span></div>'
+            + '<div style="flex:1;overflow-y:auto;">' + (listHtml || '<div style="padding:40px;text-align:center;color:var(--wx-text-sec);">\u6ca1\u6709\u8054\u7cfb\u4eba</div>') + '</div></div>';
+        appContainer.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        setTimeout(() => {
+            const btn = document.getElementById('moments-picker-confirm');
+            if (btn) btn.addEventListener('click', () => {
+                const cbs = modal.querySelectorAll('.mpick-cb:checked');
+                const ids = Array.from(cbs).map(cb => cb.dataset.cid);
+                State.momentsVisibleTo = ids;
+                const el = document.getElementById('wx-moments-compose-visibility');
+                const label = document.getElementById('wx-moments-visibility-label');
+                if (el && label) {
+                    if (ids.length > 0) { el.value = '\u90e8\u5206\u53ef\u89c1'; label.textContent = '\u90e8\u5206\u53ef\u89c1(' + ids.length + '\u4eba)'; }
+                    else { el.value = '\u516c\u5f00'; label.textContent = '\u516c\u5f00'; }
+                }
+                modal.remove();
+            });
+        }, 50);
+    },
+
+    /**
+     * 发布朋友圈
+     */
+    publishMoment() {
+        const textEl = document.getElementById('wx-moments-compose-text');
+        const locationEl = document.getElementById('wx-moments-compose-location');
+        const content = textEl ? textEl.value.trim() : '';
+        const location = locationEl ? locationEl.value.trim() : '';
+
+        if (!content && State.momentsComposeImages.length === 0) {
+            if (window.os) window.os.showToast('请输入内容或添加图片', 'error');
+            return;
+        }
+
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+
+        const visibilityEl = document.getElementById('wx-moments-compose-visibility');
+        const visibility = visibilityEl ? visibilityEl.value : '\u516c\u5f00';
+
+        const post = M.createPost({
+            authorId: 'USER_SELF',
+            content,
+            images: [...State.momentsComposeImages],
+            location,
+            visibility,
+            visibleTo: [...State.momentsVisibleTo],
+        });
+
+        // \u6e05\u7a7a\u72b6\u6001
+        State.momentsComposeImages = [];
+        State.momentsVisibleTo = [];
+        State.currentTab = 'moments';
+
+        if (window.os) window.os.showToast('发布成功');
+        this.render();
+
+        // 触发角色互动
+        M.triggerReactionsForUserPost(post);
+    },
+
+    /**
+     * AI 生成角色朋友圈
+     */
+    async generateMomentForChar(charId) {
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+
+        if (window.os) window.os.showToast('正在生成朋友圈...');
+
+        const post = await M.generateMomentForChar(charId);
+        if (post) {
+            if (window.os) window.os.showToast('朋友圈已发布！');
+            this.render();
+        } else {
+            if (window.os) window.os.showToast('生成失败，请重试', 'error');
+        }
+    },
+
+    /**
+     * 保存角色朋友圈设置
+     */
+    saveMomentsSettings(charId) {
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+
+        // 获取频率
+        const activeFreqBtn = document.querySelector('.moments-freq-btn.active');
+        const frequency = activeFreqBtn ? activeFreqBtn.dataset.freq : 'medium';
+
+        // 获取风格
+        const styleEl = document.getElementById('wx-moments-style');
+        const style = styleEl ? styleEl.value.trim() : '';
+
+        M.saveCharSettings(charId, { frequency, style });
+
+        if (window.os) window.os.showToast('设置已保存');
+    },
+
+    /**
+     * 预览朋友圈图片
+     */
+    previewMomentImage(postId, imageIndex) {
+        const M = window.WeChat.Services.Moments;
+        if (!M) return;
+        const post = M.getPost(postId);
+        if (!post || !post.images[imageIndex]) return;
+
+        const img = post.images[imageIndex];
+        if (img.startsWith('data:') || img.startsWith('http') || img.startsWith('blob:')) {
+            // 简单图片预览
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+            overlay.innerHTML = `<img src="${img}" style="max-width:95%;max-height:95%;object-fit:contain;border-radius:4px;">`;
+            overlay.onclick = () => overlay.remove();
+            document.body.appendChild(overlay);
+        }
+    },
+
 };
 
 window.WeChat.switchTab = (idx) => window.WeChat.App.switchTab(idx);

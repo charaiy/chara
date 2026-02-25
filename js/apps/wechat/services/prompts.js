@@ -199,6 +199,11 @@ window.WeChat.Services.Prompts = {
       .map(m => `> [${new Date(m.timestamp).toLocaleDateString()}] ${m.content}`)
       .join('\n');
 
+    // --- Moments Feed (The Feed) ---
+    const momentsSummary = (window.WeChat.Services.Moments && window.WeChat.Services.Moments.getRecentFeedSummary)
+      ? window.WeChat.Services.Moments.getRecentFeedSummary(char.id, 3)
+      : "暂无最新朋友圈动态。";
+
     // [Voice/Video Call Context Injection - Enhanced for Atmospheric Immersion]
     let voiceModeInstructions = "";
     const voiceState = window.State && window.State.voiceCallState;
@@ -530,6 +535,9 @@ ${memoriesCtx || '(你们之间暂时没有深刻的共同记忆，去创造吧)
 **[世界法则]**:
 ${worldBookCtx || '(遵循现实逻辑)'}
 
+**[最近朋友圈动态预览]**:
+${momentsSummary}
+
 ${this._buildRelationshipNetworkContext(targetId)}
 ${this._buildEventContext(targetId)}
 
@@ -584,8 +592,11 @@ ${this._buildEventContext(targetId)}
 - **Nudge (\`nudge\`)**: 拍一拍。
   - *细节*: 连续拍两次表示急躁或想念；不知道说什么时也可以拍一下。
 - **Moment (\`qzone_post\`)**: 发朋友圈。
-  - *细节*: 遇到美食、美景或心情波动时，发一条动态，不一定要回复用户。
-  - *高级玩法*: **关联聊天内容**。比如刚和用户聊完电影，你可以发个电影票根的朋友圈，但不直接告诉用户。
+  - *参数*: \`{"type": "qzone_post", "content": "想发的主题或背景说明"}\`
+  - *细节*: 当你想记录当下的生活，或者用户在本轮对话中提议你发某个内容（如“发个晚安”）时使用。
+- **Interact with Moment (\`comment_moment\`)**: 互动朋友圈。
+  - *参数*: \`{"type": "comment_moment", "post_id": "帖子ID", "action": "comment / like / delete_comment", "content": "评论内容"}\`
+  - *细节*: 你可以根据 [最近朋友圈动态预览] 中的 ID 对特定的帖子进行回复或点赞。这能体现出你对对方动态的关注。
 - **Recall (\`send_and_recall\`)**: 撤回。
   - *细节*: 暴露了真心话后害羞，或者打错字，使用此功能。
   - *高级玩法*: 撤回后拒不承认刚才发了什么，表现出真实的人类尴尬反应。
