@@ -71,6 +71,27 @@ window.WeChat.Services.Moments = {
             window.sysStore.set(this.COVER_KEY, {});
         }
         console.log('[Moments] 朋友圈服务初始化完成');
+
+        // 初始化时清理一次过期旧帖子，释放存储空间
+        this.compressOldPosts();
+
+        // 启动后台发帖轮询
+        if (!this._backgroundThreadStarted) {
+            this._backgroundThreadStarted = true;
+            // 短启动延迟，让UI渲染完毕
+            setTimeout(() => {
+                this.checkAutoPost(); // 运行一次
+                setInterval(async () => {
+                    if (this._isCheckingAutoPost) return;
+                    this._isCheckingAutoPost = true;
+                    try {
+                        await this.checkAutoPost();
+                    } finally {
+                        this._isCheckingAutoPost = false;
+                    }
+                }, 3 * 60 * 1000); // 3分钟检查一次
+            }, 10000);
+        }
     },
 
     // ==========================================
@@ -84,7 +105,7 @@ window.WeChat.Services.Moments = {
      */
     getPosts(options = {}) {
         const { limit = 50, authorId = null, viewerId = 'USER_SELF' } = options;
-        let posts = window.sysStore.get(this.STORAGE_KEY, []);
+        let posts = [...window.sysStore.get(this.STORAGE_KEY, [])];
 
         // 按作者过滤
         if (authorId) {
@@ -158,6 +179,9 @@ window.WeChat.Services.Moments = {
         const posts = window.sysStore.get(this.STORAGE_KEY, []);
         posts.push(post);
         window.sysStore.set(this.STORAGE_KEY, posts);
+
+        // 自动压缩旧帖子，防止无限增长
+        this.compressOldPosts();
 
         console.log(`[Moments] 新帖子发布: ${post.authorId} - "${post.content.substring(0, 20)}..."`);
         return post;
@@ -291,11 +315,19 @@ window.WeChat.Services.Moments = {
      * 获取频率对应的间隔时间（毫秒）
      */
     _getFrequencyInterval(frequency) {
+        if (frequency === 'never') return Infinity;
+
+        // Custom hours processing
+        const hours = parseFloat(frequency);
+        if (!isNaN(hours) && hours > 0) {
+            return hours * 60 * 60 * 1000;
+        }
+
+        // Legacy compatibility
         switch (frequency) {
             case 'high': return 2 * 60 * 60 * 1000;       // 2小时
             case 'medium': return 6 * 60 * 60 * 1000;     // 6小时
             case 'low': return 24 * 60 * 60 * 1000;       // 24小时
-            case 'never': return Infinity;
             default: return 6 * 60 * 60 * 1000;
         }
     },
@@ -305,6 +337,11 @@ window.WeChat.Services.Moments = {
      * 应该在后台定期调用
      */
     async checkAutoPost() {
+        const isBgActivity = window.sysStore?.get('bg_activity_enabled') === 'true';
+        if (!isBgActivity) {
+            return; // 后台活跃总开关未开启，什么都不做
+        }
+
         const contacts = window.WeChat?.Services?.Contacts?.getContacts() || [];
         for (const contact of contacts) {
             if (contact.type === 'system') continue;
@@ -313,6 +350,8 @@ window.WeChat.Services.Moments = {
             } catch (e) {
                 console.warn(`[Moments] 角色 ${contact.id} 自动发朋友圈失败:`, e);
             }
+            // 错峰停顿，避免并发请求风暴
+            await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
         }
     },
 
@@ -326,18 +365,67 @@ window.WeChat.Services.Moments = {
         const interval = this._getFrequencyInterval(settings.frequency);
         const now = Date.now();
 
-        if (now - (settings.lastAutoPost || 0) < interval) return;
+        // 引入错峰：如果之前没发过，赋予一个随机的上次发送时间，防止全部在一瞬间触发
+        if (!settings.lastAutoPost || settings.lastAutoPost === 0) {
+            const staggeredLastPost = now - interval + Math.floor(Math.random() * interval);
+            this.saveCharSettings(charId, { lastAutoPost: staggeredLastPost });
+            return;
+        }
+
+        const missedTime = now - settings.lastAutoPost;
+        if (missedTime < interval) return;
+
+        // 如果积压了太久 (超过 1.5 倍周期没发，通常代表系统曾长期关闭或刚重启)
+        if (missedTime > interval * 1.5) {
+            // [New Feature] 离线补偿机制：让他们根据流逝的时间，模拟在离线期间发的朋友圈
+            const missedCycles = Math.floor(missedTime / interval);
+
+            // 为了兼顾 API 和用户感受，只有当用户切到聊天页和这个角色说话，我们再悄悄生成。
+            // 因此，不在后台立刻发，而是把需要补偿的“历史时间戳”记在本地等待触发。
+            if (missedCycles >= 1 && Math.random() < 0.7) { // 70% 概率触发补偿
+                const historyDelay = Math.floor(Math.random() * (missedTime - interval)) + interval;
+                const historicalTime = now - historyDelay;
+
+                settings.pendingMissedPosts = settings.pendingMissedPosts || [];
+                settings.pendingMissedPosts.push(historicalTime);
+            }
+
+            // 更新本次轮询后的下一次发帖计时器 (打散分布)
+            const staggeredLastPost = now - interval + Math.floor(Math.random() * interval);
+            settings.lastAutoPost = staggeredLastPost;
+            this.saveCharSettings(charId, settings);
+            return; // 结束本轮检测，不消耗API
+        }
 
         // 触发 AI 生成
         await this.generateMomentForChar(charId);
     },
 
     /**
+     * 检查并消耗待办历史帖子（用户触发）
+     */
+    async _checkMissedPostsOnInteraction(charId) {
+        const settings = this.getCharSettings(charId);
+        if (settings.pendingMissedPosts && settings.pendingMissedPosts.length > 0) {
+            // 取出一个历史时间点
+            const historicalTime = settings.pendingMissedPosts.shift();
+            this.saveCharSettings(charId, settings); // 消费掉
+
+            console.log(`[Moments] 交互触发：角色 ${charId} 补偿发布离线朋友圈 (模拟发于 ${new Date(historicalTime).toLocaleString()})`);
+
+            // 将补偿标志传入生成器，AI会根据这个时间点生成回忆
+            await this.generateMomentForChar(charId, '根据当时流逝的时间，记录一下当时的感悟或事件。不要暴露你是“补发”的，语气就是活在那个当下的瞬间', historicalTime);
+        }
+    },
+
+    /**
      * AI 生成角色朋友圈内容
      * @param {string} charId - 角色ID
+     * @param {string} topic - (可选) 主题
+     * @param {number} forceTimestamp - (可选) 强制指定发布时间（用于离线补偿）
      * @returns {object|null} 生成的帖子
      */
-    async generateMomentForChar(charId, topic = null) {
+    async generateMomentForChar(charId, topic = null, forceTimestamp = null) {
         const char = window.sysStore?.getCharacter(charId);
         if (!char) return null;
 
@@ -348,7 +436,7 @@ window.WeChat.Services.Moments = {
         }
 
         // 构建朋友圈专用 Prompt
-        const prompt = this._buildMomentPrompt(charId, char);
+        const prompt = this._buildMomentPrompt(charId, char, forceTimestamp);
         const userPrompt = topic ? `请发布一条关于“${topic}”的朋友圈动态。` : '请发布一条朋友圈动态。';
 
         try {
@@ -370,11 +458,13 @@ window.WeChat.Services.Moments = {
                 images: parsed.images || [],
                 location: parsed.location || '',
                 isAIGenerated: true,
-                timestamp: Date.now(),
+                timestamp: forceTimestamp || Date.now(),
             });
 
-            // 更新上次自动发布时间
-            this.saveCharSettings(charId, { lastAutoPost: Date.now() });
+            // 更新上次自动发布时间，如果是补偿贴，不重置真实计时器
+            if (!forceTimestamp) {
+                this.saveCharSettings(charId, { lastAutoPost: Date.now() });
+            }
 
             // 触发其他角色的互动反应
             setTimeout(() => {
@@ -392,9 +482,9 @@ window.WeChat.Services.Moments = {
     /**
      * 构建朋友圈专用 Prompt
      */
-    _buildMomentPrompt(charId, char) {
+    _buildMomentPrompt(charId, char, forceTimestamp = null) {
         const settings = this.getCharSettings(charId);
-        const now = new Date();
+        const now = forceTimestamp ? new Date(forceTimestamp) : new Date();
         const timeStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         const currentOutfit = char.status?.outfit || '日常服装';
@@ -526,23 +616,47 @@ ${recentContents || '(暂无)'}
             isEnemy: false,
             isCold: false,
             isNormal: true,
-            viewAToB: rel?.viewAToB || '',
-            viewBToA: rel?.viewBToA || ''
+            // 保留双向原始数据，供 prompt 使用
+            reactorView: '',  // reactor 对 poster 的视角
+            posterView: ''    // poster 对 reactor 的视角
         };
 
         if (!rel) return info;
 
-        const combined = (rel.viewAToB + rel.viewBToA + (rel.relation || '')).toLowerCase();
+        // 确定方向：reactor 在这条关系中是 nodeA 还是 nodeB
+        const isReactorA = rel.nodeA === reactorId;
 
-        if (/恋人|情侣|死心塌地|一生挚爱|男朋友|女朋友/.test(combined)) {
+        // 提取 reactor→poster 的单向视角（关系标签 + 态度）
+        const reactorRelation = isReactorA
+            ? (rel.aViewOfB || rel.a_to_b_public_relation || '')
+            : (rel.bViewOfA || rel.b_to_a_public_relation || '');
+        const reactorAttitude = isReactorA
+            ? (rel.aTowardB || rel.a_to_b_public_attitude || rel.a_to_b_private_attitude || '')
+            : (rel.bTowardA || rel.b_to_a_public_attitude || rel.b_to_a_private_attitude || '');
+
+        // 提取 poster→reactor 的视角（仅供上下文参考，不影响互动判定）
+        const posterRelation = isReactorA
+            ? (rel.bViewOfA || rel.b_to_a_public_relation || '')
+            : (rel.aViewOfB || rel.a_to_b_public_relation || '');
+        const posterAttitude = isReactorA
+            ? (rel.bTowardA || rel.b_to_a_public_attitude || rel.b_to_a_private_attitude || '')
+            : (rel.aTowardB || rel.a_to_b_public_attitude || rel.a_to_b_private_attitude || '');
+
+        info.reactorView = (reactorRelation + ' ' + reactorAttitude).trim();
+        info.posterView = (posterRelation + ' ' + posterAttitude).trim();
+
+        // 只用 reactor 自己的视角来判定互动意愿
+        const myView = (reactorRelation + reactorAttitude).toLowerCase();
+
+        if (/恋人|情侣|死心塌地|一生挚爱|男朋友|女朋友/.test(myView)) {
             info.isLover = true; info.summary = '恋人关系';
-        } else if (/暗恋|喜欢|好感|倾慕|单相思/.test(combined)) {
+        } else if (/暗恋|喜欢|好感|倾慕|单相思/.test(myView)) {
             info.isCrush = true; info.summary = '暗恋/好感';
-        } else if (/好友|闺蜜|兄弟|死党|挚友|知己|铁磁/.test(combined)) {
+        } else if (/好友|闺蜜|兄弟|死党|挚友|知己|铁磁/.test(myView)) {
             info.isClose = true; info.summary = '亲密好友';
-        } else if (/仇人|讨厌|死对头|不和|敌人|厌恶|眼中钉|宿敌/.test(combined)) {
+        } else if (/仇人|讨厌|死对头|不和|敌人|厌恶|眼中钉|宿敌/.test(myView)) {
             info.isEnemy = true; info.summary = '关系恶劣';
-        } else if (/冷淡|陌生|无感|路人/.test(combined)) {
+        } else if (/冷淡|陌生|无感|路人/.test(myView)) {
             info.isCold = true; info.summary = '冷淡关系';
         }
 
@@ -562,6 +676,7 @@ ${recentContents || '(暂无)'}
         if (posterId === 'USER_SELF') {
             const reactor = window.sysStore?.getCharacter(reactorId);
             affection = parseFloat(reactor?.status?.affection || 0);
+            if (isNaN(affection)) affection = 0;
         }
 
         // 基础概率设定 (Base Probabilities)
@@ -644,8 +759,9 @@ ${recentContents || '(暂无)'}
                     setTimeout(() => moments._generateReaction(contact.id, freshPost), delay);
                 }
             }
-            // 启动后续多轮评论循环
-            setTimeout(() => this._multiRoundCommentLoop(post.id, contacts.filter(c => c.id !== post.authorId), 0), 25000);
+            // 启动后续多轮评论循环（仅限能看见该帖子的角色参与盖楼）
+            const validReactors = contacts.filter(c => c.id !== post.authorId && this._isVisibleTo(freshPost, c.id));
+            setTimeout(() => this._multiRoundCommentLoop(post.id, validReactors, 0), 25000);
         }
     },
 
@@ -680,15 +796,16 @@ ${recentContents || '(暂无)'}
 
             if (round >= myMaxRounds) continue;
 
-            // 查找专门针对我的新消息（回复我的，或者@我的）
-            const lastMyComment = [...freshPost.comments].reverse().find(c => c.authorId === reactor.id);
-            const newsForMe = freshPost.comments.filter(c =>
+            // 查找专门针对我的新消息，且只能看到"我"的好友发出的评论
+            const visibleComments = freshPost.comments.filter(c => this._isFriend(reactor.id, c.authorId));
+            const lastMyComment = [...visibleComments].reverse().find(c => c.authorId === reactor.id);
+            const newsForMe = visibleComments.filter(c =>
                 (c.replyToAuthorId === reactor.id || c.content.includes(`@${reactor.name}`)) &&
                 (!lastMyComment || c.timestamp > lastMyComment.timestamp)
             );
 
-            // 重要限制：如果我已经是最后一个评论者，没有人回复我，我绝不会继续发评论（防止刷屏）
-            if (lastMyComment && freshPost.comments[freshPost.comments.length - 1].authorId === reactor.id) {
+            // 重要限制：如果我已经是可见评论里最后一个回复者，绝不继续刷屏
+            if (lastMyComment && visibleComments.length > 0 && visibleComments[visibleComments.length - 1].authorId === reactor.id) {
                 continue;
             }
 
@@ -699,8 +816,11 @@ ${recentContents || '(暂无)'}
             } else if (!lastMyComment) {
                 // 如果我还没说话，按概率决定是否“插嘴”
                 if (this._shouldReact(reactor.id, freshPost.authorId)) {
-                    // 随机找一条别人的评论来回复，或者直接评论主贴
-                    targetCmt = freshPost.comments[0];
+                    // 尝试找一条可见的评论去互动
+                    const otherVisibleCmts = visibleComments.filter(c => c.authorId !== reactor.id);
+                    if (otherVisibleCmts.length > 0) {
+                        targetCmt = otherVisibleCmts[Math.floor(Math.random() * otherVisibleCmts.length)];
+                    }
                 }
             }
 
@@ -830,10 +950,12 @@ ${exchanges.join('\n')}
         const rel = window.WeChat?.Services?.RelationshipGraph?.getRelationship(reactorId, post.authorId);
         const relInfo = this._getRelationInfo(reactorId, post.authorId, rel);
 
-        const existingComments = post.comments.map(c => {
-            const n = this.getAuthorName(c.authorId);
-            return n + ': ' + c.content;
-        });
+        const existingComments = post.comments
+            .filter(c => this._isFriend(reactorId, c.authorId))
+            .map(c => {
+                const n = this.getAuthorName(c.authorId);
+                return n + ': ' + c.content;
+            });
 
         const prompt = `# 朋友圈点赞/评论决策
 你现在是 "${reactor.name}"。
@@ -842,6 +964,7 @@ ${exchanges.join('\n')}
 背景:
 - 你的性格: ${reactor.main_persona || '正常'}
 - 你们的关系: ${relInfo.summary}
+- 你对TA的视角: ${relInfo.reactorView || '普通朋友'}
 ${existingComments.length > 0 ? '\n已有的评论:\n' + existingComments.join('\n') : ''}
 
 任务: 决定是否点赞或评论。
@@ -858,14 +981,21 @@ ${existingComments.length > 0 ? '\n已有的评论:\n' + existingComments.join('
             ], { temperature: 0.8 });
             if (!response) return;
 
-            const data = this._parseAIResponse(response);
-            if (!data) return;
+            let jsonStr = response;
+            const mdMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (mdMatch) jsonStr = mdMatch[1];
+            jsonStr = jsonStr.trim();
+            const js = jsonStr.indexOf('{');
+            const je = jsonStr.lastIndexOf('}');
+            if (js >= 0 && je > js) jsonStr = jsonStr.substring(js, je + 1);
+
+            const data = JSON.parse(jsonStr);
 
             if (data.like) this.toggleLike(post.id, reactorId);
-            if (data.comment) {
+            if (data.comment && typeof data.comment === 'string' && data.comment.trim() !== '') {
                 this.addComment(post.id, {
                     authorId: reactorId,
-                    content: data.comment,
+                    content: data.comment.trim(),
                 });
             }
             if (window.WeChat?.App?.render) window.WeChat.App.render();
@@ -899,16 +1029,19 @@ ${existingComments.length > 0 ? '\n已有的评论:\n' + existingComments.join('
         else if (relInfo.isClose) toneHint = '关系很好，可以开玩笑。';
         else if (relInfo.isLover) toneHint = '回复甜蜜亲昵。';
 
-        // 构建完整的评论上下文
-        const allComments = post.comments.map(c => {
-            let n = c.authorId === 'USER_SELF' ? (window.sysStore?.get('user_realname') || '我') : (window.sysStore?.getCharacter(c.authorId)?.name || c.authorId);
-            let rp = '';
-            if (c.replyToAuthorId) {
-                const rn = c.replyToAuthorId === 'USER_SELF' ? (window.sysStore?.get('user_realname') || '我') : (window.sysStore?.getCharacter(c.replyToAuthorId)?.name || c.replyToAuthorId);
-                rp = '回复 ' + rn + ': ';
-            }
-            return n + ': ' + rp + c.content;
-        }).join('\n');
+        // 构建完整的评论上下文（隔离非共同好友）
+        const allComments = post.comments
+            .filter(c => this._isFriend(reactorId, c.authorId))
+            .map(c => {
+                let n = c.authorId === 'USER_SELF' ? (window.sysStore?.get('user_realname') || '我') : (window.sysStore?.getCharacter(c.authorId)?.name || c.authorId);
+                let rp = '';
+                // 如果回复的人是自己的好友，才显示"回复xxx"的信息，否则在真实微信中也是丢失这部分上下文的
+                if (c.replyToAuthorId && this._isFriend(reactorId, c.replyToAuthorId)) {
+                    const rn = c.replyToAuthorId === 'USER_SELF' ? (window.sysStore?.get('user_realname') || '我') : (window.sysStore?.getCharacter(c.replyToAuthorId)?.name || c.replyToAuthorId);
+                    rp = '回复 ' + rn + ': ';
+                }
+                return n + ': ' + rp + c.content;
+            }).join('\n');
 
         // 检查用户是否有劝架行为
         const userMediated = post.comments.some(c => c.authorId === 'USER_SELF' && c.timestamp > (targetComment.timestamp || 0));
@@ -993,6 +1126,9 @@ ${allComments}
      * 判断帖子对某人是否可见
      */
     _isVisibleTo(post, viewerId) {
+        // 非好友不可见朋友圈
+        if (!this._isFriend(viewerId, post.authorId)) return false;
+
         const v = post.visibility || 'all';
         if (v === 'all' || v === '公开') return true;
         if (v === 'private' || v === '私密') return post.authorId === viewerId;
@@ -1000,6 +1136,17 @@ ${allComments}
             return (post.visibleTo || []).includes(viewerId) || post.authorId === viewerId;
         }
         return true;
+    },
+
+    /**
+     * 判断 viewerId 是否能在朋友圈看到 targetId 的互动（是否是好友）
+     * 用户默认是所有人的好友。
+     */
+    _isFriend(viewerId, targetId) {
+        if (viewerId === targetId) return true;
+        if (viewerId === 'USER_SELF' || targetId === 'USER_SELF') return true;
+        const rel = window.WeChat?.Services?.RelationshipGraph?.getRelationship(viewerId, targetId);
+        return !!rel;
     },
 
     /**

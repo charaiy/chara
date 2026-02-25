@@ -1,25 +1,22 @@
-/**
+﻿/**
  * js/apps/wechat/index.js
- * 微信仿真版入口 - 负责模块组装与生命周期管理
- * [Compatibility] No Imports - Uses Globals for file:// support
+ * 寰俊浠跨湡鐗堝叆鍙?- 璐熻矗妯″潡缁勮涓庣敓鍛藉懆鏈熺鐞? * [Compatibility] No Imports - Uses Globals for file:// support
  */
 
-const DEFAULT_SUMMARY_PROMPT = `禁止私自编造不存在的内容!
-如果遇到复杂的请如实直述，禁止去编造、改动!
-**【内容核心 (最高优先级)】**: 你的summary【必须】专注于以下几点，请直接输出(不需要回答我好的）：
+const DEFAULT_SUMMARY_PROMPT = `绂佹绉佽嚜缂栭€犱笉瀛樺湪鐨勫唴瀹?
+濡傛灉閬囧埌澶嶆潅鐨勮濡傚疄鐩磋堪锛岀姝㈠幓缂栭€犮€佹敼鍔?
+**銆愬唴瀹规牳蹇?(鏈€楂樹紭鍏堢骇)銆?*: 浣犵殑summary銆愬繀椤汇€戜笓娉ㄤ簬浠ヤ笅鍑犵偣锛岃鐩存帴杈撳嚭(涓嶉渶瑕佸洖绛旀垜濂界殑锛夛細
 
-总结规则：
-进行summary时，必须精准提取内容，不遗漏任何锚点的重要细节，完美判断角色和用户的关系发展，必须直白且如实总结时间节点和故事发展，每件事的叙述控制在最多50字左右，此外再包含重要日期+时间节点即可。
+鎬荤粨瑙勫垯锛?杩涜summary鏃讹紝蹇呴』绮惧噯鎻愬彇鍐呭锛屼笉閬楁紡浠讳綍閿氱偣鐨勯噸瑕佺粏鑺傦紝瀹岀編鍒ゆ柇瑙掕壊鍜岀敤鎴风殑鍏崇郴鍙戝睍锛屽繀椤荤洿鐧戒笖濡傚疄鎬荤粨鏃堕棿鑺傜偣鍜屾晠浜嬪彂灞曪紝姣忎欢浜嬬殑鍙欒堪鎺у埗鍦ㄦ渶澶?0瀛楀乏鍙筹紝姝ゅ鍐嶅寘鍚噸瑕佹棩鏈?鏃堕棿鑺傜偣鍗冲彲銆?
+闀挎湡璁板繂summary鏍煎紡涓猴細
+褰撳墠骞翠唤鏃ユ湡鏄熸湡鏃堕棿/鍏蜂綋鍦扮偣锛岃鑹茬殑绗笁浜虹О鎬荤粨锛堣浣跨敤瑙掕壊鍚嶆垨"浠?濂?鏉ョО鍛艰鑹诧紝浣跨敤"浣?鎴栫敤鎴峰鍚嶆潵绉板懠鐢ㄦ埛锛夛紝绂佹澶繃浜庝富瑙?
 
-长期记忆summary格式为：
-当前年份日期星期时间/具体地点，角色的第三人称总结（请使用角色名或"他/她"来称呼角色，使用"你"或用户姓名来称呼用户），禁止太过于主观!
+## 绀轰緥锛?绾夸笂(绾夸笅锛?2025骞?鏈?鏃?:30锛屾槦鏈熶笁锛?瑙掕壊鍚?鍜屼綘鑱婁簡鍏充簬鏃╅鐨勮瘽棰樸€?
 
-## 示例："线上(线下）/2025年4月2日8:30，星期三，(角色名)和你聊了关于早餐的话题。"
+## 绮剧偧璁板繂鏃剁姝㈠伔鎳掕緭鍑簍oken count锛屽繀椤昏繘琛屾纭殑绮剧偧
 
-## 精炼记忆时禁止偷懒输出token count，必须进行正确的精炼
-
-## 图片禁止总结为"发了一张图片/个人照片"，必须说明是什么图片，如果只是表情包则禁止总结在其中!!    
-## 语音通话特别说明：如果记录中出现 [语音通话] 标签的消息，说明这些对话是通话期间产生的，请将其统一总结为"我们进行了一次语音通话，聊了xx"，禁止将其总结为文字聊天后再进行通话!!`;
+## 鍥剧墖绂佹鎬荤粨涓?鍙戜簡涓€寮犲浘鐗?涓汉鐓х墖"锛屽繀椤昏鏄庢槸浠€涔堝浘鐗囷紝濡傛灉鍙槸琛ㄦ儏鍖呭垯绂佹鎬荤粨鍦ㄥ叾涓?!    
+## 璇煶閫氳瘽鐗瑰埆璇存槑锛氬鏋滆褰曚腑鍑虹幇 [璇煶閫氳瘽] 鏍囩鐨勬秷鎭紝璇存槑杩欎簺瀵硅瘽鏄€氳瘽鏈熼棿浜х敓鐨勶紝璇峰皢鍏剁粺涓€鎬荤粨涓?鎴戜滑杩涜浜嗕竴娆¤闊抽€氳瘽锛岃亰浜唜x"锛岀姝㈠皢鍏舵€荤粨涓烘枃瀛楄亰澶╁悗鍐嶈繘琛岄€氳瘽!!`;
 
 const State = {
     currentTab: 0,
@@ -41,8 +38,7 @@ const State = {
         autoPrompt: '', // Empty means use default
         manualPrompt: ''
     },
-    soulInjectionEnabled: true, // [USER_REQUEST] 注入心声开关，默认开启
-
+    soulInjectionEnabled: true, // [USER_REQUEST] 娉ㄥ叆蹇冨０寮€鍏筹紝榛樿寮€鍚?
     // Sticker Panel States
     stickerTab: 'heart', // 'link', 'emoji', 'heart'
     selectionMode: false,
@@ -75,13 +71,11 @@ const State = {
     // Custom Modals
     confirmationModal: { open: false, title: '', content: '', onConfirm: '', onCancel: '' },
     promptModal: { open: false, title: '', content: '', value: '', onConfirm: '', onCancel: '' },
-    subjectiveGraphId: null, // [v44] 新增：主观关系网视角 ID
+    subjectiveGraphId: null, // [v44] 鏂板锛氫富瑙傚叧绯荤綉瑙嗚 ID
 
-    // Moments States (朋友圈)
-    momentsCommentTarget: null, // { postId, replyTo, replyToAuthorId } 当前正在评论的帖子
-    momentsComposeImages: [], // 发布朋友圈时的图片列表
-    momentsVisibleTo: [], // 发布朋友圈时"谁可以看"选中的联系人ID列表
-    momentsProfileTarget: null, // 当前查看的个人朋友圈目标ID
+    // Moments States (鏈嬪弸鍦?
+    momentsCommentTarget: null, // { postId, replyTo, replyToAuthorId } 褰撳墠姝ｅ湪璇勮鐨勫笘瀛?    momentsComposeImages: [], // 鍙戝竷鏈嬪弸鍦堟椂鐨勫浘鐗囧垪琛?    momentsVisibleTo: [], // 鍙戝竷鏈嬪弸鍦堟椂"璋佸彲浠ョ湅"閫変腑鐨勮仈绯讳汉ID鍒楄〃
+    momentsProfileTarget: null, // 褰撳墠鏌ョ湅鐨勪釜浜烘湅鍙嬪湀鐩爣ID
 };
 
 window.WeChat = window.WeChat || {};
@@ -218,11 +212,11 @@ window.WeChat.App = {
             ? `<div onclick="window.WeChat.goBack()" style="position:absolute; left:0; top:var(--wx-status-bar-height); width:60px; height:44px; display:flex; align-items:center; padding-left:16px; box-sizing:border-box; z-index:10001; cursor: pointer;">
                  <svg width="12" height="20" viewBox="0 0 12 20"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M11 4L4 10l7 6"/></svg>
                </div>`
-            : (isSelectionMode ? `<div onclick="window.WeChat.App.exitMsgSelectionMode()" style="position:absolute; left:16px; top:var(--wx-status-bar-height); height:44px; display:flex; align-items:center; font-size:16px; color:var(--wx-text); cursor:pointer;">取消</div>` : '');
+            : (isSelectionMode ? `<div onclick="window.WeChat.App.exitMsgSelectionMode()" style="position:absolute; left:16px; top:var(--wx-status-bar-height); height:44px; display:flex; align-items:center; font-size:16px; color:var(--wx-text); cursor:pointer;">鍙栨秷</div>` : '');
 
         const exitBtn = (!showBack && !isSelectionMode)
             ? `<div onclick="window.WeChat.App.closeApp()" 
-                    title="返回桌面"
+                    title="杩斿洖妗岄潰"
                     style="position:absolute; left:0; top:0; width:120px; height:var(--wx-nav-height); z-index:999999; background: transparent; cursor: pointer;">
                </div>`
             : '';
@@ -230,21 +224,19 @@ window.WeChat.App = {
         let rightBtnContent = '';
         if (rightIcon === 'add') rightBtnContent = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
         else if (rightIcon === 'more') rightBtnContent = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
-        else if (rightIcon === 'done') rightBtnContent = `<span style="color:var(--wx-green); font-size:16px; font-weight:600;">完成</span>`;
-        else if (rightIcon === 'settings') rightBtnContent = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
-
-        else if (rightIcon === 'publish') rightBtnContent = `<span style="background:#07c160;color:#fff;font-size:14px;font-weight:600;padding:6px 14px;border-radius:6px;">发表</span>`;
+        else if (rightIcon === 'done') rightBtnContent = `<span style="color:var(--wx-green); font-size:16px; font-weight:600;">瀹屾垚</span>`;
+        else if (rightIcon === 'publish') rightBtnContent = `<span style="background:#07c160;color:#fff;font-size:14px;font-weight:600;padding:6px 14px;border-radius:6px;">鍙戣〃</span>`;
         else if (rightIcon === 'camera') rightBtnContent = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
         else if (rightIcon === 'random') {
             rightBtnContent = `
-                <div id="wx-nav-gen-btn" title="随机填充未锁定项" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
+                <div id="wx-nav-gen-btn" title="闅忔満濉厖鏈攣瀹氶」" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 15h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4H7v-2h2v2zm0-4H7v-2h2v2zm8-4h-2V6h2v2zm-4 0h-2V6h2v2zm-4 0H7V6h2v2z"/></svg>
                 </div>
             `;
         }
         else if (rightIcon === 'reset') {
             rightBtnContent = `
-                <div title="重置视图" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
+                <div title="閲嶇疆瑙嗗浘" style="display:flex; align-items:center; justify-content:center; color:var(--wx-text); opacity:0.8;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                         <path d="M3 3v5h5"/>
@@ -289,7 +281,7 @@ window.WeChat.App = {
             }
         }
 
-        const rightBtn = rightIcon ? `<div onclick="${(rightIcon === 'random' && rightAction) ? rightAction : (rightAction || rightOnClick)}" style="position:absolute; right:16px; top:var(--wx-status-bar-height); height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; min-width: 44px; padding-left:4px;">${rightBtnContent}</div>` : '';
+        const rightBtn = rightIcon ? `<div onclick="${(rightIcon === 'random' && rightAction) ? rightAction : (rightAction || rightOnClick)}" style="position:absolute; right:16px; top:var(--wx-status-bar-height); height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; width: 44px;">${rightBtnContent}</div>` : '';
 
         // Dropdown Menu HTML
         const menuHtml = `
@@ -299,29 +291,29 @@ window.WeChat.App = {
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                     </div>
-                    <span>发起群聊</span>
+                    <span>鍙戣捣缇よ亰</span>
                 </div>
                 <div class="wx-add-menu-item" onclick="window.WeChat.App.openAddFriendPage()">
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
                     </div>
-                    <span>添加朋友</span>
+                    <span>娣诲姞鏈嬪弸</span>
                 </div>
                 <div class="wx-add-menu-item" onclick="window.WeChat.App.closeAddFriendMenu()">
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="11" x2="21" y2="11"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
                     </div>
-                    <span>扫一扫</span>
+                    <span>鎵竴鎵?/span>
                 </div>
                 <div class="wx-add-menu-item" onclick="window.WeChat.App.closeAddFriendMenu()">
                     <div class="wx-add-menu-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
                     </div>
-                    <span>收付款</span>
+                    <span>鏀朵粯娆?/span>
                 </div>
             </div>
         `;
-        // 朋友圈页面导航栏使用白色文字（深色封面背景）
+        // 鏈嬪弸鍦堥〉闈㈠鑸爮浣跨敤鐧借壊鏂囧瓧锛堟繁鑹插皝闈㈣儗鏅級
         const navTextColor = isMomentsPage ? 'color: #fff !important;' : '';
 
         return `
@@ -330,7 +322,7 @@ window.WeChat.App = {
                 ${backBtn}
                 <div id="wx-nav-title" 
                      onclick="${State.currentTab === 'chat_session' ? 'window.WeChat.App.openCharacterPanel()' : ''}"
-                     style="font-size:17px; font-weight:500; text-shadow: 0 0 0.15px currentColor; cursor: ${State.currentTab === 'chat_session' ? 'pointer' : 'default'};">${isSelectionMode ? `已选择 ${State.selectedMsgIds.size} 条消息` : ((State.isTyping && State.currentTab === 'chat_session') ? '对方正在输入...' : title)}</div>
+                     style="font-size:17px; font-weight:500; text-shadow: 0 0 0.15px currentColor; cursor: ${State.currentTab === 'chat_session' ? 'pointer' : 'default'};">${isSelectionMode ? `宸查€夋嫨 ${State.selectedMsgIds.size} 鏉℃秷鎭痐 : ((State.isTyping && State.currentTab === 'chat_session') ? '瀵规柟姝ｅ湪杈撳叆...' : title)}</div>
                 ${isSelectionMode ? `<div style="position:absolute; right:16px; top:var(--wx-status-bar-height); height:44px; display:flex; align-items:center; cursor:pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>` : rightBtn}
                 ${isSelectionMode ? '' : menuHtml}
             </div>
@@ -353,7 +345,7 @@ window.WeChat.App = {
                 console.warn('WeChat Views or Components not ready, skipping render');
                 return;
             }
-            let contentHtml = '', navTitle = '微信', rightIcon = 'add', showBack = false, rightAction = '';
+            let contentHtml = '', navTitle = '寰俊', rightIcon = 'add', showBack = false, rightAction = '';
 
             if (State.currentTab === 'chat_session') {
                 // [Fix] Ensure Service is synced with App State
@@ -368,18 +360,18 @@ window.WeChat.App = {
                     window.WeChat.Services.Notifications.clearUnread(State.activeSessionId, true);
                 }
 
-                navTitle = State.chatTitle || '聊天';
+                navTitle = State.chatTitle || '鑱婂ぉ';
                 contentHtml = Views.renderChatSession(State.activeSessionId, State.shouldScrollToBottom);
                 rightIcon = 'more';
                 showBack = true;
                 rightAction = 'window.WeChat.App.openChatInfo()';
             } else if (State.currentTab === 'chat_info') {
-                navTitle = '聊天信息';
+                navTitle = '鑱婂ぉ淇℃伅';
                 contentHtml = Views.renderChatInfo(State.activeSessionId, State.chatTitle);
                 rightIcon = null;
                 showBack = true;
             } else if (State.currentTab === 'memory_management') {
-                navTitle = '长期记忆';
+                navTitle = '闀挎湡璁板繂';
                 contentHtml = Views.renderMemoryManagement(State.activeSessionId);
                 rightIcon = 'memory_actions';
                 showBack = true;
@@ -393,47 +385,47 @@ window.WeChat.App = {
                 rightAction = 'window.WeChat.App.openFriendSettings()';
                 showBack = true;
             } else if (State.currentTab === 'friend_settings') {
-                navTitle = '朋友设置';
+                navTitle = '鏈嬪弸璁剧疆';
                 contentHtml = Views.renderFriendSettings(State.activeUserId);
                 rightIcon = null;
                 showBack = true;
             } else if (State.currentTab === 'persona_settings') {
-                navTitle = '朋友资料'; // Title matches the cell name "朋友资料"
+                navTitle = '鏈嬪弸璧勬枡'; // Title matches the cell name "鏈嬪弸璧勬枡"
                 contentHtml = Views.renderPersonaSettings(State.activeUserId);
                 rightIcon = 'random';
                 rightAction = "window.WeChat.App.randomizeAllUnlocked('persona')";
                 showBack = true;
             } else if (State.currentTab === 'add_friend') {
-                navTitle = '朋友资料';
+                navTitle = '鏈嬪弸璧勬枡';
                 contentHtml = Views.renderAddFriend();
                 rightIcon = 'random';
                 rightAction = "window.WeChat.App.randomizeAllUnlocked('add')";
                 showBack = true;
             } else if (State.currentTab === 'my_profile_settings') {
-                navTitle = '我的资料';
+                navTitle = '鎴戠殑璧勬枡';
                 contentHtml = Views.renderMyProfileSettings();
                 rightIcon = 'random';
                 rightAction = "window.WeChat.App.randomizeAllUnlocked('my')";
                 showBack = true;
             } else if (State.currentTab === 'world_book_selection') {
-                navTitle = '选择世界书';
+                navTitle = '閫夋嫨涓栫晫涔?;
                 contentHtml = Views.renderWorldBookSelection(State.activeSessionId);
                 rightIcon = 'done';
                 showBack = true;
                 rightAction = 'window.WeChat.App.saveWorldBookSelection()';
             } else if (State.currentTab === 'voice_video_settings') {
-                navTitle = '语音与视频';
+                navTitle = '璇煶涓庤棰?;
                 contentHtml = Views.renderVoiceVideoSettings(State.activeSessionId);
                 rightIcon = null;
                 showBack = true;
             } else if (State.currentTab === 'relationship_graph') {
-                navTitle = '关系网';
-                contentHtml = (window.WeChat.Views && window.WeChat.Views.renderRelationshipGraph) ? window.WeChat.Views.renderRelationshipGraph() : '<div style="padding:20px;text-align:center;color:#999;">正在初始化关系网组件...</div>';
+                navTitle = '鍏崇郴缃?;
+                contentHtml = (window.WeChat.Views && window.WeChat.Views.renderRelationshipGraph) ? window.WeChat.Views.renderRelationshipGraph() : '<div style="padding:20px;text-align:center;color:#999;">姝ｅ湪鍒濆鍖栧叧绯荤綉缁勪欢...</div>';
                 rightIcon = 'reset';
                 rightAction = 'window.WeChat.UI.RelationshipGraphGod.resetView()';
                 showBack = true;
             } else if (State.currentTab === 'moments') {
-                navTitle = '朋友圈';
+                navTitle = '鏈嬪弸鍦?;
                 contentHtml = Views.renderMoments();
                 rightIcon = 'camera';
                 rightAction = 'window.WeChat.App.openMomentsCompose()';
@@ -441,29 +433,24 @@ window.WeChat.App = {
             } else if (State.currentTab === 'moments_profile') {
                 navTitle = '';
                 contentHtml = Views.renderMomentsProfile(State.momentsProfileTarget || 'USER_SELF');
-                if (State.momentsProfileTarget && State.momentsProfileTarget !== 'USER_SELF') {
-                    rightIcon = 'settings';
-                    rightAction = `window.WeChat.App.openMomentsSettings('${State.momentsProfileTarget}')`;
-                } else {
-                    rightIcon = null;
-                }
+                rightIcon = null;
                 showBack = true;
             } else if (State.currentTab === 'moments_settings') {
-                navTitle = '朋友圈设置';
+                navTitle = '鏈嬪弸鍦堣缃?;
                 contentHtml = Views.renderMomentsSettings(State.momentsProfileTarget);
                 rightIcon = null;
                 showBack = true;
             } else if (State.currentTab === 'moments_compose') {
-                navTitle = '发表文字';
+                navTitle = '鍙戣〃鏂囧瓧';
                 contentHtml = Views.renderMomentsCompose();
                 rightIcon = 'publish';
                 rightAction = 'window.WeChat.App.publishMoment()';
                 showBack = true;
             } else {
                 switch (State.currentTab) {
-                    case 0: navTitle = '微信'; contentHtml = Views.renderChatList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.toggleAddFriendMenu()'; break;
-                    case 1: navTitle = '通讯录'; contentHtml = Views.renderContactList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.openAddFriendPage()'; break;
-                    case 2: navTitle = '发现'; contentHtml = Views.renderDiscover(); rightIcon = null; break;
+                    case 0: navTitle = '寰俊'; contentHtml = Views.renderChatList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.toggleAddFriendMenu()'; break;
+                    case 1: navTitle = '閫氳褰?; contentHtml = Views.renderContactList(); rightIcon = 'add'; rightAction = 'window.WeChat.App.openAddFriendPage()'; break;
+                    case 2: navTitle = '鍙戠幇'; contentHtml = Views.renderDiscover(); rightIcon = null; break;
                     case 3: navTitle = ''; contentHtml = Views.renderMe(); rightIcon = null; break;
                 }
             }
@@ -479,11 +466,6 @@ window.WeChat.App = {
             // [Fix] Preserve Relationship Panel Scroll
             const relPanelScrollEl = document.querySelector('.wx-char-panel-scrollable');
             const relPanelScrollTop = relPanelScrollEl ? relPanelScrollEl.scrollTop : null;
-
-            // [Fix] Preserve Moments Scroll
-            const momentsEl = document.getElementById('wx-view-moments');
-            const momentsProfileEl = document.getElementById('wx-view-moments-profile');
-            const momentsScrollTop = momentsEl ? momentsEl.scrollTop : (momentsProfileEl ? momentsProfileEl.scrollTop : null);
 
             State.root.innerHTML = `
                     <div class="wechat-app ${selectionModeClass}">
@@ -503,14 +485,6 @@ window.WeChat.App = {
                 if (newRelPanel) {
                     newRelPanel.scrollTop = relPanelScrollTop;
                 }
-            }
-
-            // [Restore Moments Scroll]
-            if (momentsScrollTop !== null) {
-                const newMomentsEl = document.getElementById('wx-view-moments');
-                const newMomentsProfileEl = document.getElementById('wx-view-moments-profile');
-                if (newMomentsEl) newMomentsEl.scrollTop = momentsScrollTop;
-                if (newMomentsProfileEl) newMomentsProfileEl.scrollTop = momentsScrollTop;
             }
 
             // 2. Chat Session Scroll
@@ -599,13 +573,12 @@ window.WeChat.App = {
     },
 
     async randomizeAllUnlocked(type, targetFieldId = null) {
-        // 桥接调用：转发给 Generators 服务
+        // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Generators 鏈嶅姟
         return window.WeChat.Services.Generators.randomizeAllUnlocked(type, targetFieldId);
     },
 
-    // [DEPRECATED] 已移动到 services/generators.js，保留此方法仅用于向后兼容
-    _collectPersonaData(prefix, userId = null) {
-        // 桥接调用：转发给 Generators 服务
+    // [DEPRECATED] 宸茬Щ鍔ㄥ埌 services/generators.js锛屼繚鐣欐鏂规硶浠呯敤浜庡悜鍚庡吋瀹?    _collectPersonaData(prefix, userId = null) {
+        // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Generators 鏈嶅姟
         return window.WeChat.Services.Generators._collectPersonaData(prefix, userId);
     },
 
@@ -619,7 +592,7 @@ window.WeChat.App = {
         return window.WeChat.Services.Relationships.openAssociatedGen(sourceUserId);
     },
     async generateAssociatedInBackground(targetId, sourceChar, relation) {
-        // 桥接调用：转发给 Generators 服务
+        // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Generators 鏈嶅姟
         return window.WeChat.Services.Generators.generateAssociatedInBackground(targetId, sourceChar, relation);
     },
 
@@ -691,7 +664,7 @@ window.WeChat.App = {
     saveNewFriend(data) {
         const { realName, remark, nickname, persona, gender, species, wxid } = data;
         if (!realName && !remark && !nickname) {
-            if (window.os) window.os.showToast('请至少输入一个名称', 'error');
+            if (window.os) window.os.showToast('璇疯嚦灏戣緭鍏ヤ竴涓悕绉?, 'error');
             return;
         }
 
@@ -726,7 +699,7 @@ window.WeChat.App = {
             window.WeChat.Services.Contacts.addContact(contact);
         }
 
-        if (window.os) window.os.showToast('保存成功');
+        if (window.os) window.os.showToast('淇濆瓨鎴愬姛');
         State.newFriendAvatar = null;
         this.goBack();
     },
@@ -788,7 +761,7 @@ window.WeChat.App = {
 
     // --- State Management ---
 
-    // 桥接调用：转发给 Media 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Media 鏈嶅姟
     handleTransferClick(msgId) {
         return window.WeChat.Services.Media.handleTransferClick(msgId);
     },
@@ -829,7 +802,7 @@ window.WeChat.App = {
             const msg = msgs.find(m => m.id === msgId);
             if (msg && msg.content && navigator.clipboard) {
                 navigator.clipboard.writeText(msg.content);
-                if (window.os) window.os.showToast('已复制');
+                if (window.os) window.os.showToast('宸插鍒?);
             }
         } else if (action === 'recall') {
             if (window.WeChat.Services && window.WeChat.Services.Chat) {
@@ -838,7 +811,7 @@ window.WeChat.App = {
         } else if (action === 'select') {
             this.enterMsgSelectionMode(msgId);
         } else {
-            if (window.os) window.os.showToast('功能暂未开放');
+            if (window.os) window.os.showToast('鍔熻兘鏆傛湭寮€鏀?);
         }
     },
 
@@ -960,8 +933,8 @@ window.WeChat.App = {
             if (titleEl) {
                 // If in chat session, always update. If elsewhere, check tab.
                 const isChat = State.currentTab === 'chat_session';
-                if (isChat || titleEl.textContent.includes('输入') || titleEl.textContent === State.chatTitle) {
-                    titleEl.textContent = isTyping ? '对方正在输入...' : (State.chatTitle || '微信');
+                if (isChat || titleEl.textContent.includes('杈撳叆') || titleEl.textContent === State.chatTitle) {
+                    titleEl.textContent = isTyping ? '瀵规柟姝ｅ湪杈撳叆...' : (State.chatTitle || '寰俊');
                 }
             }
 
@@ -996,12 +969,12 @@ window.WeChat.App = {
                 const label = vcallGroup.querySelector('.wx-call-btn-label');
                 if (isTyping) {
                     if (btn) btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" class="wx-spin" style="animation: wx-spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="white" stroke-opacity="0.2"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke="white"></path></svg>`;
-                    if (label) label.textContent = '回复中';
+                    if (label) label.textContent = '鍥炲涓?;
                     vcallGroup.style.opacity = '0.8';
                     vcallGroup.style.pointerEvents = 'none';
                 } else {
                     if (btn) btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
-                    if (label) label.textContent = '回复';
+                    if (label) label.textContent = '鍥炲';
                     vcallGroup.style.opacity = '1';
                     vcallGroup.style.pointerEvents = 'auto';
                 }
@@ -1015,13 +988,12 @@ window.WeChat.App = {
         if (window.sysStore && window.sysStore.set) window.sysStore.set('wx_lastSession', id); // Persist State
 
         const char = window.sysStore.getCharacter(id);
-        const map = { 'file_helper': '文件传输助手', 'chara_assistant': 'Chara 小助手', 'pay': '微信支付' };
+        const map = { 'file_helper': '鏂囦欢浼犺緭鍔╂墜', 'chara_assistant': 'Chara 灏忓姪鎵?, 'pay': '寰俊鏀粯' };
         State.chatTitle = char?.name || map[id] || id;
         State.prevTab = State.currentTab;
         State.currentTab = 'chat_session';
 
-        // 清除未读数（通知系统集成）
-        if (window.WeChat.Services && window.WeChat.Services.Notifications) {
+        // 娓呴櫎鏈鏁帮紙閫氱煡绯荤粺闆嗘垚锛?        if (window.WeChat.Services && window.WeChat.Services.Notifications) {
             window.WeChat.Services.Notifications.clearUnread(id);
         }
 
@@ -1034,7 +1006,7 @@ window.WeChat.App = {
         this.render();
     },
 
-    // 桥接调用：转发给 Memories 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Memories 鏈嶅姟
     openMemoryManagement(sessionId) {
         return window.WeChat.Services.Memories.openMemoryManagement(sessionId);
     },
@@ -1154,7 +1126,7 @@ window.WeChat.App = {
 
     // --- Photo & Camera Features ---
 
-    // 桥接调用：转发给 Media 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Media 鏈嶅姟
     triggerPhotoUpload() {
         return window.WeChat.Services.Media.triggerPhotoUpload();
     },
@@ -1162,7 +1134,7 @@ window.WeChat.App = {
         return window.WeChat.Services.Media.handlePhotoFileSelect(input);
     },
 
-    // 桥接调用：转发给 Media 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Media 鏈嶅姟
     triggerCamera() {
         return window.WeChat.Services.Media.triggerCamera();
     },
@@ -1170,7 +1142,7 @@ window.WeChat.App = {
         return window.WeChat.Services.Media.initCamera();
     },
 
-    // 桥接调用：转发给 Media 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Media 鏈嶅姟
     _handleCameraError(errorName) {
         return window.WeChat.Services.Media._handleCameraError(errorName);
     },
@@ -1199,8 +1171,8 @@ window.WeChat.App = {
     triggerVoiceInput() {
         this.toggleExtraPanel();
         this.openPromptModal({
-            title: '发送语音',
-            placeholder: '请输入你想要的内容：',
+            title: '鍙戦€佽闊?,
+            placeholder: '璇疯緭鍏ヤ綘鎯宠鐨勫唴瀹癸細',
             onConfirm: (val) => {
                 if (val && val.trim()) {
                     window.WeChat.Services.Chat.sendMessage(val, 'voice');
@@ -1216,7 +1188,7 @@ window.WeChat.App = {
         this.render();
     },
 
-    // 桥接调用：转发给 Media 服务
+    // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Media 鏈嶅姟
     closeTransferModal() {
         return window.WeChat.Services.Media.closeTransferModal();
     },
@@ -1224,9 +1196,9 @@ window.WeChat.App = {
         return window.WeChat.Services.Media.sendTransfer();
     },
 
-    // --- Voice & Video落地相关 ---
+    // --- Voice & Video钀藉湴鐩稿叧 ---
     playVoice(msgId) {
-        if (window.os) window.os.showToast('正在播放语音...');
+        if (window.os) window.os.showToast('姝ｅ湪鎾斁璇煶...');
         // Mock visual feedback: Find the bubble and add a playing class
         const el = document.querySelector(`[data - msg - id= "${msgId}"]`);
         if (el) {
@@ -1248,10 +1220,10 @@ window.WeChat.App = {
     },
 
     acceptVideoCall() {
-        if (window.os) window.os.showToast('连接中...');
+        if (window.os) window.os.showToast('杩炴帴涓?..');
         setTimeout(() => {
             const btn = document.getElementById('wx-vc-accept');
-            if (btn) btn.innerText = '已连接';
+            if (btn) btn.innerText = '宸茶繛鎺?;
         }, 1500);
     },
 
@@ -1286,7 +1258,7 @@ window.WeChat.App = {
     },
 
     renderModals() {
-        // 桥接调用：转发给 Modals UI 服务
+        // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Modals UI 鏈嶅姟
         return window.WeChat.UI && window.WeChat.UI.Modals ? window.WeChat.UI.Modals.render(State) : '';
     },
 
@@ -1336,22 +1308,21 @@ window.WeChat.App = {
     },
 
     /**
-     * v44: 改写打开逻辑
-     * 如果有 observerId，则作为浮层弹出（不切Tab）
-     * 如果没有，则切换到关系网 Tab（上帝模式）
+     * v44: 鏀瑰啓鎵撳紑閫昏緫
+     * 濡傛灉鏈?observerId锛屽垯浣滀负娴眰寮瑰嚭锛堜笉鍒嘥ab锛?     * 濡傛灉娌℃湁锛屽垯鍒囨崲鍒板叧绯荤綉 Tab锛堜笂甯濇ā寮忥級
      */
     openRelationshipGraph(observerId) {
         console.log('[WeChat] openRelationshipGraph called:', observerId);
         if (observerId) {
-            // v54: 视角模式 - 使用独立组件
+            // v54: 瑙嗚妯″紡 - 浣跨敤鐙珛缁勪欢
             if (window.WeChat.UI && window.WeChat.UI.RelationshipGraphSubjective) {
                 window.WeChat.UI.RelationshipGraphSubjective.open(observerId);
             }
         } else {
-            // v54: 上帝模式 - 使用独立组件
+            // v54: 涓婂笣妯″紡 - 浣跨敤鐙珛缁勪欢
             State.prevTab = State.currentTab;
             State.currentTab = 'relationship_graph';
-            this.render(); // 渲染基础页面结构
+            this.render(); // 娓叉煋鍩虹椤甸潰缁撴瀯
 
             if (window.WeChat.UI && window.WeChat.UI.RelationshipGraphGod) {
                 window.WeChat.UI.RelationshipGraphGod.init();
@@ -1448,7 +1419,6 @@ window.WeChat.App = {
     },
     clearRelationshipSettings() {
         if (!State.pendingRelationship) return;
-        const sessionId = State.activeSessionId;
 
         // Reset to defaults
         State.pendingRelationship = {
@@ -1456,8 +1426,6 @@ window.WeChat.App = {
             difficulty: 'normal',
             ladder_persona: [],
             public_relation: '',
-            char_to_user_public_relation: '',
-            user_to_char_public_relation: '',
             char_to_user_public_attitude: '',
             char_to_user_private_attitude: '',
             user_knows_char_private: false,
@@ -1467,29 +1435,7 @@ window.WeChat.App = {
             backstory: ''
         };
 
-        // 同步删除关系网数据
-        if (sessionId && window.WeChat?.Services?.RelationshipGraph) {
-            window.WeChat.Services.RelationshipGraph.deleteRelationship(sessionId, 'USER_SELF');
-            console.log('[App] 已从关系网删除:', sessionId);
-        }
-
-        // 同步清除该角色相关的所有 rumor（认知修正）
-        if (sessionId) {
-            const rumors = window.sysStore?.get('rg_rumors_v1') || {};
-            const keysToDelete = Object.keys(rumors).filter(key => {
-                const parts = key.split('|');
-                if (parts.length !== 2) return false;
-                const pairId = parts[1];
-                return pairId.includes(sessionId);
-            });
-            keysToDelete.forEach(k => delete rumors[k]);
-            if (keysToDelete.length > 0) {
-                window.sysStore.set('rg_rumors_v1', rumors);
-                console.log('[App] 已清除相关 rumor:', keysToDelete.length, '条');
-            }
-        }
-
-        if (window.os) window.os.showToast('设定已清空，请保存生效');
+        if (window.os) window.os.showToast('璁惧畾宸叉竻绌猴紝璇蜂繚瀛樼敓鏁?);
         this.render();
     },
 
@@ -1505,8 +1451,8 @@ window.WeChat.App = {
 
     clearChatHistory(sessionId) {
         this.openConfirmationModal({
-            title: '清空聊天记录',
-            content: '确定要清空与该角色的所有聊天记录吗？此操作无法撤销。',
+            title: '娓呯┖鑱婂ぉ璁板綍',
+            content: '纭畾瑕佹竻绌轰笌璇ヨ鑹茬殑鎵€鏈夎亰澶╄褰曞悧锛熸鎿嶄綔鏃犳硶鎾ら攢銆?,
             onConfirm: `window.WeChat.App.performClearChatHistory('${sessionId}')`
         });
     },
@@ -1522,8 +1468,8 @@ window.WeChat.App = {
             if (!isKeep) {
                 // [Exhaustive Reset] User demands EVERYTHING in relationship management to be cleared
                 const defaultStatus = {
-                    outfit: "日常便装",
-                    behavior: "等待回复",
+                    outfit: "鏃ュ父渚胯",
+                    behavior: "绛夊緟鍥炲",
                     inner_voice: "...",
                     affection: 0.0,
                     relationship_difficulty: 'normal',
@@ -1552,26 +1498,9 @@ window.WeChat.App = {
                     State.pendingRelationship = null;
                 }
 
-                // 同步删除关系网、rumor 和朋友圈数据
-                if (window.WeChat?.Services?.RelationshipGraph) {
-                    window.WeChat.Services.RelationshipGraph.deleteRelationship(sessionId, 'USER_SELF');
-                }
-                // 清除该角色相关的所有 rumor
-                const rumors = window.sysStore?.get('rg_rumors_v1') || {};
-                Object.keys(rumors).filter(key => key.split('|')[1]?.includes(sessionId))
-                    .forEach(k => delete rumors[k]);
-                window.sysStore.set('rg_rumors_v1', rumors);
-
-                // 清除该角色的所有朋友圈内容
-                if (window.WeChat?.Services?.Moments) {
-                    const allPosts = window.WeChat.Services.Moments.getPosts({ authorId: sessionId, limit: 999 });
-                    allPosts.forEach(p => window.WeChat.Services.Moments.deletePost(p.id));
-                    console.log('[App] 已清除朋友圈:', allPosts.length, '条');
-                }
-
-                if (window.os) window.os.showToast('聊天记录与所有关系设定已清除');
+                if (window.os) window.os.showToast('鑱婂ぉ璁板綍涓庢墍鏈夊叧绯昏瀹氬凡娓呴櫎');
             } else {
-                if (window.os) window.os.showToast('聊天记录已清空');
+                if (window.os) window.os.showToast('鑱婂ぉ璁板綍宸叉竻绌?);
             }
 
             // Sync with Chat Service if needed (to reset prompt cache etc)
@@ -1611,7 +1540,7 @@ window.WeChat.App = {
         if (!State.pendingRelationship) return;
         State.pendingRelationship.ladder_persona.push({
             affection_threshold: 10,
-            content: '新的人设阶梯...'
+            content: '鏂扮殑浜鸿闃舵...'
         });
         this.render();
     },
@@ -1626,13 +1555,12 @@ window.WeChat.App = {
         if (!silent) this.render();
     },
     async generateFullRelationshipData() {
-        // 桥接调用：转发给 Generators 服务
+        // 妗ユ帴璋冪敤锛氳浆鍙戠粰 Generators 鏈嶅姟
         return window.WeChat.Services.Generators.generateFullRelationshipData();
     },
 
     /**
-     * [Enhanced] 保存关系变更，支持跨页面异步保存（显式传入 ID 和 Data）
-     */
+     * [Enhanced] 淇濆瓨鍏崇郴鍙樻洿锛屾敮鎸佽法椤甸潰寮傛淇濆瓨锛堟樉寮忎紶鍏?ID 鍜?Data锛?     */
     async saveRelationshipChanges(silent = false, sessionIdOverride = null, relOverride = null) {
         const sessionId = sessionIdOverride || State.activeSessionId;
         const rel = relOverride || State.pendingRelationship;
@@ -1657,9 +1585,7 @@ window.WeChat.App = {
             ...(char?.settings || {}),
             relationship: {
                 ...(char?.settings?.relationship || {}),
-                public_relation: rel.char_to_user_public_relation, // [Fix] Legacy Alignment
-                char_to_user_public_relation: rel.char_to_user_public_relation, // 用户身份
-                user_to_char_public_relation: rel.user_to_char_public_relation, // 角色身份
+                public_relation: rel.char_to_user_public_relation, // [Fix] Alignment
 
                 // Save the Dual Layers with Correct Keys
                 char_to_user_public_attitude: rel.char_to_user_public_attitude,
@@ -1736,7 +1662,7 @@ window.WeChat.App = {
             this.render();
         }
 
-        if (window.os) window.os.showToast('关系设定已保存');
+        if (window.os) window.os.showToast('鍏崇郴璁惧畾宸蹭繚瀛?);
     },
     closeRelationshipPanel() {
         State.pendingRelationship = null;
@@ -1847,8 +1773,8 @@ window.WeChat.App = {
             updates.status = history[0].status;
         } else {
             updates.status = {
-                outfit: "日常便装",
-                behavior: "等待回复",
+                outfit: "鏃ュ父渚胯",
+                behavior: "绛夊緟鍥炲",
                 inner_voice: "..."
             };
         }
@@ -1860,8 +1786,8 @@ window.WeChat.App = {
 
     deleteStatusHistoryRecord(sessionId, timestamp) {
         this.openConfirmationModal({
-            title: '删除状态',
-            content: '确定要删除这条历史状态吗？删除后将无法恢复。',
+            title: '鍒犻櫎鐘舵€?,
+            content: '纭畾瑕佸垹闄よ繖鏉″巻鍙茬姸鎬佸悧锛熷垹闄ゅ悗灏嗘棤娉曟仮澶嶃€?,
             onConfirm: `window.WeChat.App.performDeleteStatusHistoryRecord('${sessionId}', ${timestamp})`
         });
     },
@@ -1973,7 +1899,7 @@ window.WeChat.App = {
         };
 
         window.sysStore.updateCharacter(sessionId, updatedChar);
-        if (window.os) window.os.showToast('语音与视频设置已保存', 'success');
+        if (window.os) window.os.showToast('璇煶涓庤棰戣缃凡淇濆瓨', 'success');
 
         this.goBack();
     },
@@ -2053,8 +1979,7 @@ window.WeChat.App = {
             } else if (current === 'add_friend' || current === 'my_profile_settings') {
                 State.currentTab = (typeof prev === 'number') ? prev : 0;
             } else if (current === 'moments') {
-                State.currentTab = 2; // 返回发现页
-            } else if (current === 'moments_profile') {
+                State.currentTab = 2; // 杩斿洖鍙戠幇椤?            } else if (current === 'moments_profile') {
                 State.currentTab = State.prevTab === 'moments' ? 'moments' : 2;
             } else if (current === 'moments_settings') {
                 State.currentTab = 'moments_profile';
@@ -2129,28 +2054,26 @@ window.WeChat.App = {
                 }
             } catch (e) { console.error("Persistence failed", e); }
 
-            // 3. Add User-side Message (显示在用户侧)
+            // 3. Add User-side Message (鏄剧ず鍦ㄧ敤鎴蜂晶)
             let amount = '0.00';
             try { amount = JSON.parse(msg.content).amount; } catch (e) { }
 
-            const charId = msg.sender_id; // 转账发送者的ID（角色ID）
-
-            // 使用 persistAndShow 添加用户侧的消息气泡
+            const charId = msg.sender_id; // 杞处鍙戦€佽€呯殑ID锛堣鑹睮D锛?
+            // 浣跨敤 persistAndShow 娣诲姞鐢ㄦ埛渚х殑娑堟伅姘旀场
             if (window.WeChat.Services && window.WeChat.Services.Chat && window.WeChat.Services.Chat.persistAndShow) {
                 window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({
                     status: 'received',
-                    text: `已收款 ¥${amount}`,
+                    text: `宸叉敹娆?楼${amount}`,
                     amount: amount
                 }), 'transfer_status', {
-                    sender_id: 'user',  // 用户侧显示
-                    receiver_id: charId
+                    sender_id: 'user',  // 鐢ㄦ埛渚ф樉绀?                    receiver_id: charId
                 });
             } else {
-                // Fallback: 直接添加消息
+                // Fallback: 鐩存帴娣诲姞娑堟伅
                 const userMsg = {
                     sender_id: 'user',
                     receiver_id: charId,
-                    content: JSON.stringify({ status: 'received', text: `已收款 ¥${amount}`, amount: amount }),
+                    content: JSON.stringify({ status: 'received', text: `宸叉敹娆?楼${amount}`, amount: amount }),
                     type: 'transfer_status'
                 };
                 window.sysStore.addMessage(userMsg);
@@ -2163,7 +2086,7 @@ window.WeChat.App = {
         // Force full re-render
         this.render();
 
-        if (window.os) window.os.showToast('收款成功');
+        if (window.os) window.os.showToast('鏀舵鎴愬姛');
     },
 
     rejectTransfer() {
@@ -2210,35 +2133,34 @@ window.WeChat.App = {
                 }
             } catch (e) { console.error("Persistence failed", e); }
 
-            // 3. Add User-side Message (显示在用户侧)
+            // 3. Add User-side Message (鏄剧ず鍦ㄧ敤鎴蜂晶)
             let amount = '0.00';
             try { amount = JSON.parse(msg.content).amount; } catch (e) { }
 
             const charId = msg.sender_id;
             const char = window.sysStore.getCharacter(charId);
-            const charName = char ? (char.name || charId) : '对方';
+            const charName = char ? (char.name || charId) : '瀵规柟';
 
             // Send system message to notify the character (hidden, for AI context)
             if (window.WeChat.Services && window.WeChat.Services.Chat) {
-                window.WeChat.Services.Chat.persistAndShow(charId, `你拒绝了 ${charName} 的转账`, 'system', { hidden: true });
+                window.WeChat.Services.Chat.persistAndShow(charId, `浣犳嫆缁濅簡 ${charName} 鐨勮浆璐, 'system', { hidden: true });
             }
 
-            // Add user-side transfer_status message (显示在用户侧)
+            // Add user-side transfer_status message (鏄剧ず鍦ㄧ敤鎴蜂晶)
             if (window.WeChat.Services && window.WeChat.Services.Chat && window.WeChat.Services.Chat.persistAndShow) {
                 window.WeChat.Services.Chat.persistAndShow(charId, JSON.stringify({
                     status: 'refunded',
-                    text: `已拒绝 ¥${amount}`,
+                    text: `宸叉嫆缁?楼${amount}`,
                     amount: amount
                 }), 'transfer_status', {
-                    sender_id: 'user',  // 用户侧显示
-                    receiver_id: charId
+                    sender_id: 'user',  // 鐢ㄦ埛渚ф樉绀?                    receiver_id: charId
                 });
             } else {
-                // Fallback: 直接添加消息
+                // Fallback: 鐩存帴娣诲姞娑堟伅
                 const userMsg = {
                     sender_id: 'user',
                     receiver_id: charId,
-                    content: JSON.stringify({ status: 'refunded', text: `已拒绝 ¥${amount}`, amount: amount }),
+                    content: JSON.stringify({ status: 'refunded', text: `宸叉嫆缁?楼${amount}`, amount: amount }),
                     type: 'transfer_status'
                 };
                 window.sysStore.addMessage(userMsg);
@@ -2251,7 +2173,7 @@ window.WeChat.App = {
         // Force full re-render
         this.render();
 
-        if (window.os) window.os.showToast('已拒绝');
+        if (window.os) window.os.showToast('宸叉嫆缁?);
     },
 
 
@@ -2336,8 +2258,7 @@ window.WeChat.App = {
     },
 
     // ==========================================
-    // 朋友圈功能方法
-    // ==========================================
+    // 鏈嬪弸鍦堝姛鑳芥柟娉?    // ==========================================
 
     openMoments() {
         State.prevTab = State.currentTab;
@@ -2367,19 +2288,17 @@ window.WeChat.App = {
     },
 
     /**
-     * 切换朋友圈操作菜单（点赞/评论/删除）
-     */
+     * 鍒囨崲鏈嬪弸鍦堟搷浣滆彍鍗曪紙鐐硅禐/璇勮/鍒犻櫎锛?     */
     toggleMomentsActionMenu(postId) {
         const menu = document.getElementById('moments-menu-' + postId);
         if (!menu) return;
-        // 关闭所有其他菜单
-        document.querySelectorAll('.moments-action-menu').forEach(m => {
+        // 鍏抽棴鎵€鏈夊叾浠栬彍鍗?        document.querySelectorAll('.moments-action-menu').forEach(m => {
             if (m.id !== 'moments-menu-' + postId) m.style.display = 'none';
         });
         const isOpening = menu.style.display === 'none';
         menu.style.display = isOpening ? 'flex' : 'none';
 
-        // 打开时添加全局点击关闭
+        // 鎵撳紑鏃舵坊鍔犲叏灞€鐐瑰嚮鍏抽棴
         if (isOpening) {
             const closeAll = (e) => {
                 if (!e.target.closest('.moments-action-menu') && !e.target.closest('.moments-action-btn')) {
@@ -2392,31 +2311,30 @@ window.WeChat.App = {
     },
 
     /**
-     * 切换点赞
+     * 鍒囨崲鐐硅禐
      */
     toggleMomentLike(postId) {
         const M = window.WeChat.Services.Moments;
         if (!M) return;
         M.toggleLike(postId, 'USER_SELF');
-        // 关闭菜单
+        // 鍏抽棴鑿滃崟
         const menu = document.getElementById('moments-menu-' + postId);
         if (menu) menu.style.display = 'none';
         this.render();
     },
 
     /**
-     * 开始评论
-     */
+     * 寮€濮嬭瘎璁?     */
     startMomentComment(postId) {
         State.momentsCommentTarget = { postId, replyTo: null, replyToAuthorId: null };
-        // 关闭菜单
+        // 鍏抽棴鑿滃崟
         const menu = document.getElementById('moments-menu-' + postId);
         if (menu) menu.style.display = 'none';
         this._showCommentInput();
     },
 
     /**
-     * 回复某条评论
+     * 鍥炲鏌愭潯璇勮
      */
     startMomentReply(postId, commentId, commentAuthorId) {
         const M = window.WeChat.Services.Moments;
@@ -2426,31 +2344,28 @@ window.WeChat.App = {
     },
 
     /**
-     * 显示底部评论输入框
-     */
+     * 鏄剧ず搴曢儴璇勮杈撳叆妗?     */
     _showCommentInput(replyToName = '') {
-        // 移除已有的
-        const existing = document.getElementById('moments-comment-bar');
+        // 绉婚櫎宸叉湁鐨?        const existing = document.getElementById('moments-comment-bar');
         if (existing) existing.remove();
 
-        const placeholder = replyToName ? `回复 ${replyToName}` : '评论';
+        const placeholder = replyToName ? `鍥炲 ${replyToName}` : '璇勮';
         const bar = document.createElement('div');
         bar.id = 'moments-comment-bar';
         bar.className = 'moments-comment-input-bar';
         bar.innerHTML = `
             <input class="moments-comment-input" id="moments-comment-input" 
                    placeholder="${placeholder}" autofocus />
-            <div class="moments-comment-send-btn" onclick="window.WeChat.App.sendMomentComment()">发送</div>
+            <div class="moments-comment-send-btn" onclick="window.WeChat.App.sendMomentComment()">鍙戦€?/div>
         `;
-        // 添加到 WeChat 应用容器内
-        const appContainer = State.root?.querySelector('.wechat-app') || State.root;
+        // 娣诲姞鍒?WeChat 搴旂敤瀹瑰櫒鍐?        const appContainer = State.root?.querySelector('.wechat-app') || State.root;
         if (appContainer) {
             appContainer.appendChild(bar);
         } else {
             document.body.appendChild(bar);
         }
 
-        // 聚焦 + 回车提交
+        // 鑱氱劍 + 鍥炶溅鎻愪氦
         setTimeout(() => {
             const input = document.getElementById('moments-comment-input');
             if (input) {
@@ -2464,22 +2379,20 @@ window.WeChat.App = {
             }
         }, 100);
 
-        // 点击外部关闭
+        // 鐐瑰嚮澶栭儴鍏抽棴
         const closeHandler = (e) => {
             if (!bar.contains(e.target) && !e.target.closest('.moments-comment-item')) {
                 bar.remove();
                 State.momentsCommentTarget = null;
                 document.removeEventListener('click', closeHandler);
             }
-            // 同时关闭所有操作菜单
-            document.querySelectorAll('.moments-action-menu').forEach(m => m.style.display = 'none');
+            // 鍚屾椂鍏抽棴鎵€鏈夋搷浣滆彍鍗?            document.querySelectorAll('.moments-action-menu').forEach(m => m.style.display = 'none');
         };
         setTimeout(() => document.addEventListener('click', closeHandler), 200);
     },
 
     /**
-     * 发送评论
-     */
+     * 鍙戦€佽瘎璁?     */
     sendMomentComment() {
         const M = window.WeChat.Services.Moments;
         if (!M || !State.momentsCommentTarget) return;
@@ -2496,14 +2409,13 @@ window.WeChat.App = {
             replyToAuthorId,
         });
 
-        // 清除输入和状态
-        State.momentsCommentTarget = null;
+        // 娓呴櫎杈撳叆鍜岀姸鎬?        State.momentsCommentTarget = null;
         const bar = document.getElementById('moments-comment-bar');
         if (bar) bar.remove();
 
         this.render();
 
-        // 触发角色互动（包括对用户评论的即时反应）
+        // 瑙﹀彂瑙掕壊浜掑姩锛堝寘鎷鐢ㄦ埛璇勮鐨勫嵆鏃跺弽搴旓級
         setTimeout(() => {
             if (M && M._triggerReactions) {
                 M._triggerReactions(post);
@@ -2512,14 +2424,13 @@ window.WeChat.App = {
     },
 
     /**
-     * 删除朋友圈
-     */
+     * 鍒犻櫎鏈嬪弸鍦?     */
     deleteMoment(postId) {
         const M = window.WeChat.Services.Moments;
         if (!M) return;
         this.openConfirmationModal({
-            title: '删除',
-            content: '确定删除这条朋友圈吗？',
+            title: '鍒犻櫎',
+            content: '纭畾鍒犻櫎杩欐潯鏈嬪弸鍦堝悧锛?,
             onConfirm: () => {
                 M.deletePost(postId);
                 this.closeConfirmationModal();
@@ -2529,8 +2440,7 @@ window.WeChat.App = {
     },
 
     /**
-     * 更换朋友圈封面
-     */
+     * 鏇存崲鏈嬪弸鍦堝皝闈?     */
     changeMomentsCover(ownerId) {
         const input = document.createElement('input');
         input.type = 'file';
@@ -2544,7 +2454,7 @@ window.WeChat.App = {
                 if (M) {
                     M.setCoverImage(ownerId, re.target.result);
                     this.render();
-                    if (window.os) window.os.showToast('封面已更新');
+                    if (window.os) window.os.showToast('灏侀潰宸叉洿鏂?);
                 }
             };
             reader.readAsDataURL(file);
@@ -2553,7 +2463,7 @@ window.WeChat.App = {
     },
 
     /**
-     * 添加图片到朋友圈发布
+     * 娣诲姞鍥剧墖鍒版湅鍙嬪湀鍙戝竷
      */
     addMomentImage() {
         const input = document.createElement('input');
@@ -2574,7 +2484,7 @@ window.WeChat.App = {
     },
 
     /**
-     * 移除发布中的图片
+     * 绉婚櫎鍙戝竷涓殑鍥剧墖
      */
     removeMomentImage(index) {
         State.momentsComposeImages.splice(index, 1);
@@ -2582,15 +2492,14 @@ window.WeChat.App = {
     },
 
     /**
-     * 刷新发布图片预览区
-     */
+     * 鍒锋柊鍙戝竷鍥剧墖棰勮鍖?     */
     _renderComposeImages() {
         const container = document.getElementById('wx-moments-compose-images');
         if (!container) return;
         container.innerHTML = State.momentsComposeImages.map((img, i) => `
             <div class="moments-compose-img-item">
                 <img src="${img}" />
-                <div class="moments-compose-img-remove" onclick="window.WeChat.App.removeMomentImage(${i})">✕</div>
+                <div class="moments-compose-img-remove" onclick="window.WeChat.App.removeMomentImage(${i})">鉁?/div>
             </div>
         `).join('') + (State.momentsComposeImages.length < 9 ? `
             <div class="moments-compose-add-img" onclick="window.WeChat.App.addMomentImage()">
@@ -2611,16 +2520,9 @@ window.WeChat.App = {
         const label = document.getElementById('wx-moments-visibility-label');
         if (!el || !label) return;
         const cur = el.value;
-        if (cur === '公开') {
-            el.value = '私密'; label.textContent = '私密'; State.momentsVisibleTo = [];
-        }
-        else if (cur === '私密') {
-            el.value = '部分可见'; label.textContent = '部分可见'; State.momentsVisibleTo = [];
-            setTimeout(() => window.WeChat.App._openContactPicker(), 10);
-        }
-        else {
-            el.value = '公开'; label.textContent = '公开'; State.momentsVisibleTo = [];
-        }
+        if (cur === '\u516c\u5f00') { el.value = '\u79c1\u5bc6'; label.textContent = '\u79c1\u5bc6'; State.momentsVisibleTo = []; }
+        else if (cur === '\u79c1\u5bc6') { this._openContactPicker(); }
+        else { el.value = '\u516c\u5f00'; label.textContent = '\u516c\u5f00'; State.momentsVisibleTo = []; }
     },
 
     /**
@@ -2653,18 +2555,7 @@ window.WeChat.App = {
             + '<span id="moments-picker-confirm" style="font-size:15px;color:#07c160;font-weight:600;cursor:pointer;">\u786e\u5b9a</span></div>'
             + '<div style="flex:1;overflow-y:auto;">' + (listHtml || '<div style="padding:40px;text-align:center;color:var(--wx-text-sec);">\u6ca1\u6709\u8054\u7cfb\u4eba</div>') + '</div></div>';
         appContainer.appendChild(modal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-                if (!State.momentsVisibleTo || State.momentsVisibleTo.length === 0) {
-                    const el = document.getElementById('wx-moments-compose-visibility');
-                    const label = document.getElementById('wx-moments-visibility-label');
-                    if (el && label) {
-                        el.value = '公开'; label.textContent = '公开';
-                    }
-                }
-            }
-        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
         setTimeout(() => {
             const btn = document.getElementById('moments-picker-confirm');
             if (btn) btn.addEventListener('click', () => {
@@ -2674,8 +2565,8 @@ window.WeChat.App = {
                 const el = document.getElementById('wx-moments-compose-visibility');
                 const label = document.getElementById('wx-moments-visibility-label');
                 if (el && label) {
-                    if (ids.length > 0) { el.value = '部分可见'; label.textContent = '部分可见(' + ids.length + '\u4eba)'; }
-                    else { el.value = '公开'; label.textContent = '公开'; }
+                    if (ids.length > 0) { el.value = '\u90e8\u5206\u53ef\u89c1'; label.textContent = '\u90e8\u5206\u53ef\u89c1(' + ids.length + '\u4eba)'; }
+                    else { el.value = '\u516c\u5f00'; label.textContent = '\u516c\u5f00'; }
                 }
                 modal.remove();
             });
@@ -2683,8 +2574,7 @@ window.WeChat.App = {
     },
 
     /**
-     * 发布朋友圈
-     */
+     * 鍙戝竷鏈嬪弸鍦?     */
     publishMoment() {
         const textEl = document.getElementById('wx-moments-compose-text');
         const locationEl = document.getElementById('wx-moments-compose-location');
@@ -2692,7 +2582,7 @@ window.WeChat.App = {
         const location = locationEl ? locationEl.value.trim() : '';
 
         if (!content && State.momentsComposeImages.length === 0) {
-            if (window.os) window.os.showToast('请输入内容或添加图片', 'error');
+            if (window.os) window.os.showToast('璇疯緭鍏ュ唴瀹规垨娣诲姞鍥剧墖', 'error');
             return;
         }
 
@@ -2700,7 +2590,7 @@ window.WeChat.App = {
         if (!M) return;
 
         const visibilityEl = document.getElementById('wx-moments-compose-visibility');
-        const visibility = visibilityEl ? visibilityEl.value : '公开';
+        const visibility = visibilityEl ? visibilityEl.value : '\u516c\u5f00';
 
         const post = M.createPost({
             authorId: 'USER_SELF',
@@ -2716,55 +2606,51 @@ window.WeChat.App = {
         State.momentsVisibleTo = [];
         State.currentTab = 'moments';
 
-        if (window.os) window.os.showToast('发布成功');
+        if (window.os) window.os.showToast('鍙戝竷鎴愬姛');
         this.render();
 
-        // 触发角色互动
+        // 瑙﹀彂瑙掕壊浜掑姩
         M.triggerReactionsForUserPost(post);
     },
 
     /**
-     * AI 生成角色朋友圈
-     */
+     * AI 鐢熸垚瑙掕壊鏈嬪弸鍦?     */
     async generateMomentForChar(charId) {
         const M = window.WeChat.Services.Moments;
         if (!M) return;
 
-        if (window.os) window.os.showToast('正在生成朋友圈...');
+        if (window.os) window.os.showToast('姝ｅ湪鐢熸垚鏈嬪弸鍦?..');
 
         const post = await M.generateMomentForChar(charId);
         if (post) {
-            if (window.os) window.os.showToast('朋友圈已发布！');
+            if (window.os) window.os.showToast('鏈嬪弸鍦堝凡鍙戝竷锛?);
             this.render();
         } else {
-            if (window.os) window.os.showToast('生成失败，请重试', 'error');
+            if (window.os) window.os.showToast('鐢熸垚澶辫触锛岃閲嶈瘯', 'error');
         }
     },
 
     /**
-     * 保存角色朋友圈设置
-     */
+     * 淇濆瓨瑙掕壊鏈嬪弸鍦堣缃?     */
     saveMomentsSettings(charId) {
         const M = window.WeChat.Services.Moments;
         if (!M) return;
 
-        // 获取频率
-        const freqInput = document.getElementById('wx-moments-freq-input');
-        let frequency = freqInput ? freqInput.value.trim() : 'medium';
-        if (frequency === '' || frequency === '0') frequency = 'never';
+        // 鑾峰彇棰戠巼
+        const activeFreqBtn = document.querySelector('.moments-freq-btn.active');
+        const frequency = activeFreqBtn ? activeFreqBtn.dataset.freq : 'medium';
 
-        // 获取风格
+        // 鑾峰彇椋庢牸
         const styleEl = document.getElementById('wx-moments-style');
         const style = styleEl ? styleEl.value.trim() : '';
 
         M.saveCharSettings(charId, { frequency, style });
 
-        if (window.os) window.os.showToast('设置已保存');
+        if (window.os) window.os.showToast('璁剧疆宸蹭繚瀛?);
     },
 
     /**
-     * 预览朋友圈图片
-     */
+     * 棰勮鏈嬪弸鍦堝浘鐗?     */
     previewMomentImage(postId, imageIndex) {
         const M = window.WeChat.Services.Moments;
         if (!M) return;
@@ -2773,8 +2659,7 @@ window.WeChat.App = {
 
         const img = post.images[imageIndex];
         if (img.startsWith('data:') || img.startsWith('http') || img.startsWith('blob:')) {
-            // 简单图片预览
-            const overlay = document.createElement('div');
+            // 绠€鍗曞浘鐗囬瑙?            const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
             overlay.innerHTML = `<img src="${img}" style="max-width:95%;max-height:95%;object-fit:contain;border-radius:4px;">`;
             overlay.onclick = () => overlay.remove();

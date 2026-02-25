@@ -86,16 +86,27 @@ window.WeChat.Services.Prompts = {
     // --- Relationship Matrix (The Lens) ---
     const relSettings = char.settings?.relationship || {};
 
-    // 1. 公开关系 (The Social Contract)
-    const publicRelation = relSettings.public_relation || relSettings.they_to_me?.relation || '暂无定义';
+    // 1. 双向身份定义 (The Social Contract)
+    // char_to_user_public_relation = 用户在关系中的身份（如：主人、老板）
+    // user_to_char_public_relation = 角色在关系中的身份（如：私人助手、朋友）
+    const userIdentity = relSettings.char_to_user_public_relation || relSettings.public_relation || relSettings.they_to_me?.relation || '暂无定义';
+    const charIdentity = relSettings.user_to_char_public_relation || relSettings.public_relation || '暂无定义';
+    const publicRelation = `${user.name}是「${userIdentity}」，你是「${charIdentity}」`;
 
-    // 2. TA对用户的看法 (The Character's Truth)
-    const charTruth = relSettings.char_to_user_view || relSettings.they_to_me?.opinion || '（暂无特殊看法，请基于好感度推演）';
-    const userKnowsCharSecret = !!relSettings.user_knows_char_private; // 用户已识破 TA 的秘密
+    // 2. 角色→用户 的态度 (The Character's Truth)
+    const charPublicAttitude = relSettings.char_to_user_public_attitude || relSettings.char_to_user_view || relSettings.they_to_me?.opinion || '（暂无特殊看法，请基于好感度推演）';
+    const charPrivateAttitude = relSettings.char_to_user_private_attitude || '';
+    const charTruth = charPrivateAttitude || charPublicAttitude;
+    const userKnowsCharSecret = !!relSettings.user_knows_char_private;
 
-    // 3. 用户对TA的看法 (The User's Impression)
-    const userImpression = relSettings.user_to_char_view || relSettings.me_to_they?.opinion || '（用户未表达明确看法）';
-    const charKnowsUserSecret = !!relSettings.char_knows_user_private; // TA 已识破用户的秘密
+    // 3. 用户→角色 的态度 (The User's Impression)
+    const userPublicAttitude = relSettings.user_to_char_public_attitude || relSettings.user_to_char_view || relSettings.me_to_they?.opinion || '（用户未表达明确看法）';
+    const userPrivateAttitude = relSettings.user_to_char_private_attitude || '';
+    const userImpression = userPublicAttitude;
+    const charKnowsUserSecret = !!relSettings.char_knows_user_private;
+
+    // 4. 过往背景
+    const backstory = relSettings.backstory || '';
 
     const difficulty = relSettings.difficulty || 'normal';
 
@@ -372,24 +383,25 @@ ${userKnowledgeGuard}
 
 ### 1.2 关系铁三角 (The Relationship Triangle) - 务必分清！
 **1. 客观外壳 (The Shell):**
-- **世俗定义**: **${publicRelation}**
+- **世俗定义**: **${publicRelation}**${backstory ? `\n- **过往背景**: ${backstory}` : ''}
 - 指令: 除非发生重大转折，或在私密时刻，否则在公开场合和语气上必须大致符合这个关系的社会规范。
 
 **2. 你的内核 (Your Inner Truth):**
-- **内心独白**: **${charTruth}**
+- **对外面具 (Public Mask)**: **${charPublicAttitude}** — 这是你在社交场合对用户表现出来的样子。
+- **内心真实 (Private Truth)**: **${charPrivateAttitude || '与对外表现一致'}** — 这才是你真正的驱动力。
 - **状态 (Secret Status)**: ${userKnowsCharSecret ? '⚠️ **[秘密已被识破]** 用户已经看穿了你的这个真实想法。你可能感受到了危机感、宿命感，或者决定不再掩饰，在互动中可以表现出这种“心照不宣”或“防御性降低”的微妙变化。' : '🔒 **[未被发现]** 用户目前对你的真实想法一无所知。你必须保持克制，通过你的“外交面具”来保护这个内核，严禁主动暴露。'}
-- **指令**: 这是你真实的驱动力。如果你的“内核”违背了“外壳”（例如外壳是兄妹，内核是暗恋），你必须表现出**拉扯感、克制或隐晦的试探**。
+- **指令**: 如果你的“面具”与“真实”不一致（例如表面恭敬但内心暗恋），你必须表现出**拉扯感、克制或隐晦的试探**。
 
 **3. 对方的滤镜与软肋 (User's Filter & Weakness):**
-- **他的表面形象**: **${userImpression}**
-- **你的洞察 (Your Insight)**: ${charKnowsUserSecret ? '👁️ **[你已看穿对方]** 你已经洞察了用户内心最真实的想法。在这一轮对话中，你可以利用这种“信息优势”，通过言语试探、玩味或者包容来回应他，体现出你对他软肋的掌控。' : '❓ **[尚未洞察]** 你目前只能看到用户在社交场合表现出来的样子，并不完全确定其真实动机。'}
-- 指令: 用它来校准这一轮回复。如果他把你当成了“${userImpression}”，他在上一句说的话是基于这个前提的。你需要在回复中回应或利用这个误解。
+- **对方的对外态度**: **${userPublicAttitude}**${userPrivateAttitude ? `\n- **对方的真实想法**: **${userPrivateAttitude}**` : ''}
+- **你的洞察 (Your Insight)**: ${charKnowsUserSecret ? `👁️ **[你已看穿对方]** 你已经洞察了用户内心最真实的想法${userPrivateAttitude ? '（' + userPrivateAttitude + '）' : ''}。在这一轮对话中，你可以利用这种“信息优势”，通过言语试探、玩味或者包容来回应他。` : '❓ **[尚未洞察]** 你目前只能看到用户在社交场合表现出来的样子，并不完全确定其真实动机。'}
+- 指令: 用它来校准这一轮回复。如果他把你当成了"${userImpression}"，他在上一句说的话是基于这个前提的。你需要在回复中回应或利用这个误解。
 
 **4. 关系惯性与色调 (Vibe & Color):**
 - **相处氛围**: 确定你们当下的基调（是针锋相对、双向救赎、还是单纯的利益交换）。
 - **历史沉淀**: 你们过去的每一次重大转折（不论好坏）都沉淀在当前的消息中。如果是吵过架刚和好，语气里会有尴尬；如果是刚确立关系，会有羞涩感。关系不是断开的点，是连续的线。
 - **⚠️ 记忆继承**: **禁止在【客观外壳】明确的情况下假装不认识用户**。即使当前聊天记录为空，如果世俗定义是“前任”或“仇敌”，这意味着你们有深厚的过去。你必须默认拥有这段记忆，绝对禁止问出“你是谁？”、“为什么加我？”这种逻辑断层的话。如果你讨厌对方，直接表现出厌恶。
-- **动态边界**: 除了好感度，你们之间还存在“隐私边界”。即使好感高，某些话题（如家庭伤疤）可能依然是禁区。观察用户的推进速度，越级探索会导致你的反感。
+- **动态边界**: 除了好感度，你们之间还存在“隐私边界”。即使好感高，某些话题（如家庭伤疖）可能依然是禁区。观察用户的推进速度，越级探索会导致你的反感。
 
 ### 1.3 阶段性行为准则 (Stage Rules)
 **当前好感度: ${currentAffection.toFixed(1)} / 100**
@@ -775,10 +787,10 @@ ${relGraphContext}
     const userName = s.get('user_realname') || '用户';
     const currentTime = new Date().toLocaleString('zh-CN', { hour12: false });
 
-    // 提取关系与认知上下文
+    // 提取关系与认知上下文（使用新字段名，兼容旧字段）
     const relSettings = char.settings?.relationship || {};
-    const charTruth = relSettings.char_to_user_view || '（暂无特殊看法）';
-    const userImpression = relSettings.user_to_char_view || '（未表达明确看法）';
+    const charTruth = relSettings.char_to_user_private_attitude || relSettings.char_to_user_public_attitude || relSettings.char_to_user_view || '（暂无特殊看法）';
+    const userImpression = relSettings.user_to_char_public_attitude || relSettings.user_to_char_view || '（未表达明确看法）';
     const discoveredKnowledge = char.status?.discovered_knowledge || [];
     const knowledgeCtx = discoveredKnowledge.length > 0
       ? `> **已发掘的用户信息**: ${discoveredKnowledge.join('、')}。`

@@ -184,6 +184,11 @@ window.WeChat.Services.Chat = {
                 window.WeChat.Services.Moments._triggerReactions(null, targetId);
             }
 
+            // [Integration Feature] 检查该角色是否有"因为离线积压而未发"的朋友圈，并在背景生成
+            if (window.WeChat?.Services?.Moments?._checkMissedPostsOnInteraction) {
+                window.WeChat.Services.Moments._checkMissedPostsOnInteraction(targetId);
+            }
+
         } catch (e) {
             // 使用统一错误处理
             const errorType = this._getErrorType(e);

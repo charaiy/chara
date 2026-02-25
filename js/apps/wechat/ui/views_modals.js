@@ -693,22 +693,23 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 <div style="font-size: 13px; color: #999; margin-bottom: 12px; font-weight: 500; padding-left: 4px;">关系透镜 (决定AI如何思考)</div>
                 <div style="background: #fff; border-radius: 18px; padding: 24px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #f2f2f2;">
 
-                    <!-- Character Lens (Flat) -->
+                    <!-- 角色→用户 (Character's perspective) -->
                     <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px dashed #eee;">
-                        <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 16px; border-left: 4px solid #0052d9; padding-left: 8px;">角色对用户</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 4px; border-left: 4px solid #8B7355; padding-left: 8px;">角色→用户</div>
+                        <div style="font-size: 11px; color: #999; margin-bottom: 16px; padding-left: 12px;">角色在关系中的身份定义</div>
 
                         <!-- 1. Objective Relation -->
                         <div style="margin-bottom: 12px;">
-                            ${this._renderFieldHeader('客观关系定义', 'wx-rel-char-obj')}
-                            <input type="text" id="wx-rel-char-obj" value="${rel.char_to_user_public_relation || ''}" placeholder="如：好友、死党、宿敌..." ${this._lockAttr('wx-rel-char-obj')}
+                            ${this._renderFieldHeader('客观关系定义', 'wx-rel-user-obj')}
+                            <input type="text" id="wx-rel-user-obj" value="${rel.user_to_char_public_relation || ''}" placeholder="角色是什么身份？如：私人助手、朋友..." ${this._lockAttr('wx-rel-user-obj')}
                                 style="width: 100%; height: 38px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0 10px; font-size: 14px; outline: none; transition: all 0.2s;"
-                                oninput="window.WeChat.App.updatePendingRelationship('char_to_user_public_relation', this.value, null, true)">
+                                oninput="window.WeChat.App.updatePendingRelationship('user_to_char_public_relation', this.value, null, true)">
                         </div>
 
-                        <!-- 2. Public Attitude -->
+                        <!-- 2. Public Attitude (角色对用户的态度) -->
                         <div style="margin-bottom: 12px;">
                             ${this._renderFieldHeader('对外表现态度', 'wx-rel-char-pub-att')}
-                            <textarea id="wx-rel-char-pub-att" placeholder="平时表现出来的样子..." ${this._lockAttr('wx-rel-char-pub-att')}
+                            <textarea id="wx-rel-char-pub-att" placeholder="角色平时对用户表现出来的样子..." ${this._lockAttr('wx-rel-char-pub-att')}
                                 style="width: 100%; height: 50px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 10px; font-size: 14px; resize: none; outline: none; line-height: 1.4; transition: all 0.2s;"
                                 oninput="window.WeChat.App.updatePendingRelationship('char_to_user_public_attitude', this.value, null, true)">${rel.char_to_user_public_attitude || ''}</textarea>
                         </div>
@@ -716,28 +717,29 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                         <!-- 3. True Thought & Checkbox -->
                         <div style="margin-top: 16px;">
                             ${this._renderFieldHeader(`<div style="display:flex; align-items:center; white-space:nowrap;"><span style="color: #d32f2f; margin-right:12px;">内心真实想法 (秘密)</span><label style="font-weight:400; font-size:9px; color:#999; display:flex; align-items:center; cursor:pointer; background:none; padding:0; border:none;"><input type="checkbox" id="wx-rel-char-knows" ${rel.user_knows_char_private ? 'checked' : ''} style="margin-right:4px; width:12px; height:12px; accent-color:#999; opacity:0.6;" onclick="window.WeChat.App.updatePendingRelationship('user_knows_char_private', this.checked, null, true)">用户已识破</label></div>`, 'wx-rel-char-pvt-att')}
-                            <textarea id="wx-rel-char-pvt-att" placeholder="其实心里是这么想的..." ${this._lockAttr('wx-rel-char-pvt-att')}
+                            <textarea id="wx-rel-char-pvt-att" placeholder="角色其实心里是这么想的..." ${this._lockAttr('wx-rel-char-pvt-att')}
                                 style="width: 100%; height: 54px; background: #fffafa; border: 1px solid #ffcdd2; border-radius: 10px; padding: 10px; font-size: 14px; resize: none; outline: none; line-height: 1.5; transition: all 0.2s;"
                                 oninput="window.WeChat.App.updatePendingRelationship('char_to_user_private_attitude', this.value, null, true)">${rel.char_to_user_private_attitude || ''}</textarea>
                         </div>
                     </div>
 
-                    <!-- User Lens (Flat) -->
+                    <!-- 用户→角色 (User's perspective) -->
                     <div style="margin-bottom: 12px;">
-                        <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 16px; border-left: 4px solid #7b1fa2; padding-left: 8px;">用户对角色</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #333; margin-bottom: 4px; border-left: 4px solid #A0896C; padding-left: 8px;">用户→角色</div>
+                        <div style="font-size: 11px; color: #999; margin-bottom: 16px; padding-left: 12px;">用户在关系中的身份定义</div>
 
                         <!-- 1. Objective Relation -->
                         <div style="margin-bottom: 12px;">
-                            ${this._renderFieldHeader('客观关系定义', 'wx-rel-user-obj')}
-                            <input type="text" id="wx-rel-user-obj" value="${rel.user_to_char_public_relation || ''}" placeholder="如：工具人..." ${this._lockAttr('wx-rel-user-obj')}
+                            ${this._renderFieldHeader('客观关系定义', 'wx-rel-char-obj')}
+                            <input type="text" id="wx-rel-char-obj" value="${rel.char_to_user_public_relation || ''}" placeholder="用户是什么身份？如：主人、老板、同学..." ${this._lockAttr('wx-rel-char-obj')}
                                 style="width: 100%; height: 38px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0 10px; font-size: 14px; outline: none; transition: all 0.2s;"
-                                oninput="window.WeChat.App.updatePendingRelationship('user_to_char_public_relation', this.value, null, true)">
+                                oninput="window.WeChat.App.updatePendingRelationship('char_to_user_public_relation', this.value, null, true)">
                         </div>
 
-                        <!-- 2. Public Attitude -->
+                        <!-- 2. Public Attitude (用户对角色的态度) -->
                         <div style="margin-bottom: 12px;">
                             ${this._renderFieldHeader('对外表现态度', 'wx-rel-user-pub-att')}
-                            <textarea id="wx-rel-user-pub-att" placeholder="平时表现出来的样子..." ${this._lockAttr('wx-rel-user-pub-att')}
+                            <textarea id="wx-rel-user-pub-att" placeholder="用户平时对角色表现出来的样子..." ${this._lockAttr('wx-rel-user-pub-att')}
                                 style="width: 100%; height: 50px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 10px; font-size: 14px; resize: none; outline: none; line-height: 1.4; transition: all 0.2s;"
                                 oninput="window.WeChat.App.updatePendingRelationship('user_to_char_public_attitude', this.value, null, true)">${rel.user_to_char_public_attitude || ''}</textarea>
                         </div>
@@ -745,13 +747,11 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                         <!-- 3. True Thought & Checkbox -->
                         <div style="margin-top: 16px;">
                             ${this._renderFieldHeader(`<div style="display:flex; align-items:center; white-space:nowrap;"><span style="color: #d32f2f; margin-right:12px;">内心真实想法 (秘密)</span><label style="font-weight:400; font-size:9px; color:#999; display:flex; align-items:center; cursor:pointer; background:none; padding:0; border:none;"><input type="checkbox" id="wx-rel-user-knows" ${rel.char_knows_user_private ? 'checked' : ''} style="margin-right:4px; width:12px; height:12px; accent-color:#999; opacity:0.6;" onclick="window.WeChat.App.updatePendingRelationship('char_knows_user_private', this.checked, null, true)">角色已识破</label></div>`, 'wx-rel-user-pvt-att')}
-                            <textarea id="wx-rel-user-pvt-att" placeholder="其实心里是这么想的..." ${this._lockAttr('wx-rel-user-pvt-att')}
+                            <textarea id="wx-rel-user-pvt-att" placeholder="用户其实心里是这么想的..." ${this._lockAttr('wx-rel-user-pvt-att')}
                                 style="width: 100%; height: 54px; background: #fffafa; border: 1px solid #ffcdd2; border-radius: 10px; padding: 10px; font-size: 14px; resize: none; outline: none; line-height: 1.5; transition: all 0.2s;"
                                 oninput="window.WeChat.App.updatePendingRelationship('user_to_char_private_attitude', this.value, null, true)">${rel.user_to_char_private_attitude || ''}</textarea>
                         </div>
-                    </div>
-
-                    <!-- Background Story -->
+                    </div><!-- Background Story -->
                     <div style="margin-bottom: 12px;">
                         ${this._renderFieldHeader('📅 背景故事', 'wx-rel-backstory')}
                         <textarea id="wx-rel-backstory" placeholder="两人的历史、关系变化..." ${this._lockAttr('wx-rel-backstory')}

@@ -48,9 +48,10 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 <!-- 封面区域 -->
                 <div class="moments-cover-section">
                     <div class="moments-cover-bg" 
-                         style="${userCover ? `background-image:url(${userCover})` : ''}"
-                         onclick="window.WeChat.App.changeMomentsCover('USER_SELF')">
-                        ${!userCover ? '<div class="moments-cover-placeholder">点击更换封面</div>' : ''}
+                         style="${userCover ? `background-image:url(${userCover})` : ''}">
+                        <div class="moments-cover-clickable-center" onclick="window.WeChat.App.changeMomentsCover('USER_SELF')">
+                            ${!userCover ? '点击更换封面' : ''}
+                        </div>
                     </div>
                     <div class="moments-cover-user">
                         <span class="moments-cover-name">${this.escapeHtml(userNickname)}</span>
@@ -206,7 +207,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         }).join('\uFF0C');
 
         return `<div class="moments-likes-row">
-            <span class="moments-likes-icon">\u2764\uFE0F</span>
+            <span class="moments-likes-icon">♡</span>
             <span class="moments-likes-names">${names}</span>
         </div>`;
     },
@@ -262,13 +263,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         const posts = M.getPosts({ authorId: targetId, viewerId: 'USER_SELF', limit: 50 });
 
         // 角色设置按钮
-        const settingsBtnHtml = (!isMe && targetId !== 'USER_SELF')
-            ? `<div class="moments-profile-settings-btn" onclick="window.WeChat.App.openMomentsSettings('${this.escapeQuote(targetId)}')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-               </div>`
-            : '';
+
 
         const postsHtml = posts.length > 0
             ? posts.map(post => this._renderMomentPost(post)).join('')
@@ -291,7 +286,7 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                         <img class="moments-cover-avatar" src="${authorAvatar}" 
                              onerror="this.src='assets/images/avatar_placeholder.png'" />
                     </div>
-                    ${settingsBtnHtml}
+                    
                 </div>
                 <!-- 个性签名 -->
                 <div class="moments-cover-bio-area">
@@ -321,70 +316,194 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         const charName = char?.name || charId;
         const settings = M.getCharSettings(charId);
 
+        // Map legacy values to hours
+        let displayHours = '';
+        if (settings.frequency && settings.frequency !== 'never') {
+            if (settings.frequency === 'high') displayHours = '2';
+            else if (settings.frequency === 'medium') displayHours = '6';
+            else if (settings.frequency === 'low') displayHours = '24';
+            else displayHours = settings.frequency;
+        }
+
         const isDark = window.sysStore && window.sysStore.get('dark_mode') !== 'false';
-        const pageBg = isDark ? '#111111' : '#EDEDED';
+
+        // 浅咖/白色系主题设定
+        const pageBg = isDark ? '#111111' : '#FDFDFB'; // 米白色背景
         const cellBg = isDark ? '#1C1C1E' : '#FFFFFF';
+        const primaryColor = isDark ? '#D4B895' : '#8B7355'; // 咖啡色主色调
+        const primaryLight = isDark ? 'rgba(212,184,149,0.15)' : 'rgba(139,115,85,0.08)';
+        const borderColor = isDark ? '#333333' : '#EAE3D9';
+        const textColor = isDark ? '#EEEEEE' : '#333333';
+        const textSecColor = isDark ? '#888888' : '#8D8273';
+        const shadow = isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 24px rgba(139,115,85,0.06)';
+
+        // 关系网可视化：好友列表 + 该角色的个人视角
+        let relationshipHtml = `<div style="font-size:13px;color:${textSecColor};text-align:center;padding:24px 0;">该角色暂无好友</div>`;
+        if (window.WeChat.Services.RelationshipGraph) {
+            const RG = window.WeChat.Services.RelationshipGraph;
+            const rels = RG.getVisibleRelationships(charId);
+
+            // 过滤：只看与该角色直接相关的连线
+            const myRels = rels.filter(r => r.nodeA === charId || r.nodeB === charId);
+
+            if (myRels.length > 0) {
+                // 获取该角色的性别代词
+                const charGender = char?.gender || '';
+                const charPronoun = /女|female/i.test(charGender) ? '她' : '他';
+
+                // 获取 rumor 数据
+                const rumors = window.sysStore?.get('rg_rumors_v1') || {};
+
+                const htmlList = myRels.map(r => {
+                    const otherId = r.nodeA === charId ? r.nodeB : r.nodeA;
+                    const otherNode = RG.getNode(otherId);
+                    if (!otherNode) return '';
+
+                    // 客观关系标签：对方在该角色眼中的身份（如：主人、同事、前任）
+                    const objRelation = r.nodeA === charId
+                        ? (r.aViewOfB || r.a_to_b_public_relation || '')
+                        : (r.bViewOfA || r.b_to_a_public_relation || '');
+
+                    // 主观视角：从 rumor 系统读取认知修正数据
+                    const sortedIds = [charId, otherId].sort();
+                    const pairId = sortedIds.join('_');
+                    const rumorKey = `${charId}|${pairId}`;
+                    const rumor = rumors[rumorKey];
+
+                    let myViewOfOther = ''; // 该角色对对方的认知
+                    let myBeliefOfOtherView = ''; // 该角色认为对方怎么看自己
+
+                    if (rumor) {
+                        const isReversed = sortedIds[0] !== charId;
+                        // charId → otherId 的认知
+                        myViewOfOther = isReversed
+                            ? (rumor.contentBtoA || '')
+                            : (rumor.contentAtoB || '');
+                        // otherId → charId 的认知（在角色的主观视角下）
+                        myBeliefOfOtherView = isReversed
+                            ? (rumor.contentAtoB || '')
+                            : (rumor.contentBtoA || '');
+                    }
+
+                    // 如果 rumor 没有数据，回退到关系态度字段
+                    if (!myViewOfOther) {
+                        myViewOfOther = r.nodeA === charId
+                            ? (r.aTowardB || r.a_to_b_public_attitude || r.a_to_b_private_attitude || '')
+                            : (r.bTowardA || r.b_to_a_public_attitude || r.b_to_a_private_attitude || '');
+                    }
+
+                    // 构建主观视角描述文本
+                    let subjectiveText = '';
+                    const otherName = this.escapeHtml(otherNode.name);
+                    if (myViewOfOther && myBeliefOfOtherView) {
+                        subjectiveText = `${charPronoun}${this.escapeHtml(myViewOfOther)}${otherName}，${charPronoun}认为${otherName}把${charPronoun}当${this.escapeHtml(myBeliefOfOtherView)}`;
+                    } else if (myViewOfOther) {
+                        subjectiveText = `${charPronoun}对${otherName}：${this.escapeHtml(myViewOfOther)}`;
+                    } else if (myBeliefOfOtherView) {
+                        subjectiveText = `${charPronoun}认为${otherName}把${charPronoun}当${this.escapeHtml(myBeliefOfOtherView)}`;
+                    }
+
+                    const tagObj = objRelation ? `<span style="background:${primaryLight};color:${primaryColor};padding:3px 8px;border-radius:6px;font-size:11px;flex-shrink:0;">${this.escapeHtml(objRelation)}</span>` : '';
+                    const tagSubjective = subjectiveText ? `<span style="background:${isDark ? 'rgba(255,180,100,0.12)' : 'rgba(220,120,60,0.08)'};color:${isDark ? '#E8A870' : '#B85C30'};padding:3px 8px;border-radius:6px;font-size:11px;flex-shrink:0;line-height:1.4;">${subjectiveText}</span>` : '';
+
+                    return `
+                        <div style="display:flex;align-items:center;padding:12px 24px;border-bottom:1px solid ${borderColor};">
+                            <img src="${otherNode.avatar || 'assets/images/avatar_placeholder.png'}" style="width:40px;height:40px;border-radius:50%;margin-right:12px;object-fit:cover;border:1px solid ${borderColor};">
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:14px;font-weight:600;color:${textColor};margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${this.escapeHtml(otherNode.name)}</div>
+                                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                                    ${tagObj}${tagSubjective}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                if (htmlList.trim()) {
+                    relationshipHtml = htmlList;
+                }
+            }
+        }
 
         return `
+            <style>
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .moment-setting-input:focus { border-color: ${primaryColor} !important; }
+            </style>
             <div class="wx-scroller" id="wx-view-moments-settings" style="background-color: ${pageBg};">
                 <div class="wx-nav-spacer"></div>
                 
-                <div style="padding: 16px 20px;">
-                    <div style="text-align:center;margin-bottom:24px;">
+                <div style="padding: 20px;">
+                    <!-- 头部信息 -->
+                    <div style="text-align:center;margin-bottom:28px;">
                         <img src="${char?.avatar || 'assets/images/avatar_placeholder.png'}" 
-                             style="width:60px;height:60px;border-radius:8px;object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.15);" />
-                        <div style="font-size:17px;font-weight:600;color:var(--wx-text);margin-top:8px;">${this.escapeHtml(charName)}</div>
-                        <div style="font-size:13px;color:var(--wx-text-sec);margin-top:2px;">朋友圈设置</div>
+                             style="width:76px;height:76px;border-radius:20px;object-fit:cover;box-shadow:${shadow};border:3px solid ${cellBg};" />
+                        <div style="font-size:18px;font-weight:600;color:${textColor};margin-top:14px;">${this.escapeHtml(charName)}</div>
+                        <div style="font-size:13px;color:${textSecColor};margin-top:4px;letter-spacing:0.5px;">社交动态管理</div>
                     </div>
 
                     <!-- 发布频率 -->
-                    <div style="background:${cellBg};border-radius:12px;padding:20px;margin-bottom:16px;">
-                        <div style="font-size:15px;font-weight:600;color:var(--wx-text);margin-bottom:12px;">\u{1f4c5} 发布频率</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            ${['high', 'medium', 'low', 'never'].map(freq => {
-            const labels = { high: '频繁 (2h)', medium: '适中 (6h)', low: '偶尔 (24h)', never: '从不' };
-            const isActive = settings.frequency === freq;
-            return `<div class="moments-freq-btn ${isActive ? 'active' : ''}" 
-                                             onclick="document.querySelectorAll('.moments-freq-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-                                             data-freq="${freq}">
-                                            ${labels[freq]}
-                                        </div>`;
-        }).join('')}
+                    <div style="background:${cellBg};border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:${shadow};border:1px solid ${borderColor};">
+                        <div style="display:flex;align-items:center;margin-bottom:16px;">
+                            <div style="width:4px;height:16px;background:${primaryColor};border-radius:2px;margin-right:8px;"></div>
+                            <div style="font-size:16px;font-weight:600;color:${textColor};">发布频率</div>
                         </div>
-                        <div style="font-size:12px;color:var(--wx-text-sec);margin-top:8px;">
-                            控制该角色自动发朋友圈的频率，选择"从不"则仅手动发布
+                        
+                        <div style="display:flex;align-items:center;background:${pageBg};border-radius:12px;padding:12px 16px;border:1px solid ${borderColor};transition:border-color 0.3s;" class="moment-setting-input" onclick="document.getElementById('wx-moments-freq-input').focus()">
+                            <input type="number" id="wx-moments-freq-input" value="${displayHours}" 
+                                placeholder="0"
+                                style="font-size:17px;font-weight:600;color:${primaryColor};width:60px;background:transparent;border:none;outline:none;text-align:center;">
+                            <div style="font-size:15px;color:${textColor};margin-left:8px;">小时发送一条动态</div>
+                        </div>
+                        
+                        <div style="font-size:12px;color:${textSecColor};margin-top:14px;display:flex;align-items:center;">
+                            <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            留空或设为0则代表关闭自动发布
                         </div>
                     </div>
 
-                    <!-- 发布风格 -->
-                    <div style="background:${cellBg};border-radius:12px;padding:20px;margin-bottom:16px;">
-                        <div style="font-size:15px;font-weight:600;color:var(--wx-text);margin-bottom:12px;">\u270D\uFE0F 发布风格</div>
-                        <textarea id="wx-moments-style" 
-                            style="width:100%;height:100px;border:1px solid var(--wx-border);background:var(--wx-bg);border-radius:8px;padding:12px;font-size:14px;color:var(--wx-text);outline:none;resize:none;line-height:1.6;box-sizing:border-box;"
-                            placeholder="描述该角色发朋友圈的风格特征&#10;例如：喜欢发美食打卡配emoji、文艺青年喜欢配古诗..."
+                    <!-- 发布灵感/风格 -->
+                    <div style="background:${cellBg};border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:${shadow};border:1px solid ${borderColor};">
+                        <div style="display:flex;align-items:center;margin-bottom:16px;">
+                            <div style="width:4px;height:16px;background:${primaryColor};border-radius:2px;margin-right:8px;"></div>
+                            <div style="font-size:16px;font-weight:600;color:${textColor};">内容偏好与风格</div>
+                        </div>
+                        <textarea id="wx-moments-style" class="moment-setting-input"
+                            style="width:100%;height:100px;border:1px solid ${borderColor};background:${pageBg};border-radius:12px;padding:16px;font-size:14px;color:${textColor};outline:none;resize:none;overflow:hidden;line-height:1.6;box-sizing:border-box;transition:border-color 0.3s;"
+                            placeholder="描述她的社交展现偏好，例如：&#10;照片滤镜、语言习惯、经常出没的场景等..."
                         >${settings.style || ''}</textarea>
-                        <div style="font-size:12px;color:var(--wx-text-sec);margin-top:8px;">
-                            留空则根据角色人设自动推断风格
+                        <div style="font-size:12px;color:${textSecColor};margin-top:12px;">
+                            留空将交由角色自身心智系统推演决定
                         </div>
                     </div>
 
-                    <!-- 手动触发 -->
-                    <div style="background:${cellBg};border-radius:12px;padding:20px;margin-bottom:16px;">
-                        <div style="font-size:15px;font-weight:600;color:var(--wx-text);margin-bottom:12px;">\uD83E\uDD16 手动操作</div>
+                    <!-- 好友列表与视角可视化 -->
+                    <div style="background:${cellBg};border-radius:16px;overflow:hidden;margin-bottom:28px;box-shadow:${shadow};border:1px solid ${borderColor};">
+                        <div style="padding:24px 24px 16px;">
+                            <div style="display:flex;align-items:center;">
+                                <div style="width:4px;height:16px;background:${primaryColor};border-radius:2px;margin-right:8px;"></div>
+                                <div style="font-size:16px;font-weight:600;color:${textColor};">好友列表</div>
+                            </div>
+                            <div style="font-size:12px;color:${textSecColor};margin-top:8px;">${this.escapeHtml(charName)} 的好友视角（客观关系 + 主观视角）</div>
+                        </div>
+                        <div style="max-height:320px;overflow-y:auto;padding-bottom:12px;" class="hide-scrollbar">
+                            ${relationshipHtml}
+                        </div>
+                    </div>
+
+                    <!-- 操作区域 -->
+                    <div style="display:flex;gap:12px;">
                         <div onclick="window.WeChat.App.generateMomentForChar('${this.escapeQuote(charId)}')"
-                             style="background:#576b95;color:white;text-align:center;padding:12px;border-radius:8px;font-size:15px;cursor:pointer;margin-bottom:8px;">
-                            立即让 ${this.escapeHtml(charName)} 发一条朋友圈
+                             style="flex:1;background:${pageBg};color:${primaryColor};border:1px solid ${primaryColor};text-align:center;padding:16px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                            立即分享
                         </div>
-                        <div style="font-size:12px;color:var(--wx-text-sec);">
-                            AI将根据角色当前状态和人设自动生成朋友圈内容
+                        
+                        <div onclick="window.WeChat.App.saveMomentsSettings('${this.escapeQuote(charId)}')"
+                             style="flex:1.5;background:${primaryColor};color:#FFFFFF;text-align:center;padding:16px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 6px 16px rgba(139,115,85,0.3);">
+                            保存偏好
                         </div>
                     </div>
-
-                    <!-- 保存按钮 -->
-                    <div onclick="window.WeChat.App.saveMomentsSettings('${this.escapeQuote(charId)}')"
-                         style="background-color:#07c160;color:white;text-align:center;padding:14px;border-radius:12px;font-size:17px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(7,193,96,0.3);">
-                        保存设置
-                    </div>
+                    <div style="height:40px;"></div>
                 </div>
             </div>
         `;
