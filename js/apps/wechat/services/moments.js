@@ -546,18 +546,18 @@ ${recentContents || '(暂无)'}
 1. **去用户中心化 (关键)**: 你的朋友圈是为了记录 **你自己的生活**。90% 的内容应关于你的工作吐槽、专业心得、兴趣爱好（运动/阅读/美食）、此时此刻的所在地或神态。只有你在恋爱脑或发生重大互动后，才可能发关于对方的内容。
 2. **内容类型多样化**: 随机从以下类型中选择（需符合当下场景和人设）:
    - **文字型**: 纯感慨、段子或吐槽。
-   - **图文型**: 必须包含 \`images\` 数组。
+   - **图文型**: 必须包含 \`images\` 数组，图片数量为 1-9 张。
    - **音乐分享**: 形式如 "分享歌曲: [歌名]"，并配上你的听后感。
    - **链接/文章**: 比如同事转发行业动态，八卦角色转发娱乐新闻。
    - **地点签到**: \`location\` 字段记录你当下的具体场景。
-3. **图文比例控制**: 约有 50% 的概率不带任何图片。
+3. **图文比例控制**: 约有 30% 的概率不带任何图片，约 30% 的概率带 1 张图片，约 40% 的概率带 2-9 张图片。
 4. **现实分寸**: 克制性格的角色绝不会公开宣泄负面情绪或产生争执。
 
 ## 输出格式（JSON）
 {
   "type": "text / images / music / link",
   "content": "朋友圈文字内容",
-  "images": ["图片描述1", ...],
+  "images": ["图片描述1", "图片描述2", ...], // 强烈建议发布 1, 3, 4, 6 或 9 张图片以获得最佳展示效果
   "location": "可选：当前具体位置",
   "visibility": "all / private / partial"
 }
@@ -644,6 +644,9 @@ ${recentContents || '(暂无)'}
 
         info.reactorView = (reactorRelation + ' ' + reactorAttitude).trim();
         info.posterView = (posterRelation + ' ' + posterAttitude).trim();
+
+        // [Bug Fix] 使用正确的内部属性名供 Prompt 使用
+        info.viewAToB = info.reactorView;
 
         // 只用 reactor 自己的视角来判定互动意愿
         const myView = (reactorRelation + reactorAttitude).toLowerCase();
@@ -1197,8 +1200,20 @@ ${allComments}
 
         if (seconds < 60) return '刚刚';
         if (minutes < 60) return `${minutes}分钟前`;
-        if (hours < 24) return `${hours}小时前`;
-        if (days === 1) return '昨天';
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thatDay = new Date(timestamp);
+        thatDay.setHours(0, 0, 0, 0);
+
+        if (today.getTime() === thatDay.getTime()) {
+            return `${hours}小时前`;
+        }
+
+        if (today.getTime() - thatDay.getTime() === 86400000) {
+            return '昨天';
+        }
+
         if (days < 7) return `${days}天前`;
 
         const date = new Date(timestamp);

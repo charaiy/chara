@@ -210,7 +210,7 @@ window.WeChat.App = {
         const navStyle = `
             height: var(--wx-nav-height); padding-top: var(--wx-status-bar-height); position: absolute; top: 0; left: 0; width: 100%;
             z-index: 9999; display: flex; align-items: center; justify-content: center;
-            border-bottom: none; box-sizing: border-box; transition: background-color 0.2s;
+            border-bottom: none; box-sizing: border-box; transition: background-color 0.1s, color 0.1s;
             ${bgOverride}
         `;
 
@@ -321,8 +321,8 @@ window.WeChat.App = {
                 </div>
             </div>
         `;
-        // 朋友圈页面导航栏使用白色文字（深色封面背景）
-        const navTextColor = isMomentsPage ? 'color: #fff !important;' : '';
+        // 朋友圈页面初始使用白色文字
+        const navTextColor = isMomentsPage ? 'color: #fff;' : '';
 
         return `
             <div class="wx-navbar-override" style="${navStyle} ${navTextColor}" onclick="if(event.target === this) window.WeChat.App.closeAddFriendMenu()">
@@ -511,6 +511,36 @@ window.WeChat.App = {
                 const newMomentsProfileEl = document.getElementById('wx-view-moments-profile');
                 if (newMomentsEl) newMomentsEl.scrollTop = momentsScrollTop;
                 if (newMomentsProfileEl) newMomentsProfileEl.scrollTop = momentsScrollTop;
+            }
+
+            // [Moments Scroll Listener]
+            if (isMomentsPage) {
+                setTimeout(() => {
+                    const el = document.getElementById(State.currentTab === 'moments' ? 'wx-view-moments' : 'wx-view-moments-profile');
+                    if (el) {
+                        el.onscroll = () => {
+                            const navbar = document.querySelector('.wx-navbar-override');
+                            const title = document.getElementById('wx-nav-title');
+                            const alpha = Math.min(1, el.scrollTop / 200);
+                            const isDark = !document.getElementById('os-root').classList.contains('light-mode');
+
+                            if (navbar) {
+                                const bgRgb = isDark ? '17, 17, 17' : '237, 237, 237';
+                                const textColor = isDark ? '#fff' : (alpha > 0.6 ? '#000' : '#fff');
+
+                                navbar.style.setProperty('background-color', `rgba(${bgRgb}, ${alpha})`, 'important');
+                                navbar.style.setProperty('border-bottom', alpha > 0.9 ? (isDark ? '0.5px solid #282828' : '0.5px solid #ddd') : 'none', 'important');
+                                navbar.style.setProperty('color', textColor, 'important');
+                                if (title) {
+                                    title.innerText = alpha > 0.8 ? '朋友圈' : '';
+                                    title.style.fontWeight = '600';
+                                }
+                            }
+                        };
+                        // 初始触发一次
+                        el.onscroll();
+                    }
+                }, 50);
             }
 
             // 2. Chat Session Scroll
@@ -2505,8 +2535,9 @@ window.WeChat.App = {
 
         // 触发角色互动（包括对用户评论的即时反应）
         setTimeout(() => {
-            if (M && M._triggerReactions) {
-                M._triggerReactions(post);
+            const freshPost = M.getPost(postId);
+            if (M && M._triggerReactions && freshPost) {
+                M._triggerReactions(freshPost);
             }
         }, 3000 + Math.random() * 5000);
     },
@@ -2772,14 +2803,26 @@ window.WeChat.App = {
         if (!post || !post.images[imageIndex]) return;
 
         const img = post.images[imageIndex];
-        if (img.startsWith('data:') || img.startsWith('http') || img.startsWith('blob:')) {
-            // 简单图片预览
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
-            overlay.innerHTML = `<img src="${img}" style="max-width:95%;max-height:95%;object-fit:contain;border-radius:4px;">`;
-            overlay.onclick = () => overlay.remove();
-            document.body.appendChild(overlay);
+        const overlay = document.createElement('div');
+        overlay.className = 'moments-preview-modal';
+
+        const isUrl = img.startsWith('data:') || img.startsWith('http') || img.startsWith('blob:') || img.startsWith('/');
+        if (isUrl) {
+            overlay.innerHTML = `<img class="moments-preview-content" src="${img}">`;
+        } else {
+            // 文字占位图预览：字号放大
+            overlay.innerHTML = `<div class="moments-preview-text">${this.escapeHtml(img)}</div>`;
         }
+
+        overlay.onclick = () => overlay.remove();
+        document.body.appendChild(overlay);
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     },
 
 };

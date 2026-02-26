@@ -49,9 +49,6 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                 <div class="moments-cover-section">
                     <div class="moments-cover-bg" 
                          style="${userCover ? `background-image:url(${userCover})` : ''}">
-                        <div class="moments-cover-clickable-center" onclick="window.WeChat.App.changeMomentsCover('USER_SELF')">
-                            ${!userCover ? '点击更换封面' : ''}
-                        </div>
                     </div>
                     <div class="moments-cover-user">
                         <span class="moments-cover-name">${this.escapeHtml(userNickname)}</span>
@@ -114,20 +111,22 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         let imagesHtml = '';
         if (post.images && post.images.length > 0) {
             const imgCount = post.images.length;
-            const gridClass = imgCount === 1 ? 'single' : (imgCount <= 4 ? 'grid-2' : 'grid-3');
+            let gridClass = 'grid-3';
+            if (imgCount === 1) gridClass = 'single';
+            else if (imgCount === 2) gridClass = 'grid-2';
+            else if (imgCount === 4) gridClass = 'grid-2-4';
+
             imagesHtml = `
                 <div class="moments-images ${gridClass}">
                     ${post.images.map((img, i) => {
                 const isUrl = img.startsWith('data:') || img.startsWith('http') || img.startsWith('blob:') || img.startsWith('/');
-                if (isUrl) {
-                    return `<div class="moments-img-item" onclick="window.WeChat.App.previewMomentImage('${post.id}', ${i})">
-                                <img src="${img}" alt="" />
-                            </div>`;
-                } else {
-                    return `<div class="moments-img-item moments-img-placeholder" title="${this.escapeHtml(img)}">
-                                <div class="moments-img-desc">${this.escapeHtml(img.substring(0, 30))}</div>
-                            </div>`;
-                }
+                const inner = isUrl
+                    ? `<img src="${img}" alt="" />`
+                    : `<div class="moments-img-placeholder-text">${this.escapeHtml(img)}</div>`;
+
+                return `<div class="moments-img-item" onclick="window.WeChat.App.previewMomentImage('${post.id}', ${i})">
+                            ${inner}
+                        </div>`;
             }).join('')}
                 </div>
             `;
@@ -167,26 +166,25 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                     <div class="moments-post-footer">
                         <div class="moments-post-meta">
                             <span class="moments-post-time">${timeStr}</span>
+                            ${isMe ? `<span class="moments-delete-link" onclick="window.WeChat.App.deleteMoment('${post.id}')">删除</span>` : ''}
                             ${locationStr}
                         </div>
                         <div class="moments-action-btn" onclick="event.stopPropagation();window.WeChat.App.toggleMomentsActionMenu('${post.id}')">
-                            <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="3" width="22" height="12" rx="3" fill="var(--wx-text-sec)" opacity="0.12"/><circle cx="7.5" cy="9" r="1.3" fill="var(--wx-text-sec)" opacity="0.4"/><circle cx="14.5" cy="9" r="1.3" fill="var(--wx-text-sec)" opacity="0.4"/></svg>
+                            <div class="moments-action-dots"></div>
                         </div>
                     </div>
 
                     <!-- 操作菜单 -->
                     <div class="moments-action-menu" id="moments-menu-${post.id}" style="display:none;">
                         <div class="moments-action-item" onclick="window.WeChat.App.toggleMomentLike('${post.id}')">
-                            ${post.likes.includes('USER_SELF') ? '\u2764\uFE0F 取消' : '\uD83E\uDD0D 赞'}
+                            <span class="moments-icon-heart-white"></span>
+                            <span class="moments-action-text">${post.likes.includes('USER_SELF') ? '取消' : '赞'}</span>
                         </div>
                         <div class="moments-action-divider-v"></div>
                         <div class="moments-action-item" onclick="window.WeChat.App.startMomentComment('${post.id}')">
-                            \uD83D\uDCAC 评论
+                            <span class="moments-icon-comment-white"></span>
+                            <span class="moments-action-text">评论</span>
                         </div>
-                        ${isMe ? `<div class="moments-action-divider-v"></div>
-                        <div class="moments-action-item" onclick="window.WeChat.App.deleteMoment('${post.id}')">
-                            \uD83D\uDDD1\uFE0F 删除
-                        </div>` : ''}
                     </div>
 
                     ${interactionsHtml}
@@ -199,15 +197,21 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
      * 渲染点赞列表
      */
     _renderMomentLikes(post) {
-        if (post.likes.length === 0) return '';
         const M = window.WeChat.Services.Moments;
-        const names = post.likes.map(id => {
+        // 过滤只有共同好友可见的点赞
+        const visibleLikes = post.likes.filter(id => M._isFriend('USER_SELF', id));
+        if (visibleLikes.length === 0) return '';
+
+        const hasLiked = visibleLikes.includes('USER_SELF');
+        const iconClass = hasLiked ? 'moments-likes-icon-filled' : 'moments-likes-icon-outline';
+
+        const names = visibleLikes.map(id => {
             const name = M.getAuthorName(id);
             return `<span class="moments-like-name" onclick="window.WeChat.App.openMomentsProfile('${this.escapeQuote(id)}')">${this.escapeHtml(name)}</span>`;
-        }).join('\uFF0C');
+        }).join('，');
 
         return `<div class="moments-likes-row">
-            <span class="moments-likes-icon">♡</span>
+            <span class="${iconClass}"></span>
             <span class="moments-likes-names">${names}</span>
         </div>`;
     },
@@ -216,19 +220,24 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
      * 渲染评论列表
      */
     _renderMomentComments(post) {
-        if (post.comments.length === 0) return '';
         const M = window.WeChat.Services.Moments;
+        // 过滤只有共同好友可见的评论
+        const visibleComments = post.comments.filter(cmt => M._isFriend('USER_SELF', cmt.authorId));
+        if (visibleComments.length === 0) return '';
 
-        const items = post.comments.map(cmt => {
+        const items = visibleComments.map(cmt => {
             const authorName = M.getAuthorName(cmt.authorId);
             let replyPart = '';
             if (cmt.replyToAuthorId) {
-                const replyToName = M.getAuthorName(cmt.replyToAuthorId);
-                replyPart = `<span class="moments-cmt-reply">\u56DE\u590D</span><span class="moments-cmt-name" onclick="event.stopPropagation();window.WeChat.App.openMomentsProfile('${this.escapeQuote(cmt.replyToAuthorId)}')">${this.escapeHtml(replyToName)}</span>`;
+                // 如果回复的人也是我的好友才可见回复提示
+                if (M._isFriend('USER_SELF', cmt.replyToAuthorId)) {
+                    const replyToName = M.getAuthorName(cmt.replyToAuthorId);
+                    replyPart = `<span class="moments-cmt-reply">回复</span><span class="moments-cmt-name" onclick="event.stopPropagation();window.WeChat.App.openMomentsProfile('${this.escapeQuote(cmt.replyToAuthorId)}')">${this.escapeHtml(replyToName)}</span>`;
+                }
             }
 
             return `<div class="moments-comment-item" onclick="window.WeChat.App.startMomentReply('${post.id}', '${cmt.id}', '${this.escapeQuote(cmt.authorId)}')">
-                <span class="moments-cmt-name" onclick="event.stopPropagation();window.WeChat.App.openMomentsProfile('${this.escapeQuote(cmt.authorId)}')">${this.escapeHtml(authorName)}</span>${replyPart}\uFF1A<span class="moments-cmt-content">${this.escapeHtml(cmt.content)}</span>
+                <span class="moments-cmt-name" onclick="event.stopPropagation();window.WeChat.App.openMomentsProfile('${this.escapeQuote(cmt.authorId)}')">${this.escapeHtml(authorName)}</span>${replyPart}：<span class="moments-cmt-content">${this.escapeHtml(cmt.content)}</span>
             </div>`;
         }).join('');
 
@@ -244,6 +253,18 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
         safe = safe.replace(/\n/g, '<br>');
         safe = safe.replace(/#([^#]+)#/g, '<span class="moments-hashtag">#$1#</span>');
         return safe;
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
+    escapeQuote(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'");
     },
 
     // ==========================================
@@ -550,30 +571,30 @@ window.WeChat.Views = Object.assign(window.WeChat.Views || {}, {
                         </div>
                     </div>
 
-                    <!-- 提醒谁看 -->
-                    <div class="moments-compose-cell">
-                        <div class="moments-compose-cell-left">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--wx-text-sec)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
-                            </svg>
-                            <span>\u63d0\u9192\u8c01\u770b</span>
-                        </div>
-                        <div class="moments-compose-cell-right">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 19l6.5-7L9 5" stroke="#B2B2B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-                    </div>
-
                     <!-- 谁可以看（点击切换） -->
                     <div class="moments-compose-cell" onclick="window.WeChat.App.cycleVisibility()">
                         <div class="moments-compose-cell-left">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--wx-text-sec)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                             </svg>
-                            <span>\u8c01\u53ef\u4ee5\u770b</span>
+                            <span>谁可以看</span>
                         </div>
                         <div class="moments-compose-cell-right">
-                            <input type="hidden" id="wx-moments-compose-visibility" value="\u516c\u5f00" />
-                            <span id="wx-moments-visibility-label" style="color:var(--wx-text);font-size:14px;">\u516c\u5f00</span>
+                            <input type="hidden" id="wx-moments-compose-visibility" value="公开" />
+                            <span id="wx-moments-visibility-label" style="color:var(--wx-text);font-size:14px;">公开</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 19l6.5-7L9 5" stroke="#B2B2B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- 提醒谁看 -->
+                    <div class="moments-compose-cell">
+                        <div class="moments-compose-cell-left">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--wx-text-sec)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                            </svg>
+                            <span>提醒谁看</span>
+                        </div>
+                        <div class="moments-compose-cell-right">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 19l6.5-7L9 5" stroke="#B2B2B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
                     </div>
